@@ -1,36 +1,24 @@
 //! Dendrite Core Library
-//! 
+//!
 //! Core logic library containing Parser, Graph, Trie, etc.
 //! No IO dependencies, pure logic only.
+//!
 
-/// Note structure
-#[derive(Debug, Clone)]
-pub struct Note {
-    // TODO: Implement Note structure
-}
+pub mod workspace;
+pub mod store;
+pub mod model;
+mod config;
+mod graph;
+mod trie;
+mod strategy;
 
-/// Graph structure
-#[derive(Debug)]
-pub struct Graph {
-    // TODO: Implement Graph structure
-}
+use std::path::Path;
 
-/// HierarchyResolver trait
-pub trait HierarchyResolver {
-    // TODO: Define trait methods
-}
-
-/// DendronStrategy
-pub struct DendronStrategy {
-    // TODO: Implement strategy
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_note_creation() {
-        // TODO: Add tests
+pub fn normalize_path_to_id(path: &Path) -> String {
+    let mut s = path.to_string_lossy().to_string();
+    if std::path::MAIN_SEPARATOR == '\\' {
+        s = s.replace('\\', "/");
     }
+    s.trim_end_matches(".md").to_string();
+    s
 }
