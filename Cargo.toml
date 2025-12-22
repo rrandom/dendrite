@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "crates/dendrite-core",
+    "crates/dendrite-lsp",
+    "crates/dendrite-bin",
+]
+resolver = "2"
+

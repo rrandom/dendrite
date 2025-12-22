@@ -1,0 +1,12 @@
+{
+  "name": "dendrite",
+  "private": true,
+  "scripts": {
+    "build:server": "cargo build --release",
+    "build:ext": "pnpm -C clients/vscode compile",
+    "dev:ext": "pnpm -C clients/vscode watch",
+    "setup": "sh scripts/build_server.sh",
+    "setup:win": "powershell -ExecutionPolicy Bypass -File scripts/build_server.ps1"
+  }
+}
+
