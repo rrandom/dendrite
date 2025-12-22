@@ -56,7 +56,7 @@ pub struct Note {
     /// 所有的链接 (Outlinks)
     pub links: Vec<Link>,
 
-    /// 所有的标题 (大纲结构) - **这就是你提到的字段**
+    /// 所有的标题 (大纲结构)
     pub headings: Vec<Heading>,
 }
 /// Link entity
