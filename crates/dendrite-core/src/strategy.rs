@@ -28,8 +28,9 @@ impl HierarchyResolver for BasicResolver {
         note.id.clone()
     }
     
-    fn resolve_id(&self, _root: &std::path::Path, _path: &std::path::Path) -> Option<NoteId> {
-        None
+    fn resolve_id(&self, _root: &std::path::Path, path: &std::path::Path) -> Option<NoteId> {
+        // Basic implementation: use normalize_path_to_id
+        Some(crate::normalize_path_to_id(path))
     }
 }
 

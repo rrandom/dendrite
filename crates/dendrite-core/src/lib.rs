@@ -7,10 +7,10 @@
 pub mod workspace;
 pub mod store;
 pub mod model;
+pub mod parser;
 mod config;
-mod graph;
-mod trie;
 mod strategy;
+mod line_map;
 
 use std::path::Path;
 

@@ -2,17 +2,17 @@
 //!
 //! LSP protocol layer, converts JSON-RPC requests to Core library calls.
 
+use std::path::PathBuf;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LspService};
-use std::path::PathBuf;
 use url::Url;
 
 use crate::state::GlobalState;
 
-mod handlers;
-mod state;
 mod conversion;
+mod handlers;
 mod protocol;
+mod state;
 /// LSP backend implementation
 pub struct Backend {
     client: Client,
@@ -30,31 +30,110 @@ impl Backend {
 
 #[tower_lsp::async_trait]
 impl tower_lsp::LanguageServer for Backend {
-    async fn initialize(&self, params: InitializeParams) -> tower_lsp::jsonrpc::Result<InitializeResult> {
+    async fn initialize(
+        &self,
+        params: InitializeParams,
+    ) -> tower_lsp::jsonrpc::Result<InitializeResult> {
         let root_uri = params.root_uri;
 
         if let Some(uri) = root_uri {
             if let Ok(root_path) = uri.to_file_path() {
-                self.client.log_message(MessageType::INFO, format!("Initializing workspace at: {:?}", root_path)).await;
+                self.client
+                    .log_message(
+                        MessageType::INFO,
+                        format!("Initializing workspace at: {:?}", root_path),
+                    )
+                    .await;
 
                 let mut ws = dendrite_core::workspace::Workspace::new(root_path);
                 let files = ws.scan();
-                
-                self.client.log_message(MessageType::INFO, format!("Found {} markdown files:", files.len())).await;
+
+                self.client
+                    .log_message(
+                        MessageType::INFO,
+                        format!("Found {} markdown files:", files.len()),
+                    )
+                    .await;
                 for file in &files {
-                    self.client.log_message(MessageType::INFO, format!(" - {:?}", file)).await;
+                    self.client
+                        .log_message(MessageType::INFO, format!(" - {:?}", file))
+                        .await;
+                }
+
+                // Display parsed content from store
+                let store = &ws.store;
+                let notes_count = store.notes.len();
+                self.client
+                    .log_message(
+                        MessageType::INFO,
+                        format!("Parsed {} notes from workspace", notes_count),
+                    )
+                    .await;
+
+                // Display each note's parsed content
+                for (note_id, note) in &store.notes {
+                    self.client
+                        .log_message(
+                            MessageType::INFO,
+                            format!("Note: {} (title: {:?})", note_id, note.title),
+                        )
+                        .await;
+                    
+                    if !note.headings.is_empty() {
+                        self.client
+                            .log_message(
+                                MessageType::INFO,
+                                format!("  Headings ({}):", note.headings.len()),
+                            )
+                            .await;
+                        for heading in &note.headings {
+                            self.client
+                                .log_message(
+                                    MessageType::INFO,
+                                    format!("    H{}: {}", heading.level, heading.text),
+                                )
+                                .await;
+                        }
+                    }
+                    
+                    if !note.links.is_empty() {
+                        self.client
+                            .log_message(
+                                MessageType::INFO,
+                                format!("  Links ({}):", note.links.len()),
+                            )
+                            .await;
+                        for link in &note.links {
+                            self.client
+                                .log_message(
+                                    MessageType::INFO,
+                                    format!("    -> {}", link.target_note_id),
+                                )
+                                .await;
+                        }
+                    }
+                    
+                    if note.frontmatter.is_some() {
+                        self.client
+                            .log_message(MessageType::INFO, "  Has frontmatter")
+                            .await;
+                    }
                 }
 
                 let mut workspace = self.state.workspace.write().await;
                 *workspace = Some(ws);
             }
         } else {
-            self.client.log_message(MessageType::WARNING, "No rootUri provided!").await;
+            self.client
+                .log_message(MessageType::WARNING, "No rootUri provided!")
+                .await;
         }
 
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
+                text_document_sync: Some(TextDocumentSyncCapability::Kind(
+                    TextDocumentSyncKind::FULL,
+                )),
                 ..Default::default()
             },
             ..Default::default()
@@ -68,6 +147,38 @@ impl tower_lsp::LanguageServer for Backend {
     async fn shutdown(&self) -> tower_lsp::jsonrpc::Result<()> {
         eprintln!("🛑 Shutdown requested");
         Ok(())
+    }
+
+    async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
+        let mut state = self.state.workspace.write().await;
+        if let Some(ws) = &mut *state {
+            for change in params.changes {
+                // 将 URI 转为绝对路径
+                if let Ok(path) = change.uri.to_file_path() {
+                    match change.typ {
+                        // 创建 (Created)
+                        FileChangeType::CREATED => {
+                            // 读取磁盘内容
+                            if let Ok(content) = std::fs::read_to_string(&path) {
+                                ws.update_file(&path, &content);
+                            }
+                        }
+                        // 修改 (Changed)
+                        FileChangeType::CHANGED => {
+                            // 读取磁盘内容
+                            if let Ok(content) = std::fs::read_to_string(&path) {
+                                ws.update_file(&path, &content);
+                            }
+                        }
+                        // 删除 (Deleted)
+                        FileChangeType::DELETED => {
+                            ws.delete_file(&path);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
     }
 }
 

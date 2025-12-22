@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
 use serde_json;
 
 /// Core identity identifier (e.g., "foo.bar")
@@ -9,50 +10,66 @@ pub type LinkId = String;
 
 /// Core internal coordinate system (0-based)
 /// Does not directly use LSP Position to avoid coupling
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Point {
     pub line: usize,
     pub col: usize,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct TextRange {
     pub start: Point,
     pub end: Point,
 }
 
-/// Note entity
-#[derive(Debug, Clone)]
-pub struct Note {
-    /// Stable ID (e.g. "foo.bar")
-    pub id: NoteId,
-
-    /// Corresponding filesystem path
-    /// None if this is a "Ghost Node" (virtual node)
-    pub path: Option<PathBuf>,
-
-    /// Note title (extracted from Frontmatter title or first h1)
-    pub title: Option<String>,
-
-    /// Raw Frontmatter data (opaque storage)
-    pub frontmatter: Option<serde_json::Value>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Heading {
+    /// 标题层级 (1-6)
+    pub level: u8,
+    
+    /// 标题文本 (e.g. "Project Ideas")
+    /// 去除了 # 号和空格
+    pub text: String,
+    
+    /// 标题在文件中的位置范围
+    pub range: TextRange,
+    
+    // 未来 V1 可能需要：
+    // pub parent_heading: Option<usize>, // 用于构建树状大纲
 }
 
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Note {
+    /// 唯一标识 (e.g. "foo.bar")
+    pub id: NoteId,
+
+    /// 文件路径 (绝对路径)
+    pub path: Option<PathBuf>,
+
+    /// 标题 (优先来自 Frontmatter，其次是 H1，最后是文件名)
+    pub title: Option<String>,
+
+    /// 元数据 (JSON Value)
+    pub frontmatter: Option<serde_json::Value>,
+
+    /// 所有的链接 (Outlinks)
+    pub links: Vec<Link>,
+
+    /// 所有的标题 (大纲结构) - **这就是你提到的字段**
+    pub headings: Vec<Heading>,
+}
 /// Link entity
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Link {
     pub source_note_id: NoteId,
     pub target_note_id: NoteId,
-    
-    /// Link position in source file (for Refactor positioning)
     pub range: TextRange,
-    
-    /// Link type: WikiLink, MarkdownLink, etc.
     pub kind: LinkKind,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum LinkKind {
-    WikiLink,     // [[foo]]
-    MarkdownLink, // [foo](foo.md)
+    WikiLink,     // [[target]]
+    MarkdownLink, // [label](target)
 }
