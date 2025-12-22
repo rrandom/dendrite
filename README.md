@@ -1,6 +1,8 @@
 # Dendrite
 
-Dendrite is a Markdown Based Peronsal Knowledge Server.
+Dendrite is a Markdown Based Personal Knowledge Server.
+
+> **Note**: Dendrite is inspired by [Dendron](https://www.dendron.so/), but designed as an editor-agnostic semantic engine that can be used by multiple clients (VS Code, CLI, Web, Desktop, etc.).
 
 ## Prerequisites
 
