@@ -43,12 +43,12 @@ export function activate(context: ExtensionContext) {
         synchronize: {
             fileEvents: workspace.createFileSystemWatcher('**/.clientrc')
         },
-        outputChannelName: 'Dendrite Language Server'
+        outputChannelName: 'Dendrite Server'
     };
 
     client = new LanguageClient(
-        'dendriteLanguageServer',
-        'Dendrite Language Server',
+        'dendriteServer',
+        'Dendrite Server',
         serverOptions,
         clientOptions
     );

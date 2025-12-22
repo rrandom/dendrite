@@ -2,10 +2,10 @@
 # 1. Build Rust
 cargo build
 
-# 2. Create server directory
+# 3. Create server directory
 mkdir -p clients/vscode/server
 
-# 3. Copy binary file (adjust extension based on OS)
+# 4. Copy binary file (adjust extension based on OS)
 if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
     cp target/debug/dendrite-bin.exe clients/vscode/server/dendrite-server.exe
 else

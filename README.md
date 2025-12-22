@@ -24,28 +24,25 @@ pnpm install
 
 ### Build
 
-```bash
-# Build Rust server
-cargo build
-
-# Build VS Code extension
-cd clients/vscode
-npm run compile
-cd ../..
-
-# Copy binary to extension directory
-# Windows PowerShell
-.\scripts\build_server.ps1
-
-# Linux/Mac
-bash scripts/build_server.sh
-```
-
-### Run in VS Code
-
+**Development (VS Code):**
 1. Open the project in VS Code
 2. Press `F5` to launch Extension Development Host
 3. The extension will automatically build before launching
+
+**Manual Build:**
+```bash
+# Build Rust server (debug mode)
+cargo build
+
+# Build VS Code extension
+pnpm -C clients/vscode compile
+```
+
+**Release Build:**
+```bash
+# Sync version, build server (release), and build extension
+npm run release
+```
 
 ## Project Structure
 

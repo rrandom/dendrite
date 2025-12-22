@@ -17,17 +17,32 @@ impl Backend {
 
 #[tower_lsp::async_trait]
 impl tower_lsp::LanguageServer for Backend {
-    async fn initialize(&self, _: tower_lsp::lsp_types::InitializeParams) -> tower_lsp::jsonrpc::Result<tower_lsp::lsp_types::InitializeResult> {
-        // TODO: Implement initialization logic
-        Ok(tower_lsp::lsp_types::InitializeResult::default())
+    async fn initialize(&self, params: tower_lsp::lsp_types::InitializeParams) -> tower_lsp::jsonrpc::Result<tower_lsp::lsp_types::InitializeResult> {
+        // Parse rootUri from client
+        if let Some(ref root_uri) = params.root_uri {
+            eprintln!("📁 Workspace root: {}", root_uri);
+        } else {
+            eprintln!("⚠️  No workspace root provided");
+        }
+
+        // Return capabilities (empty for now, as per Week 3 goal)
+        let capabilities = tower_lsp::lsp_types::ServerCapabilities::default();
+        
+        Ok(tower_lsp::lsp_types::InitializeResult {
+            capabilities,
+            server_info: Some(tower_lsp::lsp_types::ServerInfo {
+                name: "Dendrite".to_string(),
+                version: Some(env!("CARGO_PKG_VERSION").to_string()),
+            }),
+        })
     }
 
     async fn initialized(&self, _: tower_lsp::lsp_types::InitializedParams) {
-        // TODO: Implement post-initialization logic
+        eprintln!("✅ Client initialized, ready to accept requests");
     }
 
     async fn shutdown(&self) -> tower_lsp::jsonrpc::Result<()> {
-        // TODO: Implement shutdown logic
+        eprintln!("🛑 Shutdown requested");
         Ok(())
     }
 }
