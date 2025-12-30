@@ -9,8 +9,9 @@ pub mod store;
 pub mod model;
 pub mod parser;
 mod config;
-mod strategy;
+pub mod hierarchy;
 mod line_map;
+pub mod identity;
 
 use std::path::Path;
 

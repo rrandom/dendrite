@@ -45,8 +45,8 @@ impl tower_lsp::LanguageServer for Backend {
                     )
                     .await;
 
-                let mut ws = dendrite_core::workspace::Workspace::new(root_path);
-                let files = ws.scan();
+                let mut ws = dendrite_core::workspace::Workspace::new(root_path, Box::new(dendrite_core::hierarchy::dendron::DendronStrategy), Box::new(dendrite_core::identity::DendriteIdentityRegistry));
+                let files = ws.initialize();
 
                 self.client
                     .log_message(
@@ -60,9 +60,7 @@ impl tower_lsp::LanguageServer for Backend {
                         .await;
                 }
 
-                // Display parsed content from store
-                let store = &ws.store;
-                let notes_count = store.notes.len();
+                let notes_count = ws.all_notes().len();
                 self.client
                     .log_message(
                         MessageType::INFO,
@@ -71,11 +69,11 @@ impl tower_lsp::LanguageServer for Backend {
                     .await;
 
                 // Display each note's parsed content
-                for (note_id, note) in &store.notes {
+                for note in ws.all_notes() {
                     self.client
                         .log_message(
                             MessageType::INFO,
-                            format!("Note: {} (title: {:?})", note_id, note.title),
+                            format!("Note: (title: {:?})", note.title),
                         )
                         .await;
                     
@@ -107,7 +105,7 @@ impl tower_lsp::LanguageServer for Backend {
                             self.client
                                 .log_message(
                                     MessageType::INFO,
-                                    format!("    -> {}", link.target_note_id),
+                                    format!("    -> {:?}", 11),
                                 )
                                 .await;
                         }
@@ -172,7 +170,7 @@ impl tower_lsp::LanguageServer for Backend {
                         }
                         // 删除 (Deleted)
                         FileChangeType::DELETED => {
-                            ws.delete_file(&path);
+                            ws.on_file_delete(path);
                         }
                         _ => {}
                     }

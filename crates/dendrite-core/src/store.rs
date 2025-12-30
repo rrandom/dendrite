@@ -1,26 +1,11 @@
-use crate::model::{Link, Note, NoteId};
+use crate::model::{Note, NoteId};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-/// Logical key, from Adapter
-type NoteKey = String;
-pub struct IdentityRegistry {
-    note_ids: HashMap<NoteKey, NoteId>,
-    paths: HashMap<PathBuf, NoteId>,
-}
-
-impl IdentityRegistry {
-    pub fn new() -> Self {
-        Self {
-            note_ids: HashMap::new(),
-            paths: HashMap::new(),
-        }
-    }
-}
-
+// In memory
 pub struct Store {
     pub notes: HashMap<NoteId, Note>,
-    pub identity: IdentityRegistry,
+    pub path_map: HashMap<PathBuf, NoteId>,
     pub backlinks: HashMap<NoteId, Vec<NoteId>>,
 }
 
@@ -28,59 +13,70 @@ impl Store {
     pub fn new() -> Self {
         Self {
             notes: HashMap::new(),
-            identity: IdentityRegistry::new(),
+            path_map: HashMap::new(),
             backlinks: HashMap::new(),
         }
-    }
-
-    pub fn find_children(&self, parent_id: &str) -> Vec<&Note> {
-        let prefix = format!("{}.", parent_id);
-        self.notes
-            .values()
-            .filter(|n| n.id.starts_with(&prefix) && !n.id[prefix.len()..].contains('.'))
-            .collect()
     }
 
     pub fn upsert_note(&mut self, note: Note) {
         let id = note.id.clone();
 
         if let Some(path) = &note.path {
-            self.identity.paths.insert(path.clone(), id.clone());
+            self.path_map.insert(path.clone(), id.clone());
         }
         self.notes.insert(id, note);
     }
 
-    pub fn remove_note(&mut self, note_id: &str) {
-        if let Some(note) = self.notes.remove(note_id) {
+    pub fn remove_note(&mut self, id: &NoteId) {
+        if let Some(note) = self.notes.remove(id) {
             if let Some(path) = &note.path {
-                self.identity.paths.remove(path);
+                self.path_map.remove(path);
             }
             // Remove from backlinks
-            self.backlinks.remove(note_id);
+            self.backlinks.remove(id);
             // Remove backlinks pointing to this note
             for backlinks in self.backlinks.values_mut() {
-                backlinks.retain(|id| id != note_id);
+                backlinks.retain(|id| id != id);
             }
         }
     }
 
-    pub fn get_note_id_by_path(&self, path: &PathBuf) -> Option<NoteId> {
-        self.identity.paths.get(path).cloned()
+    pub fn get_note(&self, id: &NoteId) -> Option<&Note> {
+        self.notes.get(id)
     }
 
-    pub fn update_backlinks(&mut self, source_id: &str, old_links: &[Link], new_links: &[Link]) {
-        // 1. 移除旧的
-        for link in old_links {
-            if let Some(refs) = self.backlinks.get_mut(&link.target_note_id) {
-                refs.retain(|id| id != source_id);
-            }
-        }
-        // 2. 添加新的
-        for link in new_links {
-            self.backlinks
-                .entry(link.target_note_id.clone())
-                .or_default()
-                .push(source_id.to_string());
-        }
+    pub fn get_note_mut(&mut self, id: &NoteId) -> Option<&mut Note> {
+        self.notes.get_mut(id)
+    }
+
+    pub fn bind_path(&mut self, path: PathBuf, id: NoteId) {
+        self.path_map.insert(path, id);
+    }
+
+    pub fn unbind_path(&mut self, path: &PathBuf) {
+        self.path_map.remove(path);
+    }
+
+
+    pub fn note_id_by_path(&self, path: &PathBuf) -> Option<&NoteId> {
+        self.path_map.get(path)
+    }
+
+    /// Replace all outgoing links of a note
+    pub fn set_outgoing_links(
+        &mut self,
+        source: &NoteId,
+        targets: Vec<NoteId>,
+    ) {
+        todo!()
+    }
+
+    /// Get backlinks (incoming edges)
+    pub fn backlinks_of(&self, id: &NoteId) -> Vec<NoteId> {
+        todo!();
+    }
+
+    pub fn all_notes(&self) -> impl Iterator<Item = &Note> {
+        self.notes.values()
     }
 }

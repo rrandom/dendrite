@@ -1,11 +1,16 @@
 // crates/dendrite-core/src/parser/markdown.rs
 
-use pulldown_cmark::{Event, LinkType, MetadataBlockKind, Options, Parser, Tag, TagEnd};
-use crate::model::{Link, LinkKind, Heading, TextRange, NoteId, Point};
 use super::line_map::LineMap;
+use crate::model::{Heading, Link, LinkKind, NoteId, Point, TextRange};
+use pulldown_cmark::{Event, LinkType, MetadataBlockKind, Options, Parser, Tag, TagEnd};
 
+struct DocLink {
+    pub target: String,
+    pub range: TextRange,
+    pub kind: LinkKind,
+}
 pub struct ParseResult {
-    pub links: Vec<Link>,
+    pub links: Vec<DocLink>,
     pub headings: Vec<Heading>,
     pub title: Option<String>,
     pub frontmatter: Option<serde_json::Value>,
@@ -18,9 +23,7 @@ pub fn parse_markdown(text: &str, current_note_id: &NoteId) -> ParseResult {
     options.insert(Options::ENABLE_FOOTNOTES);
     options.insert(Options::ENABLE_STRIKETHROUGH);
     options.insert(Options::ENABLE_TASKLISTS);
-    
-    // 关键升级：开启原生 WikiLink 和 Frontmatter 支持
-    options.insert(Options::ENABLE_WIKILINKS); 
+    options.insert(Options::ENABLE_WIKILINKS);
     options.insert(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
 
     let parser = Parser::new_ext(text, options);
@@ -31,15 +34,12 @@ pub fn parse_markdown(text: &str, current_note_id: &NoteId) -> ParseResult {
     let mut title = None;
     let mut frontmatter = None;
 
-    // 状态机变量
     let mut in_heading = false;
     let mut current_heading_level = 0;
     let mut pending_heading_text: Option<(String, Point)> = None; // (text, start_pos)
-    
-    // WikiLink 状态
-    let mut pending_wiki_link: Option<(NoteId, Point, bool)> = None; // (target, start_pos, is_wikilink)
 
-    // Frontmatter 状态
+    let mut pending_wiki_link: Option<(String, Point, bool)> = None; // (target, start_pos, is_wikilink)
+
     let mut in_frontmatter = false;
     let mut frontmatter_content = String::new();
 
@@ -61,7 +61,6 @@ pub fn parse_markdown(text: &str, current_note_id: &NoteId) -> ParseResult {
                 }
             }
 
-            // --- 处理标题 ---
             Event::Start(Tag::Heading { level, .. }) => {
                 in_heading = true;
                 current_heading_level = level as u8;
@@ -72,14 +71,17 @@ pub fn parse_markdown(text: &str, current_note_id: &NoteId) -> ParseResult {
                 if let Some((heading_text, start_point)) = pending_heading_text.take() {
                     let end_point = line_map.offset_to_point(range.end);
                     let trimmed_text = heading_text.trim().to_string();
-                    
+
                     if !trimmed_text.is_empty() {
                         headings.push(Heading {
                             level: current_heading_level,
                             text: trimmed_text.clone(),
-                            range: TextRange { start: start_point, end: end_point },
+                            range: TextRange {
+                                start: start_point,
+                                end: end_point,
+                            },
                         });
-                        
+
                         if current_heading_level == 1 && title.is_none() {
                             title = Some(trimmed_text);
                         }
@@ -90,7 +92,11 @@ pub fn parse_markdown(text: &str, current_note_id: &NoteId) -> ParseResult {
 
             // --- 处理 WikiLink (原生支持!) ---
             // dest_url 就是 [[target]] 里的 target
-            Event::Start(Tag::Link { link_type, dest_url, .. }) => {
+            Event::Start(Tag::Link {
+                link_type,
+                dest_url,
+                ..
+            }) => {
                 let is_wikilink = matches!(link_type, LinkType::WikiLink { .. });
                 if is_wikilink {
                     // 记录开始位置和目标
@@ -103,11 +109,13 @@ pub fn parse_markdown(text: &str, current_note_id: &NoteId) -> ParseResult {
                 if let Some((target, start_point, is_wikilink)) = pending_wiki_link.take() {
                     if is_wikilink {
                         let end_point = line_map.offset_to_point(range.end);
-                        
-                        links.push(Link {
-                            source_note_id: current_note_id.clone(),
-                            target_note_id: target,
-                            range: TextRange { start: start_point, end: end_point },
+
+                        links.push(DocLink {
+                            target,
+                            range: TextRange {
+                                start: start_point,
+                                end: end_point,
+                            },
                             kind: LinkKind::WikiLink,
                         });
                     }
@@ -136,5 +144,10 @@ pub fn parse_markdown(text: &str, current_note_id: &NoteId) -> ParseResult {
         }
     }
 
-    ParseResult { links, headings, title, frontmatter }
+    ParseResult {
+        links,
+        headings,
+        title,
+        frontmatter,
+    }
 }
