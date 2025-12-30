@@ -109,7 +109,7 @@ impl tower_lsp::LanguageServer for Backend {
                             .await;
                         for link in &note.links {
                             self.client
-                                .log_message(MessageType::INFO, format!("    -> {:?}", 11))
+                                .log_message(MessageType::INFO, format!("    -> Link (kind: {:?})", link.kind))
                                 .await;
                         }
                     }
@@ -154,24 +154,18 @@ impl tower_lsp::LanguageServer for Backend {
         let mut state = self.state.workspace.write().await;
         if let Some(ws) = &mut *state {
             for change in params.changes {
-                // 将 URI 转为绝对路径
                 if let Ok(path) = change.uri.to_file_path() {
                     match change.typ {
-                        // 创建 (Created)
                         FileChangeType::CREATED => {
-                            // 读取磁盘内容
                             if let Ok(content) = std::fs::read_to_string(&path) {
                                 ws.update_file(&path, &content);
                             }
                         }
-                        // 修改 (Changed)
                         FileChangeType::CHANGED => {
-                            // 读取磁盘内容
                             if let Ok(content) = std::fs::read_to_string(&path) {
                                 ws.update_file(&path, &content);
                             }
                         }
-                        // 删除 (Deleted)
                         FileChangeType::DELETED => {
                             ws.on_file_delete(path);
                         }

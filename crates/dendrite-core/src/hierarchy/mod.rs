@@ -27,9 +27,19 @@ impl HierarchyResolver for DendronStrategy {
         let note_key = normalize_path_to_id(path);
         note_key
     }
-    fn note_key_from_link(&self, _: &NoteKey, raw: &str) -> NoteKey {
-        let link_key = normalize_path_to_id(&Path::new(raw));
-        link_key
+    fn note_key_from_link(&self, source: &NoteKey, raw: &str) -> NoteKey {
+        let link_path = Path::new(raw);
+        if link_path.is_absolute() || raw.contains('/') || raw.contains('\\') {
+            normalize_path_to_id(link_path)
+        } else {
+            let source_path = Path::new(source);
+            if let Some(parent) = source_path.parent() {
+                let resolved_path = parent.join(raw);
+                normalize_path_to_id(&resolved_path)
+            } else {
+                normalize_path_to_id(link_path)
+            }
+        }
     }
     fn resolve_display_name(&self, note: &crate::model::Note) -> String {
         note.title.clone().unwrap_or_default()

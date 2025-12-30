@@ -1,5 +1,3 @@
-// crates/dendrite-core/src/parser/markdown.rs
-
 use super::line_map::LineMap;
 use crate::model::{Heading, LinkKind, Point, TextRange};
 use pulldown_cmark::{Event, LinkType, MetadataBlockKind, Options, Parser, Tag, TagEnd};
@@ -9,6 +7,7 @@ pub(crate) struct DocLink {
     pub range: TextRange,
     pub kind: LinkKind,
 }
+
 pub(crate) struct ParseResult {
     pub links: Vec<DocLink>,
     pub headings: Vec<Heading>,
@@ -17,7 +16,6 @@ pub(crate) struct ParseResult {
 }
 
 pub(crate) fn parse_markdown(text: &str) -> ParseResult {
-    // 1. 配置 Options
     let mut options = Options::empty();
     options.insert(Options::ENABLE_TABLES);
     options.insert(Options::ENABLE_FOOTNOTES);
@@ -36,24 +34,20 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
 
     let mut in_heading = false;
     let mut current_heading_level = 0;
-    let mut pending_heading_text: Option<(String, Point)> = None; // (text, start_pos)
-
-    let mut pending_wiki_link: Option<(String, Point, bool)> = None; // (target, start_pos, is_wikilink)
+    let mut pending_heading_text: Option<(String, Point)> = None;
+    let mut pending_wiki_link: Option<(String, Point, bool)> = None;
 
     let mut in_frontmatter = false;
     let mut frontmatter_content = String::new();
 
     for (event, range) in parser.into_offset_iter() {
         match event {
-            // --- 处理 Frontmatter ---
             Event::Start(Tag::MetadataBlock(MetadataBlockKind::YamlStyle)) => {
                 in_frontmatter = true;
             }
             Event::End(TagEnd::MetadataBlock(MetadataBlockKind::YamlStyle)) => {
                 in_frontmatter = false;
-                // 在这里统一解析 YAML
                 if let Ok(json) = serde_yaml::from_str::<serde_json::Value>(&frontmatter_content) {
-                    // 尝试提取 Title
                     if let Some(t) = json.get("title").and_then(|v| v.as_str()) {
                         title = Some(t.to_string());
                     }
@@ -90,8 +84,6 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
                 in_heading = false;
             }
 
-            // --- 处理 WikiLink (原生支持!) ---
-            // dest_url 就是 [[target]] 里的 target
             Event::Start(Tag::Link {
                 link_type,
                 dest_url,
@@ -99,9 +91,7 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
             }) => {
                 let is_wikilink = matches!(link_type, LinkType::WikiLink { .. });
                 if is_wikilink {
-                    // 记录开始位置和目标
                     let start = line_map.offset_to_point(range.start);
-                    // 注意：dest_url 是 CowStr，直接转 String
                     pending_wiki_link = Some((dest_url.to_string(), start, true));
                 }
             }
@@ -122,16 +112,12 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
                 }
             }
 
-            // --- 处理文本内容 ---
             Event::Text(cow_str) => {
                 let text = cow_str.as_ref();
 
-                // 1. 如果在 Frontmatter 区块里，收集文本
                 if in_frontmatter {
                     frontmatter_content.push_str(text);
-                }
-                // 2. 如果在 Heading 里，收集标题文本 (且不在 Link 里)
-                else if in_heading && pending_wiki_link.is_none() {
+                } else if in_heading && pending_wiki_link.is_none() {
                     if let Some((ref mut heading_text, _)) = pending_heading_text.as_mut() {
                         if !heading_text.is_empty() {
                             heading_text.push(' ');
@@ -149,5 +135,43 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
         headings,
         title,
         frontmatter,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_wiki_link() {
+        let content = "# Note 1\n\n[[note2]]";
+        let result = parse_markdown(content);
+        
+        assert_eq!(result.links.len(), 1, "Should parse one wiki link");
+        assert_eq!(result.links[0].target, "note2", "Link target should be 'note2'");
+        assert_eq!(result.links[0].kind, LinkKind::WikiLink, "Link should be WikiLink");
+    }
+
+    #[test]
+    fn test_parse_multiple_links() {
+        let content = "# Note 1\n\n[[note2]] and [[note3]]";
+        let result = parse_markdown(content);
+        
+        assert_eq!(result.links.len(), 2, "Should parse two wiki links");
+        assert_eq!(result.links[0].target, "note2");
+        assert_eq!(result.links[1].target, "note3");
+    }
+
+    #[test]
+    fn test_parse_headings() {
+        let content = "# Title\n\n## Section";
+        let result = parse_markdown(content);
+        
+        assert_eq!(result.headings.len(), 2);
+        assert_eq!(result.headings[0].level, 1);
+        assert_eq!(result.headings[0].text, "Title");
+        assert_eq!(result.headings[1].level, 2);
+        assert_eq!(result.headings[1].text, "Section");
+        assert_eq!(result.title, Some("Title".to_string()));
     }
 }

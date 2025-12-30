@@ -42,6 +42,7 @@ pub struct Heading {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Note {
+    #[allow(private_interfaces)]
     pub id: NoteId,
     pub path: Option<PathBuf>,
     pub title: Option<String>,
@@ -52,6 +53,7 @@ pub struct Note {
 /// Link entity
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Link {
+    #[allow(private_interfaces)]
     pub target: NoteId,
     pub range: TextRange,
     pub kind: LinkKind,

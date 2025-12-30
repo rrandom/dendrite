@@ -2,6 +2,7 @@ use crate::model::{NoteId, NoteKey, ResolverId};
 use std::collections::HashMap;
 
 /// notekey => noteid
+#[allow(private_interfaces)]
 pub trait IdentityRegistry: Send + Sync {
     fn get_or_create(&mut self, key: &NoteKey) -> NoteId;
     fn lookup(&self, key: &NoteKey) -> Option<NoteId>;
@@ -23,6 +24,7 @@ impl DendriteIdentityRegistry {
     }
 }
 
+#[allow(private_interfaces)]
 impl IdentityRegistry for DendriteIdentityRegistry {
     fn get_or_create(&mut self, key: &NoteKey) -> NoteId {
         if let Some(id) = self.key_to_id.get(key) {

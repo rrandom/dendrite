@@ -20,6 +20,6 @@ pub fn normalize_path_to_id(path: &Path) -> String {
     if std::path::MAIN_SEPARATOR == '\\' {
         s = s.replace('\\', "/");
     }
-    s.trim_end_matches(".md").to_string();
+    s = s.trim_end_matches(".md").to_string();
     s
 }

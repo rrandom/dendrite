@@ -4,9 +4,9 @@ use std::path::PathBuf;
 
 // In memory
 pub struct Store {
-    pub notes: HashMap<NoteId, Note>,
-    pub path_map: HashMap<PathBuf, NoteId>,
-    pub backlinks: HashMap<NoteId, Vec<NoteId>>,
+    pub(crate) notes: HashMap<NoteId, Note>,
+    pub(crate) path_map: HashMap<PathBuf, NoteId>,
+    pub(crate) backlinks: HashMap<NoteId, Vec<NoteId>>,
 }
 
 impl Store {
@@ -20,6 +20,14 @@ impl Store {
 
     pub(crate) fn upsert_note(&mut self, note: Note) {
         let id = note.id.clone();
+
+        if let Some(old_note) = self.notes.get(&id) {
+            if let Some(old_path) = &old_note.path {
+                if self.path_map.get(old_path) == Some(&id) {
+                    self.path_map.remove(old_path);
+                }
+            }
+        }
 
         if let Some(path) = &note.path {
             self.path_map.insert(path.clone(), id.clone());
@@ -43,21 +51,20 @@ impl Store {
         self.notes.get(id)
     }
 
-    pub(crate) fn get_note_mut(&mut self, id: &NoteId) -> Option<&mut Note> {
-        self.notes.get_mut(id)
-    }
-
     pub(crate) fn bind_path(&mut self, path: PathBuf, id: NoteId) {
         self.path_map.insert(path, id);
     }
 
-    pub(crate) fn unbind_path(&mut self, path: &PathBuf) {
-        self.path_map.remove(path);
-    }
-
-    pub(crate) fn update_path(&mut self, id: &NoteId, path: PathBuf) {
+    pub(crate) fn update_path(&mut self, id: &NoteId, new_path: PathBuf) {
         if let Some(note) = self.notes.get_mut(id) {
-            note.path = Some(path);
+            if let Some(old_path) = &note.path {
+                if self.path_map.get(old_path) == Some(id) {
+                    self.path_map.remove(old_path);
+                }
+            }
+
+            note.path = Some(new_path.clone());
+            self.path_map.insert(new_path, id.clone());
         }
     }
 
@@ -84,7 +91,6 @@ impl Store {
                 .backlinks
                 .entry(target.clone())
                 .or_insert_with(Vec::new);
-            // 避免重复添加
             if !backlinks.contains(source) {
                 backlinks.push(source.clone());
             }
