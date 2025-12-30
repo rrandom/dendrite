@@ -3,9 +3,14 @@ name = "dendrite-lsp"
 version.workspace = true
 edition = "2021"
 
+[[bin]]
+name = "dendrite"
+path = "src/bin/dendrite.rs"
+
 [dependencies]
 dendrite-core = { path = "../dendrite-core" }
 tower-lsp = "0.20"
 tokio = { version = "1", features = ["full"] }
 url = "2.5"
 serde = { version = "1.0", features = ["derive"] }
+env_logger = "0.10"

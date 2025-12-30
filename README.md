@@ -50,8 +50,7 @@ npm run release
 dendrite/
 ├── crates/          # Rust code (Cargo workspace)
 │   ├── dendrite-core/
-│   ├── dendrite-lsp/
-│   └── dendrite-bin/
+│   └── dendrite-lsp/
 ├── clients/         # Clients
 │   └── vscode/      # VS Code extension
 └── scripts/         # Build scripts

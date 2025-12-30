@@ -1,5 +1,5 @@
 //! Dendrite LSP Library
-//!
+//! 
 //! LSP protocol layer, converts JSON-RPC requests to Core library calls.
 
 use std::path::PathBuf;

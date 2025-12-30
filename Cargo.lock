@@ -71,16 +71,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dendrite-bin"
-version = "0.1.0"
-dependencies = [
- "dendrite-lsp",
- "env_logger",
- "tokio",
- "tower-lsp",
-]
-
-[[package]]
 name = "dendrite-core"
 version = "0.1.0"
 dependencies = [
@@ -96,6 +86,7 @@ name = "dendrite-lsp"
 version = "0.1.0"
 dependencies = [
  "dendrite-core",
+ "env_logger",
  "serde",
  "tokio",
  "tower-lsp",
