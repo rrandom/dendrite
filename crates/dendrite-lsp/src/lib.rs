@@ -2,12 +2,10 @@
 //!
 //! LSP protocol layer, converts JSON-RPC requests to Core library calls.
 
-use std::path::PathBuf;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LspService};
-use url::Url;
 
-use dendrite_core::{Workspace, DendronStrategy, DendriteIdentityRegistry};
+use dendrite_core::{DendriteIdentityRegistry, DendronStrategy, Workspace};
 use state::GlobalState;
 
 mod conversion;
@@ -58,12 +56,10 @@ impl tower_lsp::LanguageServer for Backend {
                     (workspace, files)
                 })
                 .await
-                .map_err(|e| {
-                    tower_lsp::jsonrpc::Error {
-                        code: tower_lsp::jsonrpc::ErrorCode::InternalError,
-                        message: format!("Failed to initialize workspace: {}", e).into(),
-                        data: None,
-                    }
+                .map_err(|e| tower_lsp::jsonrpc::Error {
+                    code: tower_lsp::jsonrpc::ErrorCode::InternalError,
+                    message: format!("Failed to initialize workspace: {}", e).into(),
+                    data: None,
                 })?;
 
                 self.client
@@ -120,7 +116,10 @@ impl tower_lsp::LanguageServer for Backend {
                             .await;
                         for link in &note.links {
                             self.client
-                                .log_message(MessageType::INFO, format!("    -> Link (kind: {:?})", link.kind))
+                                .log_message(
+                                    MessageType::INFO,
+                                    format!("    -> Link (kind: {:?})", link.kind),
+                                )
                                 .await;
                         }
                     }
@@ -161,6 +160,28 @@ impl tower_lsp::LanguageServer for Backend {
         Ok(())
     }
 
+    async fn did_open(&self, params: DidOpenTextDocumentParams) {
+        let mut state = self.state.workspace.write().await;
+        if let Some(ws) = &mut *state {
+            if let Ok(path) = params.text_document.uri.to_file_path() {
+                let text = params.text_document.text;
+                ws.on_file_open(path, text);
+            }
+        }
+    }
+
+    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        let mut state = self.state.workspace.write().await;
+        if let Some(ws) = &mut *state {
+            if let Ok(path) = params.text_document.uri.to_file_path() {
+                // With FULL sync, the last change contains the full document text
+                if let Some(last_change) = params.content_changes.last() {
+                    ws.on_file_changed(path, last_change.text.clone());
+                }
+            }
+        }
+    }
+
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
         let mut state = self.state.workspace.write().await;
         if let Some(ws) = &mut *state {
@@ -186,17 +207,6 @@ impl tower_lsp::LanguageServer for Backend {
             }
         }
     }
-}
-
-// Utility functions for URI/Path conversion (for future use)
-#[allow(dead_code)]
-fn uri_to_path(uri: &Url) -> Option<PathBuf> {
-    uri.to_file_path().ok()
-}
-
-#[allow(dead_code)]
-fn path_to_uri(path: &PathBuf) -> Option<Url> {
-    Url::from_file_path(path).ok()
 }
 
 /// Create and return LSP service and client socket

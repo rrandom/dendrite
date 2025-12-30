@@ -16,7 +16,6 @@ async fn main() {
     let (service, socket) = create_lsp_service();
     eprintln!("✅ LSP service created, waiting for client connection...");
     eprintln!("✅ Engine Started");
-    
+
     Server::new(stdin, stdout, socket).serve(service).await;
 }
-

@@ -146,17 +146,24 @@ mod tests {
     fn test_parse_wiki_link() {
         let content = "# Note 1\n\n[[note2]]";
         let result = parse_markdown(content);
-        
+
         assert_eq!(result.links.len(), 1, "Should parse one wiki link");
-        assert_eq!(result.links[0].target, "note2", "Link target should be 'note2'");
-        assert_eq!(result.links[0].kind, LinkKind::WikiLink, "Link should be WikiLink");
+        assert_eq!(
+            result.links[0].target, "note2",
+            "Link target should be 'note2'"
+        );
+        assert_eq!(
+            result.links[0].kind,
+            LinkKind::WikiLink,
+            "Link should be WikiLink"
+        );
     }
 
     #[test]
     fn test_parse_multiple_links() {
         let content = "# Note 1\n\n[[note2]] and [[note3]]";
         let result = parse_markdown(content);
-        
+
         assert_eq!(result.links.len(), 2, "Should parse two wiki links");
         assert_eq!(result.links[0].target, "note2");
         assert_eq!(result.links[1].target, "note3");
@@ -166,7 +173,7 @@ mod tests {
     fn test_parse_headings() {
         let content = "# Title\n\n## Section";
         let result = parse_markdown(content);
-        
+
         assert_eq!(result.headings.len(), 2);
         assert_eq!(result.headings[0].level, 1);
         assert_eq!(result.headings[0].text, "Title");

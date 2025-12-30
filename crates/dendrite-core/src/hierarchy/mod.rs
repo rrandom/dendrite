@@ -1,5 +1,8 @@
+use crate::{
+    model::{Note, NoteKey, ResolverId},
+    normalize_path_to_id,
+};
 use std::path::{Path, PathBuf};
-use crate::{model::{Note, NoteKey, ResolverId}, normalize_path_to_id};
 
 /// path/link/text => notekey
 pub trait HierarchyResolver: Send + Sync {

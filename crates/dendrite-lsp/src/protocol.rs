@@ -12,10 +12,10 @@ pub struct ListNotesParams {
 pub struct NoteSummary {
     /// Unique note ID
     pub id: String,
-    
+
     /// File URI (None if Ghost Node)
     pub uri: Option<String>,
-    
+
     /// Title (for more friendly display)
     pub title: Option<String>,
 }

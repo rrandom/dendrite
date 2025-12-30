@@ -16,24 +16,24 @@ export function activate(context: ExtensionContext) {
     );
 
     const serverOptions: ServerOptions = {
-        run: { 
-            command: serverPath, 
-            transport: TransportKind.stdio,
-            options: { 
-                env: { 
-                    ...process.env, 
-                    "RUST_LOG": "info"
-                } 
-            }
-        },
-        debug: { 
+        run: {
             command: serverPath,
             transport: TransportKind.stdio,
-            options: { 
-                env: { 
-                    ...process.env, 
-                    "RUST_LOG": "debug" 
-                } 
+            options: {
+                env: {
+                    ...process.env,
+                    "RUST_LOG": "info"
+                }
+            }
+        },
+        debug: {
+            command: serverPath,
+            transport: TransportKind.stdio,
+            options: {
+                env: {
+                    ...process.env,
+                    "RUST_LOG": "debug"
+                }
             }
         }
     };
