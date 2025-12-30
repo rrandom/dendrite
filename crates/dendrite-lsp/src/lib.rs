@@ -7,14 +7,14 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LspService};
 use url::Url;
 
-use dendrite_core::hierarchy::DendronStrategy;
-use dendrite_core::identity::DendriteIdentityRegistry;
+use dendrite_core::{Workspace, DendronStrategy, DendriteIdentityRegistry};
 use state::GlobalState;
 
 mod conversion;
 mod handlers;
 mod protocol;
 mod state;
+
 /// LSP backend implementation
 pub struct Backend {
     client: Client,
@@ -47,12 +47,24 @@ impl tower_lsp::LanguageServer for Backend {
                     )
                     .await;
 
-                let mut ws = dendrite_core::workspace::Workspace::new(
-                    root_path,
-                    Box::new(DendronStrategy::new()),
-                    Box::new(DendriteIdentityRegistry::new()),
-                );
-                let files = ws.initialize();
+                let root_path_clone = root_path.clone();
+                let (ws, files) = tokio::task::spawn_blocking(move || {
+                    let mut workspace = Workspace::new(
+                        root_path_clone,
+                        Box::new(DendronStrategy::new()),
+                        Box::new(DendriteIdentityRegistry::new()),
+                    );
+                    let files = workspace.initialize();
+                    (workspace, files)
+                })
+                .await
+                .map_err(|e| {
+                    tower_lsp::jsonrpc::Error {
+                        code: tower_lsp::jsonrpc::ErrorCode::InternalError,
+                        message: format!("Failed to initialize workspace: {}", e).into(),
+                        data: None,
+                    }
+                })?;
 
                 self.client
                     .log_message(
@@ -74,7 +86,6 @@ impl tower_lsp::LanguageServer for Backend {
                     )
                     .await;
 
-                // Display each note's parsed content
                 for note in ws.all_notes() {
                     self.client
                         .log_message(

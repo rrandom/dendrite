@@ -4,14 +4,14 @@
 //! No IO dependencies, pure logic only.
 //!
 
-pub mod workspace;
-pub mod store;
-pub mod model;
-pub mod parser;
 mod config;
 pub mod hierarchy;
-mod line_map;
 pub mod identity;
+mod line_map;
+pub mod model;
+pub mod parser;
+pub mod store;
+pub mod workspace;
 
 use std::path::Path;
 
@@ -23,3 +23,7 @@ pub fn normalize_path_to_id(path: &Path) -> String {
     s = s.trim_end_matches(".md").to_string();
     s
 }
+
+pub use hierarchy::{DendronStrategy, HierarchyResolver};
+pub use identity::{DendriteIdentityRegistry, IdentityRegistry};
+pub use workspace::Workspace;

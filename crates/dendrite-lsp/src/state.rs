@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use dendrite_core::workspace::Workspace;
+use dendrite_core::Workspace;
 
 /// Global state for LSP server
 /// Must be Send + Sync

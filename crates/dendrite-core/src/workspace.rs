@@ -8,10 +8,10 @@ use crate::parser::parse_markdown;
 use crate::store::Store;
 
 pub struct Workspace {
-    pub root: PathBuf,
-    pub resolver: Box<dyn HierarchyResolver>,
-    pub identity: Box<dyn IdentityRegistry>,
-    pub store: Store,
+    root: PathBuf,
+    resolver: Box<dyn HierarchyResolver>,
+    identity: Box<dyn IdentityRegistry>,
+    store: Store,
 }
 
 impl Workspace {
