@@ -1,5 +1,5 @@
 //! Dendrite LSP Library
-//! 
+//!
 //! LSP protocol layer, converts JSON-RPC requests to Core library calls.
 
 use std::path::PathBuf;
@@ -7,7 +7,9 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LspService};
 use url::Url;
 
-use crate::state::GlobalState;
+use dendrite_core::hierarchy::DendronStrategy;
+use dendrite_core::identity::DendriteIdentityRegistry;
+use state::GlobalState;
 
 mod conversion;
 mod handlers;
@@ -45,7 +47,11 @@ impl tower_lsp::LanguageServer for Backend {
                     )
                     .await;
 
-                let mut ws = dendrite_core::workspace::Workspace::new(root_path, Box::new(dendrite_core::hierarchy::dendron::DendronStrategy), Box::new(dendrite_core::identity::DendriteIdentityRegistry));
+                let mut ws = dendrite_core::workspace::Workspace::new(
+                    root_path,
+                    Box::new(DendronStrategy::new()),
+                    Box::new(DendriteIdentityRegistry::new()),
+                );
                 let files = ws.initialize();
 
                 self.client
@@ -76,7 +82,7 @@ impl tower_lsp::LanguageServer for Backend {
                             format!("Note: (title: {:?})", note.title),
                         )
                         .await;
-                    
+
                     if !note.headings.is_empty() {
                         self.client
                             .log_message(
@@ -93,7 +99,7 @@ impl tower_lsp::LanguageServer for Backend {
                                 .await;
                         }
                     }
-                    
+
                     if !note.links.is_empty() {
                         self.client
                             .log_message(
@@ -103,14 +109,11 @@ impl tower_lsp::LanguageServer for Backend {
                             .await;
                         for link in &note.links {
                             self.client
-                                .log_message(
-                                    MessageType::INFO,
-                                    format!("    -> {:?}", 11),
-                                )
+                                .log_message(MessageType::INFO, format!("    -> {:?}", 11))
                                 .await;
                         }
                     }
-                    
+
                     if note.frontmatter.is_some() {
                         self.client
                             .log_message(MessageType::INFO, "  Has frontmatter")

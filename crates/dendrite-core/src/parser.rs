@@ -1,22 +1,22 @@
 // crates/dendrite-core/src/parser/markdown.rs
 
 use super::line_map::LineMap;
-use crate::model::{Heading, Link, LinkKind, NoteId, Point, TextRange};
+use crate::model::{Heading, LinkKind, Point, TextRange};
 use pulldown_cmark::{Event, LinkType, MetadataBlockKind, Options, Parser, Tag, TagEnd};
 
-struct DocLink {
+pub(crate) struct DocLink {
     pub target: String,
     pub range: TextRange,
     pub kind: LinkKind,
 }
-pub struct ParseResult {
+pub(crate) struct ParseResult {
     pub links: Vec<DocLink>,
     pub headings: Vec<Heading>,
     pub title: Option<String>,
     pub frontmatter: Option<serde_json::Value>,
 }
 
-pub fn parse_markdown(text: &str, current_note_id: &NoteId) -> ParseResult {
+pub(crate) fn parse_markdown(text: &str) -> ParseResult {
     // 1. 配置 Options
     let mut options = Options::empty();
     options.insert(Options::ENABLE_TABLES);

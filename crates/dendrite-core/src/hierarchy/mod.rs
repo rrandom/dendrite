@@ -1,43 +1,44 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use crate::{model::{Note, NoteKey, ResolverId}, normalize_path_to_id};
 
-use crate::model::{Note, NoteId, NoteKey, ResolverId};
-
-pub mod dendron;
-
-/// Defines how to understand hierarchical relationships between notes
+/// path/link/text => notekey
 pub trait HierarchyResolver: Send + Sync {
     fn id(&self) -> ResolverId;
-    fn resolve_note_key(&self, path: &Path, content: &str) -> NoteKey;
-    fn resolve_link_key(&self, source: &NoteKey, raw: &str) -> NoteKey;
-    /// Calculate the parent node ID for a given note
-    /// Dendron implementation: "a.b" -> "a"
-    /// Folder implementation: "a/b" -> "a"
+    fn note_key_from_path(&self, path: &Path, content: &str) -> NoteKey;
+    fn note_key_from_link(&self, source: &NoteKey, raw: &str) -> NoteKey;
     fn resolve_parent(&self, note: &NoteKey) -> Option<NoteKey>;
-    /// Calculate the display name for a given note
-    /// Dendron implementation: "foo.bar" -> "bar"
     fn resolve_display_name(&self, note: &Note) -> String;
+    fn path_from_note_key(&self, key: &NoteKey) -> PathBuf;
 }
 
-/// Basic resolver implementation (placeholder)
-pub struct BasicResolver;
+pub struct DendronStrategy;
 
-// impl HierarchyResolver for BasicResolver {
-//     fn resolve_parent(&self, _note: &Note) -> Option<NoteId> {
-//         None
-//     }
+impl DendronStrategy {
+    pub fn new() -> Self {
+        Self
+    }
+}
 
-//     fn resolve_display_name(&self, note: &Note) -> String {
-//         note.id.clone()
-//     }
-
-//     fn resolve_id(&self, _root: &std::path::Path, path: &std::path::Path) -> Option<NoteId> {
-//         // Basic implementation: use normalize_path_to_id
-//         Some(crate::normalize_path_to_id(path))
-//     }
-// }
-
-/// Dendron strategy implementation
-#[allow(dead_code)]
-pub struct DendronStrategy {
-    // TODO: Implement Dendron-specific hierarchy resolution
+impl HierarchyResolver for DendronStrategy {
+    fn id(&self) -> ResolverId {
+        ResolverId("Dendron")
+    }
+    fn note_key_from_path(&self, path: &Path, _: &str) -> NoteKey {
+        let note_key = normalize_path_to_id(path);
+        note_key
+    }
+    fn note_key_from_link(&self, _: &NoteKey, raw: &str) -> NoteKey {
+        let link_key = normalize_path_to_id(&Path::new(raw));
+        link_key
+    }
+    fn resolve_display_name(&self, note: &crate::model::Note) -> String {
+        note.title.clone().unwrap_or_default()
+    }
+    fn resolve_parent(&self, note: &NoteKey) -> Option<NoteKey> {
+        let parent_key = note.split('.').nth(0)?;
+        Some(parent_key.to_string())
+    }
+    fn path_from_note_key(&self, key: &NoteKey) -> std::path::PathBuf {
+        Path::new(&key).with_extension("md")
+    }
 }

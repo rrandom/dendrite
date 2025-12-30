@@ -1,12 +1,18 @@
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::path::PathBuf;
-use uuid;
+use uuid::Uuid;
 
 /// Core identity identifier
 /// private
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub(crate) struct NoteId(pub uuid::Uuid);
+pub(crate) struct NoteId(pub Uuid);
+
+impl NoteId {
+    pub fn new() -> Self {
+        Self(Uuid::new_v4())
+    }
+}
 
 pub type NoteKey = String;
 
