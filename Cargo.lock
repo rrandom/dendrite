@@ -96,6 +96,7 @@ dependencies = [
  "dendrite-core",
  "env_logger",
  "serde",
+ "serde_json",
  "tokio",
  "tower-lsp",
  "url",

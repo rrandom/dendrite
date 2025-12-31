@@ -1,13 +1,15 @@
 import * as path from 'path';
-import { workspace, ExtensionContext } from 'vscode';
+import { workspace, ExtensionContext, window, commands } from 'vscode';
 import {
     LanguageClient,
     LanguageClientOptions,
     ServerOptions,
     TransportKind
 } from 'vscode-languageclient/node';
+import { DendriteTreeDataProvider } from './treeDataProvider';
 
 let client: LanguageClient;
+let treeDataProvider: DendriteTreeDataProvider | undefined;
 
 export function activate(context: ExtensionContext) {
     // Use binary from clients/vscode/server directory
@@ -53,7 +55,24 @@ export function activate(context: ExtensionContext) {
         clientOptions
     );
 
-    client.start();
+    // Start client and register TreeView after it's ready
+    client.start().then(() => {
+        // Register TreeView
+        treeDataProvider = new DendriteTreeDataProvider(client);
+        const treeView = window.createTreeView('dendriteHierarchy', {
+            treeDataProvider: treeDataProvider,
+            showCollapseAll: true
+        });
+
+        // Register refresh command
+        const refreshCommand = commands.registerCommand('dendrite.refreshHierarchy', () => {
+            treeDataProvider?.refresh();
+        });
+
+        context.subscriptions.push(treeView, refreshCommand);
+    }).catch((error) => {
+        window.showErrorMessage(`Failed to start Dendrite server: ${error}`);
+    });
 }
 
 export function deactivate(): Thenable<void> | undefined {

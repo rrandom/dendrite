@@ -25,7 +25,32 @@
           ".markdown"
         ]
       }
-    ]
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "dendriteHierarchy",
+          "name": "Dendrite Hierarchy",
+          "when": "true"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "dendrite.refreshHierarchy",
+        "title": "Refresh Hierarchy",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "dendrite.refreshHierarchy",
+          "when": "view == dendriteHierarchy",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

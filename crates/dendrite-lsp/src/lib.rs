@@ -4,10 +4,13 @@
 
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LspService};
+use tower_lsp::jsonrpc::{Error, ErrorCode};
 
 use dendrite_core::{DendriteIdentityRegistry, DendronStrategy, Workspace};
 use state::GlobalState;
 use conversion::{lsp_position_to_point, path_to_uri, text_range_to_lsp_range};
+use protocol::{GetHierarchyParams, ListNotesParams};
+use handlers::{handle_get_hierarchy, handle_list_notes};
 
 mod conversion;
 mod handlers;
@@ -155,6 +158,13 @@ impl tower_lsp::LanguageServer for Backend {
                     resolve_provider: Some(false),
                     work_done_progress_options: Default::default(),
                     completion_item: Default::default(),
+                }),
+                execute_command_provider: Some(ExecuteCommandOptions {
+                    commands: vec![
+                        "dendrite/getHierarchy".to_string(),
+                        "dendrite/listNotes".to_string(),
+                    ],
+                    work_done_progress_options: Default::default(),
                 }),
                 ..Default::default()
             },
@@ -657,7 +667,49 @@ impl tower_lsp::LanguageServer for Backend {
             kind: Some(DocumentHighlightKind::TEXT),
         }]))
     }
+
+    async fn execute_command(
+        &self,
+        params: ExecuteCommandParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<serde_json::Value>> {
+        match params.command.as_str() {
+            "dendrite/getHierarchy" => {
+                let params = GetHierarchyParams::default();
+                let result = handle_get_hierarchy(&self.client, &self.state, params).await?;
+                serde_json::to_value(result)
+                    .map(Some)
+                    .map_err(|e| Error {
+                        code: ErrorCode::InternalError,
+                        message: format!("Failed to serialize result: {}", e).into(),
+                        data: None,
+                    })
+            }
+            "dendrite/listNotes" => {
+                // Parse params from arguments (if provided)
+                let list_params = if let Some(first_arg) = params.arguments.first() {
+                    serde_json::from_value::<ListNotesParams>(first_arg.clone())
+                        .unwrap_or_default()
+                } else {
+                    ListNotesParams::default()
+                };
+                let result = handle_list_notes(&self.client, &self.state, list_params).await?;
+                serde_json::to_value(result)
+                    .map(Some)
+                    .map_err(|e| Error {
+                        code: ErrorCode::InternalError,
+                        message: format!("Failed to serialize result: {}", e).into(),
+                        data: None,
+                    })
+            }
+            _ => Err(Error {
+                code: ErrorCode::MethodNotFound,
+                message: format!("Unknown command: {}", params.command).into(),
+                data: None,
+            }),
+        }
+    }
 }
+
 
 /// Create and return LSP service and client socket
 pub fn create_lsp_service() -> (LspService<Backend>, tower_lsp::ClientSocket) {
