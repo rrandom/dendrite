@@ -3,9 +3,9 @@
 //! This module will contain functions to convert between Core's internal types
 //! (Point, TextRange) and LSP types (Position, Range) when needed.
 
-use tower_lsp::lsp_types::{Position, Range, Url};
 use dendrite_core::model::{Point, TextRange};
 use std::path::PathBuf;
+use tower_lsp::lsp_types::{Position, Range, Url};
 
 /// Convert LSP Position to Core Point
 /// LSP uses 0-based line and character (UTF-16 code units)

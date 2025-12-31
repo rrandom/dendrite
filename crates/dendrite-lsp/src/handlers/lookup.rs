@@ -1,6 +1,6 @@
+use crate::conversion::path_to_uri;
 use crate::protocol::{ListNotesParams, ListNotesResult, NoteSummary};
 use crate::state::GlobalState;
-use crate::conversion::path_to_uri;
 use tower_lsp::jsonrpc::{Error, ErrorCode, Result};
 use tower_lsp::lsp_types::MessageType;
 use tower_lsp::Client;
@@ -36,17 +36,17 @@ pub async fn handle_list_notes(
 
     // Get all notes
     let all_notes = ws.all_notes();
-    
+
     // Get all note keys and display names, create a map from NoteId to (key, display_name)
     // We need to match notes by NoteId, so we'll create a temporary mapping
     let all_note_keys = ws.all_note_keys();
-    
+
     // Create a map from key to display_name for quick lookup
     let key_to_display_name: std::collections::HashMap<String, String> = all_note_keys
         .iter()
         .map(|(key, display_name)| (key.clone(), display_name.clone()))
         .collect();
-    
+
     // Convert to NoteSummary
     let mut note_summaries: Vec<NoteSummary> = all_notes
         .iter()
@@ -58,29 +58,32 @@ pub async fn handle_list_notes(
                     .and_then(|stem| stem.to_str())
                     .map(|s| s.to_string())
             });
-            
+
             // If no path, try to find key from all_note_keys by matching NoteId
             // Since all_note_keys() iterates through all notes, we can't directly match by NoteId
             // So we'll use the path-based key for notes with paths, and skip Ghost Nodes without keys
             let note_key = note_key?;
-            
+
             // Get display name from map, fallback to note.title
             let display_name = key_to_display_name
                 .get(&note_key)
                 .cloned()
-                .unwrap_or_else(|| {
-                    note.title.clone().unwrap_or_default()
-                });
-            
+                .unwrap_or_else(|| note.title.clone().unwrap_or_default());
+
             // Get URI from path
-            let uri = note.path.as_ref().and_then(|path| {
-                path_to_uri(path).map(|u| u.to_string())
-            });
-            
+            let uri = note
+                .path
+                .as_ref()
+                .and_then(|path| path_to_uri(path).map(|u| u.to_string()));
+
             Some(NoteSummary {
                 key: note_key,
                 uri,
-                title: if display_name.is_empty() { None } else { Some(display_name) },
+                title: if display_name.is_empty() {
+                    None
+                } else {
+                    Some(display_name)
+                },
             })
         })
         .collect();
@@ -95,10 +98,7 @@ pub async fn handle_list_notes(
                 .as_ref()
                 .map(|t| t.to_lowercase().contains(&query_lower))
                 .unwrap_or(false)
-                || summary
-                    .key
-                    .to_lowercase()
-                    .contains(&query_lower)
+                || summary.key.to_lowercase().contains(&query_lower)
         });
     }
 

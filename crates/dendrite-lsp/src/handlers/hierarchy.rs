@@ -43,8 +43,5 @@ pub async fn handle_get_hierarchy(
         )
         .await;
 
-    Ok(GetHierarchyResult {
-        roots: tree_view,
-    })
+    Ok(GetHierarchyResult { roots: tree_view })
 }
-

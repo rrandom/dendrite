@@ -2,15 +2,15 @@
 //!
 //! LSP protocol layer, converts JSON-RPC requests to Core library calls.
 
+use tower_lsp::jsonrpc::{Error, ErrorCode};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LspService};
-use tower_lsp::jsonrpc::{Error, ErrorCode};
 
-use dendrite_core::{DendriteIdentityRegistry, DendronStrategy, Workspace};
-use state::GlobalState;
 use conversion::{lsp_position_to_point, path_to_uri, text_range_to_lsp_range};
-use protocol::{GetHierarchyParams, ListNotesParams};
+use dendrite_core::{DendriteIdentityRegistry, DendronStrategy, Workspace};
 use handlers::{handle_get_hierarchy, handle_list_notes};
+use protocol::{GetHierarchyParams, ListNotesParams};
+use state::GlobalState;
 
 mod conversion;
 mod handlers;
@@ -202,7 +202,7 @@ impl tower_lsp::LanguageServer for Backend {
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         let uri = params.text_document.uri.clone();
-        
+
         // With FULL sync, the last change contains the full document text
         if let Some(last_change) = params.content_changes.last() {
             let text = last_change.text.clone();
@@ -322,7 +322,10 @@ impl tower_lsp::LanguageServer for Backend {
         self.client
             .log_message(
                 MessageType::INFO,
-                format!("🔍 Completion requested at {:?}", params.text_document_position.position),
+                format!(
+                    "🔍 Completion requested at {:?}",
+                    params.text_document_position.position
+                ),
             )
             .await;
 
@@ -340,7 +343,10 @@ impl tower_lsp::LanguageServer for Backend {
         self.client
             .log_message(
                 MessageType::INFO,
-                format!("📄 URI: {:?}, Position: line {}, char {}", uri, position.line, position.character),
+                format!(
+                    "📄 URI: {:?}, Position: line {}, char {}",
+                    uri, position.line, position.character
+                ),
             )
             .await;
 
@@ -363,7 +369,10 @@ impl tower_lsp::LanguageServer for Backend {
         self.client
             .log_message(
                 MessageType::INFO,
-                format!("📄 Document text length: {} characters", document_text.len()),
+                format!(
+                    "📄 Document text length: {} characters",
+                    document_text.len()
+                ),
             )
             .await;
 
@@ -383,21 +392,29 @@ impl tower_lsp::LanguageServer for Backend {
             self.client
                 .log_message(
                     MessageType::WARNING,
-                    format!("❌ Line index {} out of range (total lines: {})", line_idx, lines.len()),
+                    format!(
+                        "❌ Line index {} out of range (total lines: {})",
+                        line_idx,
+                        lines.len()
+                    ),
                 )
                 .await;
             return Ok(None);
         }
 
         let current_line = lines[line_idx];
-        
+
         self.client
             .log_message(
                 MessageType::INFO,
-                format!("📄 Current line (len={}): {:?}", current_line.len(), current_line),
+                format!(
+                    "📄 Current line (len={}): {:?}",
+                    current_line.len(),
+                    current_line
+                ),
             )
             .await;
-        
+
         // For simplicity, we'll work with character indices
         // Since '[' is ASCII, char_idx should work correctly
         // Note: LSP Position uses UTF-16 character indices, but for ASCII characters
@@ -407,7 +424,10 @@ impl tower_lsp::LanguageServer for Backend {
             self.client
                 .log_message(
                     MessageType::INFO,
-                    format!("❌ Not enough characters before cursor (need 2, have {})", char_idx),
+                    format!(
+                        "❌ Not enough characters before cursor (need 2, have {})",
+                        char_idx
+                    ),
                 )
                 .await;
             return Ok(None);
@@ -423,14 +443,14 @@ impl tower_lsp::LanguageServer for Backend {
             .rev()
             .take(3)
             .collect();
-        
+
         self.client
             .log_message(
                 MessageType::INFO,
                 format!("🔤 Characters before cursor (reversed): {:?}", chars_before),
             )
             .await;
-        
+
         if chars_before.len() < 2 {
             self.client
                 .log_message(MessageType::INFO, "❌ Not enough characters collected")
@@ -441,14 +461,14 @@ impl tower_lsp::LanguageServer for Backend {
         // Check if the two characters immediately before cursor are both '['
         // chars_before[0] is the character right before cursor, [1] is before that
         let is_double_bracket = chars_before[0] == '[' && chars_before[1] == '[';
-        
+
         self.client
             .log_message(
                 MessageType::INFO,
                 format!("✅ Is double bracket [[: {}", is_double_bracket),
             )
             .await;
-        
+
         if !is_double_bracket {
             // Not in [[ context (might be just [ or something else)
             self.client
@@ -467,16 +487,27 @@ impl tower_lsp::LanguageServer for Backend {
         }
 
         self.client
-            .log_message(MessageType::INFO, "✅ Context check passed, providing completions")
+            .log_message(
+                MessageType::INFO,
+                "✅ Context check passed, providing completions",
+            )
             .await;
-        
+
         // Get all note keys for completion
         let note_keys = ws.all_note_keys();
 
         self.client
             .log_message(
                 MessageType::INFO,
-                format!("📋 Found {} notes for completion: {}", note_keys.len(), note_keys.iter().map(|(k, d)| format!("{}: {}", k, d)).collect::<Vec<String>>().join(", ")),
+                format!(
+                    "📋 Found {} notes for completion: {}",
+                    note_keys.len(),
+                    note_keys
+                        .iter()
+                        .map(|(k, d)| format!("{}: {}", k, d))
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                ),
             )
             .await;
 
@@ -513,21 +544,24 @@ impl tower_lsp::LanguageServer for Backend {
         Ok(Some(CompletionResponse::Array(items)))
     }
 
-    async fn hover(
-        &self,
-        params: HoverParams,
-    ) -> tower_lsp::jsonrpc::Result<Option<Hover>> {
+    async fn hover(&self, params: HoverParams) -> tower_lsp::jsonrpc::Result<Option<Hover>> {
         self.client
             .log_message(
                 MessageType::INFO,
-                format!("🖱️ Hover requested at {:?}", params.text_document_position_params.position),
+                format!(
+                    "🖱️ Hover requested at {:?}",
+                    params.text_document_position_params.position
+                ),
             )
             .await;
 
         let state = self.state.workspace.read().await;
         let Some(ws) = &*state else {
             self.client
-                .log_message(MessageType::WARNING, "⚠️ Workspace not initialized for hover")
+                .log_message(
+                    MessageType::WARNING,
+                    "⚠️ Workspace not initialized for hover",
+                )
                 .await;
             return Ok(None);
         };
@@ -538,13 +572,19 @@ impl tower_lsp::LanguageServer for Backend {
         self.client
             .log_message(
                 MessageType::INFO,
-                format!("📄 Hover URI: {:?}, Position: line {}, char {}", uri, position.line, position.character),
+                format!(
+                    "📄 Hover URI: {:?}, Position: line {}, char {}",
+                    uri, position.line, position.character
+                ),
             )
             .await;
 
         let Ok(path) = uri.to_file_path() else {
             self.client
-                .log_message(MessageType::WARNING, "❌ Failed to convert URI to file path for hover")
+                .log_message(
+                    MessageType::WARNING,
+                    "❌ Failed to convert URI to file path for hover",
+                )
                 .await;
             return Ok(None);
         };
@@ -555,7 +595,10 @@ impl tower_lsp::LanguageServer for Backend {
         self.client
             .log_message(
                 MessageType::INFO,
-                format!("📍 Converted to Point: line {}, col {}", point.line, point.col),
+                format!(
+                    "📍 Converted to Point: line {}, col {}",
+                    point.line, point.col
+                ),
             )
             .await;
 
@@ -570,9 +613,13 @@ impl tower_lsp::LanguageServer for Backend {
         self.client
             .log_message(
                 MessageType::INFO,
-                format!("🔗 Found link at range: line {}:{}-{}:{}", 
-                    link.range.start.line, link.range.start.col,
-                    link.range.end.line, link.range.end.col),
+                format!(
+                    "🔗 Found link at range: line {}:{}-{}:{}",
+                    link.range.start.line,
+                    link.range.start.col,
+                    link.range.end.line,
+                    link.range.end.col
+                ),
             )
             .await;
 
@@ -597,7 +644,10 @@ impl tower_lsp::LanguageServer for Backend {
         self.client
             .log_message(
                 MessageType::INFO,
-                format!("📏 Link range (LSP): {:?} - {:?}", link_range.start, link_range.end),
+                format!(
+                    "📏 Link range (LSP): {:?} - {:?}",
+                    link_range.start, link_range.end
+                ),
             )
             .await;
 
@@ -624,7 +674,10 @@ impl tower_lsp::LanguageServer for Backend {
         self.client
             .log_message(
                 MessageType::INFO,
-                format!("✨ Document highlight requested at {:?}", params.text_document_position_params.position),
+                format!(
+                    "✨ Document highlight requested at {:?}",
+                    params.text_document_position_params.position
+                ),
             )
             .await;
 
@@ -657,7 +710,10 @@ impl tower_lsp::LanguageServer for Backend {
         self.client
             .log_message(
                 MessageType::INFO,
-                format!("✨ Highlighting link range: {:?} - {:?}", link_range.start, link_range.end),
+                format!(
+                    "✨ Highlighting link range: {:?} - {:?}",
+                    link_range.start, link_range.end
+                ),
             )
             .await;
 
@@ -676,30 +732,25 @@ impl tower_lsp::LanguageServer for Backend {
             "dendrite/getHierarchy" => {
                 let params = GetHierarchyParams::default();
                 let result = handle_get_hierarchy(&self.client, &self.state, params).await?;
-                serde_json::to_value(result)
-                    .map(Some)
-                    .map_err(|e| Error {
-                        code: ErrorCode::InternalError,
-                        message: format!("Failed to serialize result: {}", e).into(),
-                        data: None,
-                    })
+                serde_json::to_value(result).map(Some).map_err(|e| Error {
+                    code: ErrorCode::InternalError,
+                    message: format!("Failed to serialize result: {}", e).into(),
+                    data: None,
+                })
             }
             "dendrite/listNotes" => {
                 // Parse params from arguments (if provided)
                 let list_params = if let Some(first_arg) = params.arguments.first() {
-                    serde_json::from_value::<ListNotesParams>(first_arg.clone())
-                        .unwrap_or_default()
+                    serde_json::from_value::<ListNotesParams>(first_arg.clone()).unwrap_or_default()
                 } else {
                     ListNotesParams::default()
                 };
                 let result = handle_list_notes(&self.client, &self.state, list_params).await?;
-                serde_json::to_value(result)
-                    .map(Some)
-                    .map_err(|e| Error {
-                        code: ErrorCode::InternalError,
-                        message: format!("Failed to serialize result: {}", e).into(),
-                        data: None,
-                    })
+                serde_json::to_value(result).map(Some).map_err(|e| Error {
+                    code: ErrorCode::InternalError,
+                    message: format!("Failed to serialize result: {}", e).into(),
+                    data: None,
+                })
             }
             _ => Err(Error {
                 code: ErrorCode::MethodNotFound,
@@ -709,7 +760,6 @@ impl tower_lsp::LanguageServer for Backend {
         }
     }
 }
-
 
 /// Create and return LSP service and client socket
 pub fn create_lsp_service() -> (LspService<Backend>, tower_lsp::ClientSocket) {
