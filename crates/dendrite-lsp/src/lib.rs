@@ -7,6 +7,7 @@ use tower_lsp::{Client, LspService};
 
 use dendrite_core::{DendriteIdentityRegistry, DendronStrategy, Workspace};
 use state::GlobalState;
+use conversion::{lsp_position_to_point, path_to_uri};
 
 mod conversion;
 mod handlers;
@@ -145,6 +146,7 @@ impl tower_lsp::LanguageServer for Backend {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
                     TextDocumentSyncKind::FULL,
                 )),
+                definition_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
             ..Default::default()
@@ -206,6 +208,56 @@ impl tower_lsp::LanguageServer for Backend {
                 }
             }
         }
+    }
+
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<GotoDefinitionResponse>> {
+        let state = self.state.workspace.read().await;
+        let Some(ws) = &*state else {
+            return Ok(None);
+        };
+
+        let uri = &params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+
+        let Ok(path) = uri.to_file_path() else {
+            return Ok(None);
+        };
+
+        // Convert LSP Position to Core Point
+        let point = lsp_position_to_point(position);
+
+        // Find the link at the given position
+        let Some(link) = ws.find_link_at_position(&path, point) else {
+            return Ok(None);
+        };
+
+        // Get the target note's path
+        let Some(target_path) = ws.get_link_target_path(link) else {
+            return Ok(None);
+        };
+
+        // Convert path to URI
+        let Some(target_uri) = path_to_uri(&target_path) else {
+            return Ok(None);
+        };
+
+        // Return the definition location
+        Ok(Some(GotoDefinitionResponse::Scalar(Location {
+            uri: target_uri,
+            range: Range {
+                start: Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: Position {
+                    line: 0,
+                    character: 0,
+                },
+            },
+        })))
     }
 }
 

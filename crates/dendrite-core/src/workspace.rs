@@ -4,6 +4,7 @@ use walkdir::WalkDir;
 use crate::hierarchy::HierarchyResolver;
 use crate::identity::IdentityRegistry;
 use crate::model::{Link, Note, NoteId, NoteKey};
+use crate::model::Point;
 use crate::parser::parse_markdown;
 use crate::store::Store;
 
@@ -71,6 +72,24 @@ impl Workspace {
     pub fn note_by_path(&self, path: &PathBuf) -> Option<&Note> {
         let id = self.store.note_id_by_path(path)?;
         self.store.get_note(id)
+    }
+
+    /// Find a link at the given position in a document
+    pub fn find_link_at_position(&self, path: &PathBuf, position: Point) -> Option<&Link> {
+        let note = self.note_by_path(path)?;
+        note.links.iter().find(|link| {
+            let range = link.range;
+            // Check if position is within the link range
+            (range.start.line < position.line
+                || (range.start.line == position.line && range.start.col <= position.col))
+                && (position.line < range.end.line
+                    || (position.line == range.end.line && position.col <= range.end.col))
+        })
+    }
+
+    /// Get the file path for a link's target
+    pub fn get_link_target_path(&self, link: &Link) -> Option<PathBuf> {
+        self.store.get_note(&link.target).and_then(|note| note.path.clone())
     }
 
     pub fn backlinks_of(&self, path: &PathBuf) -> Vec<PathBuf> {
@@ -436,6 +455,246 @@ mod tests {
         assert_eq!(
             initial_id, new_id,
             "NoteId should remain stable after semantic rename"
+        );
+    }
+
+    #[test]
+    fn test_find_link_at_position() {
+        let (mut ws, temp_dir) = create_test_workspace();
+
+        // Create target note
+        let target_path = temp_dir.path().join("target.md");
+        fs::write(&target_path, "# Target").unwrap();
+        ws.on_file_open(target_path.clone(), "# Target".to_string());
+
+        // Create source note with link
+        let source_path = temp_dir.path().join("source.md");
+        let source_content = "# Source\n\nThis is a link: [[target]]";
+        fs::write(&source_path, source_content).unwrap();
+        ws.on_file_open(source_path.clone(), source_content.to_string());
+
+        // Get the note to check link position
+        let note = ws.note_by_path(&source_path).unwrap();
+        assert_eq!(note.links.len(), 1, "Should have one link");
+
+        let link_range = note.links[0].range;
+        
+        // Test finding link at start position
+        let link_at_start = ws.find_link_at_position(&source_path, link_range.start);
+        assert!(link_at_start.is_some(), "Should find link at start position");
+        assert_eq!(
+            link_at_start.unwrap().target,
+            note.links[0].target,
+            "Found link should match"
+        );
+
+        // Test finding link at middle position
+        let middle_point = Point {
+            line: link_range.start.line,
+            col: link_range.start.col + 2,
+        };
+        let link_at_middle = ws.find_link_at_position(&source_path, middle_point);
+        assert!(link_at_middle.is_some(), "Should find link at middle position");
+
+        // Test finding link at end position
+        let link_at_end = ws.find_link_at_position(&source_path, link_range.end);
+        assert!(link_at_end.is_some(), "Should find link at end position");
+    }
+
+    #[test]
+    fn test_find_link_at_position_not_found() {
+        let (mut ws, temp_dir) = create_test_workspace();
+
+        // Create target note
+        let target_path = temp_dir.path().join("target.md");
+        fs::write(&target_path, "# Target").unwrap();
+        ws.on_file_open(target_path.clone(), "# Target".to_string());
+
+        // Create source note with link
+        let source_path = temp_dir.path().join("source.md");
+        let source_content = "# Source\n\nThis is a link: [[target]]";
+        fs::write(&source_path, source_content).unwrap();
+        ws.on_file_open(source_path.clone(), source_content.to_string());
+
+        // Get the actual link range to calculate positions outside it
+        let note = ws.note_by_path(&source_path).unwrap();
+        assert_eq!(note.links.len(), 1, "Should have one link");
+        let link_range = note.links[0].range;
+
+        // Test finding link at position before link (before start)
+        let before_link = Point {
+            line: link_range.start.line,
+            col: if link_range.start.col > 0 {
+                link_range.start.col - 1
+            } else {
+                0
+            },
+        };
+        let link_before = ws.find_link_at_position(&source_path, before_link);
+        assert!(
+            link_before.is_none(),
+            "Should not find link before link position"
+        );
+
+        // Test finding link at position after link (after end)
+        let after_link = Point {
+            line: link_range.end.line,
+            col: link_range.end.col + 1,
+        };
+        let link_after = ws.find_link_at_position(&source_path, after_link);
+        assert!(
+            link_after.is_none(),
+            "Should not find link after link position"
+        );
+
+        // Test finding link at different line
+        let different_line = Point { line: 0, col: 5 };
+        let link_different_line = ws.find_link_at_position(&source_path, different_line);
+        assert!(
+            link_different_line.is_none(),
+            "Should not find link at different line"
+        );
+    }
+
+    #[test]
+    fn test_find_link_at_position_multiple_links() {
+        let (mut ws, temp_dir) = create_test_workspace();
+
+        // Create target notes
+        let target1_path = temp_dir.path().join("target1.md");
+        let target2_path = temp_dir.path().join("target2.md");
+        fs::write(&target1_path, "# Target 1").unwrap();
+        fs::write(&target2_path, "# Target 2").unwrap();
+        ws.on_file_open(target1_path.clone(), "# Target 1".to_string());
+        ws.on_file_open(target2_path.clone(), "# Target 2".to_string());
+
+        // Create source note with multiple links
+        let source_path = temp_dir.path().join("source.md");
+        let source_content = "# Source\n\n[[target1]] and [[target2]]";
+        fs::write(&source_path, source_content).unwrap();
+        ws.on_file_open(source_path.clone(), source_content.to_string());
+
+        let note = ws.note_by_path(&source_path).unwrap();
+        assert_eq!(note.links.len(), 2, "Should have two links");
+
+        // Test finding first link
+        let first_link_range = note.links[0].range;
+        let first_link = ws.find_link_at_position(&source_path, first_link_range.start);
+        assert!(first_link.is_some(), "Should find first link");
+        assert_eq!(
+            first_link.unwrap().target,
+            note.links[0].target,
+            "Found link should be first link"
+        );
+
+        // Test finding second link
+        let second_link_range = note.links[1].range;
+        let second_link = ws.find_link_at_position(&source_path, second_link_range.start);
+        assert!(second_link.is_some(), "Should find second link");
+        assert_eq!(
+            second_link.unwrap().target,
+            note.links[1].target,
+            "Found link should be second link"
+        );
+    }
+
+    #[test]
+    fn test_get_link_target_path() {
+        let (mut ws, temp_dir) = create_test_workspace();
+
+        // Create target note
+        let target_path = temp_dir.path().join("target.md");
+        fs::write(&target_path, "# Target").unwrap();
+        ws.on_file_open(target_path.clone(), "# Target".to_string());
+
+        // Create source note with link
+        let source_path = temp_dir.path().join("source.md");
+        let source_content = "# Source\n\n[[target]]";
+        fs::write(&source_path, source_content).unwrap();
+        ws.on_file_open(source_path.clone(), source_content.to_string());
+
+        // Get the link
+        let note = ws.note_by_path(&source_path).unwrap();
+        assert_eq!(note.links.len(), 1, "Should have one link");
+        let link = &note.links[0];
+
+        // Test getting target path
+        let target_path_result = ws.get_link_target_path(link);
+        assert!(
+            target_path_result.is_some(),
+            "Should get target path for existing link"
+        );
+        assert_eq!(
+            target_path_result.unwrap(),
+            target_path,
+            "Target path should match"
+        );
+    }
+
+    #[test]
+    fn test_get_link_target_path_nonexistent() {
+        let (mut ws, temp_dir) = create_test_workspace();
+
+        // Create source note with link to non-existent target
+        let source_path = temp_dir.path().join("source.md");
+        let source_content = "# Source\n\n[[nonexistent]]";
+        fs::write(&source_path, source_content).unwrap();
+        ws.on_file_open(source_path.clone(), source_content.to_string());
+
+        // Get the link
+        let note = ws.note_by_path(&source_path).unwrap();
+        assert_eq!(note.links.len(), 1, "Should have one link");
+        let link = &note.links[0];
+
+        // Test getting target path for non-existent target
+        // Note: The link target will still have a NoteId (created on-the-fly),
+        // but it won't have a path since the file doesn't exist
+        let target_path_result = ws.get_link_target_path(link);
+        // This should return None because the target note doesn't have a path
+        assert!(
+            target_path_result.is_none(),
+            "Should return None for link to non-existent file"
+        );
+    }
+
+    #[test]
+    fn test_find_link_at_position_and_get_target_path_integration() {
+        let (mut ws, temp_dir) = create_test_workspace();
+
+        // Create target note
+        let target_path = temp_dir.path().join("target.md");
+        fs::write(&target_path, "# Target Note").unwrap();
+        ws.on_file_open(target_path.clone(), "# Target Note".to_string());
+
+        // Create source note with link
+        let source_path = temp_dir.path().join("source.md");
+        let source_content = "# Source Note\n\nCheck out [[target]] for more info.";
+        fs::write(&source_path, source_content).unwrap();
+        ws.on_file_open(source_path.clone(), source_content.to_string());
+
+        // Find link at a position within the link
+        // The link [[target]] should be on line 2 (0-based), around column 10-20
+        let note = ws.note_by_path(&source_path).unwrap();
+        let link_range = note.links[0].range;
+        let position_in_link = Point {
+            line: link_range.start.line,
+            col: link_range.start.col + 3, // Position inside [[target]]
+        };
+
+        // Find the link
+        let found_link = ws.find_link_at_position(&source_path, position_in_link);
+        assert!(found_link.is_some(), "Should find link at position");
+
+        // Get target path
+        let target_path_result = ws.get_link_target_path(found_link.unwrap());
+        assert!(
+            target_path_result.is_some(),
+            "Should get target path for found link"
+        );
+        assert_eq!(
+            target_path_result.unwrap(),
+            target_path,
+            "Target path should match expected target"
         );
     }
 }

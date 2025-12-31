@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 /// Core identity identifier
-/// private
+/// private and internal to the core library
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub(crate) struct NoteId(pub Uuid);
 
