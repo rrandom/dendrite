@@ -1,18 +1,31 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::RwLock;
 use walkdir::WalkDir;
 
 use crate::hierarchy::HierarchyResolver;
 use crate::identity::IdentityRegistry;
-use crate::model::{Link, Note, NoteId, NoteKey};
+use crate::model::{Link, Note, NoteId, NoteKey, TreeView};
 use crate::model::Point;
 use crate::parser::parse_markdown;
 use crate::store::Store;
+
+/// Internal tree structure for hierarchy
+/// Uses NoteId for stable references
+#[derive(Clone)]
+pub(crate) struct NoteTree {
+    pub(crate) root_nodes: Vec<NoteId>,
+    pub(crate) children: HashMap<NoteId, Vec<NoteId>>,
+    #[allow(dead_code)] // Reserved for future use (e.g., navigating up the tree)
+    pub(crate) parent: HashMap<NoteId, NoteId>,
+}
 
 pub struct Workspace {
     root: PathBuf,
     resolver: Box<dyn HierarchyResolver>,
     identity: Box<dyn IdentityRegistry>,
     store: Store,
+    tree_cache: RwLock<Option<NoteTree>>,
 }
 
 impl Workspace {
@@ -26,6 +39,7 @@ impl Workspace {
             resolver,
             identity,
             store: Store::new(),
+            tree_cache: RwLock::new(None),
         }
     }
 
@@ -60,6 +74,11 @@ impl Workspace {
         self.store.upsert_note(note);
         self.store.bind_path(new_path, old_id.clone());
         self.store.set_outgoing_links(&old_id, targets);
+        
+        // Key change affects tree structure
+        if old_key != new_key {
+            self.invalidate_tree();
+        }
     }
 
     pub fn on_file_delete(&mut self, path: PathBuf) {
@@ -67,6 +86,7 @@ impl Workspace {
             return;
         };
         self.store.remove_note(&id);
+        self.invalidate_tree();
     }
 
     pub fn note_by_path(&self, path: &PathBuf) -> Option<&Note> {
@@ -173,6 +193,7 @@ impl Workspace {
     }
 
     pub fn initialize(&mut self) -> Vec<PathBuf> {
+        // Step 1: scan 
         let mut md_files = Vec::new();
 
         for entry in WalkDir::new(&self.root)
@@ -190,9 +211,73 @@ impl Workspace {
                 }
             }
         }
+
+        // NoteId ↔ NoteKey
         self.index_files(md_files.clone());
 
+        // build virtual notes
+        self.fill_missing_hierarchy_levels();
+
+        // build NoteTree
+        self.invalidate_tree();
+
         md_files
+    }
+
+    /// fill missing hierarchy levels
+    fn fill_missing_hierarchy_levels(&mut self) {
+        // collect all real note keys
+        let real_note_keys: std::collections::HashSet<NoteKey> = self
+            .store
+            .all_notes()
+            .filter_map(|note| {
+                // only process notes with path
+                if note.path.is_some() {
+                    self.identity.key_of(&note.id).map(|(_, key)| key)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        // collect all virtual note keys
+        let mut virtual_keys = std::collections::HashSet::new();
+
+        for note_key in &real_note_keys {
+            // recursively find all missing parent nodes
+            let mut current_key = note_key.clone();
+            while let Some(parent_key) = self.resolver.resolve_parent(&current_key) {
+                // if parent node does not exist (neither in real notes, nor in collected virtual keys)
+                if !real_note_keys.contains(&parent_key) && !virtual_keys.contains(&parent_key) {
+                    virtual_keys.insert(parent_key.clone());
+                }
+                current_key = parent_key;
+            }
+        }
+
+        // create virtual notes for each virtual key
+        for virtual_key in virtual_keys {
+            // get or create NoteId
+            let virtual_id = self.identity.get_or_create(&virtual_key);
+
+            // check if it already exists (maybe created before)
+            if self.store.get_note(&virtual_id).is_some() {
+                continue;
+            }
+
+            // create virtual note (no path, no content)
+            let virtual_note = Note {
+                id: virtual_id.clone(),
+                path: None, // virtual note has no actual file
+                title: None,
+                frontmatter: None,
+                links: Vec::new(),
+                headings: Vec::new(),
+            };
+
+            // add to store
+            self.store.upsert_note(virtual_note);
+        }
     }
 
     pub fn update_file(&mut self, file_path: &PathBuf, content: &str) {
@@ -217,6 +302,9 @@ impl Workspace {
         self.store.upsert_note(note);
         self.store.bind_path(file_path.clone(), note_id.clone());
         self.store.set_outgoing_links(&note_id, targets);
+        
+        // invalidate tree on file update (key might have changed, or new note added)
+        self.invalidate_tree();
     }
 
     pub fn index_files(&mut self, files: Vec<PathBuf>) {
@@ -256,6 +344,149 @@ impl Workspace {
             headings: parse_result.headings,
         }
     }
+
+    /// Build the tree structure from all notes
+    fn build_tree(&self) -> NoteTree {
+        let mut root_nodes = Vec::new();
+        let mut children: HashMap<NoteId, Vec<NoteId>> = HashMap::new();
+        let mut parent: HashMap<NoteId, NoteId> = HashMap::new();
+
+        // Build parent-child relationships
+        for note in self.store.all_notes() {
+            let note_id = &note.id;
+            
+            // Get note key
+            let note_key = self
+                .identity
+                .key_of(note_id)
+                .map(|(_, key)| key)
+                .or_else(|| {
+                    note.path.as_ref().and_then(|path| {
+                        // Try to get key from path (for notes that haven't been indexed yet)
+                        Some(self.resolver.note_key_from_path(path, ""))
+                    })
+                });
+
+            let Some(note_key) = note_key else {
+                // Skip notes without key
+                continue;
+            };
+
+            // Get parent key
+            let parent_key = self.resolver.resolve_parent(&note_key);
+
+            if let Some(parent_key) = parent_key {
+                // Try to find parent NoteId
+                if let Some(parent_id) = self.identity.lookup(&parent_key) {
+                    // Parent exists, establish relationship
+                    children.entry(parent_id.clone()).or_insert_with(Vec::new).push(note_id.clone());
+                    parent.insert(note_id.clone(), parent_id);
+                } else {
+                    // Parent doesn't exist (Ghost Node), this is a root node
+                    root_nodes.push(note_id.clone());
+                }
+            } else {
+                // No parent, this is a root node
+                root_nodes.push(note_id.clone());
+            }
+        }
+
+        NoteTree {
+            root_nodes,
+            children,
+            parent,
+        }
+    }
+
+    /// Get the tree structure (builds if needed)
+    /// Returns a cloned copy of the tree to avoid holding the lock
+    fn tree(&self) -> NoteTree {
+        // Check if cache exists
+        {
+            let cache = self.tree_cache.read().unwrap();
+            if let Some(tree) = cache.as_ref() {
+                return tree.clone();
+            }
+        }
+        
+        // Build tree and cache it
+        let tree = self.build_tree();
+        {
+            let mut cache = self.tree_cache.write().unwrap();
+            *cache = Some(tree.clone());
+        }
+        tree
+    }
+
+    /// Invalidate the tree cache
+    fn invalidate_tree(&self) {
+        let mut cache = self.tree_cache.write().unwrap();
+        *cache = None;
+    }
+
+    /// Get tree view for LSP protocol
+    pub fn get_tree_view(&self) -> Vec<TreeView> {
+        let tree = self.tree();
+        
+        // Build tree view from root nodes
+        tree.root_nodes
+            .iter()
+            .filter_map(|root_id| self.build_tree_view_node(root_id, &tree))
+            .collect()
+    }
+
+    /// Helper function to build TreeView from NoteId (recursive)
+    fn build_tree_view_node(&self, note_id: &NoteId, tree: &NoteTree) -> Option<TreeView> {
+        let note = self.store.get_note(note_id)?;
+        
+        // Get note key
+        let note_key = self
+            .identity
+            .key_of(note_id)
+            .map(|(_, key)| key)
+            .or_else(|| {
+                note.path.as_ref().map(|path| {
+                    self.resolver.note_key_from_path(path, "")
+                })
+            });
+
+        // Get path as URI string
+        let path_uri = note.path.as_ref().and_then(|path| {
+            // Convert PathBuf to URI string
+            path.to_str().map(|s| {
+                if cfg!(windows) {
+                    format!("file:///{}", s.replace('\\', "/"))
+                } else {
+                    format!("file://{}", s)
+                }
+            })
+        });
+
+        // Get children (recursive)
+        let children = tree
+            .children
+            .get(note_id)
+            .map(|child_ids| {
+                child_ids
+                    .iter()
+                    .filter_map(|child_id| self.build_tree_view_node(child_id, tree))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        // Convert NoteId to string (UUID)
+        let id_string = note_id.0.to_string();
+
+        Some(TreeView {
+            note: crate::model::NoteRef {
+                id: id_string,
+                key: note_key,
+                path: path_uri,
+                title: note.title.clone(),
+            },
+            children,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -268,7 +499,7 @@ mod tests {
 
     fn create_test_workspace() -> (Workspace, TempDir) {
         let temp_dir = TempDir::new().unwrap();
-        let resolver = Box::new(DendronStrategy::new());
+        let resolver = Box::new(DendronStrategy::new(temp_dir.path().to_path_buf()));
         let identity = Box::new(DendriteIdentityRegistry::new());
         let workspace = Workspace::new(temp_dir.path().to_path_buf(), resolver, identity);
         (workspace, temp_dir)
@@ -774,5 +1005,255 @@ mod tests {
             display_names.contains(&"".to_string()),
             "Should contain empty display name for note without title"
         );
+    }
+
+    #[test]
+    fn test_virtual_notes_created_for_missing_parents() {
+        let (mut ws, temp_dir) = create_test_workspace();
+
+        // Create a note with hierarchical key: "foo.bar.baz.md"
+        // This should create virtual notes for "foo" and "foo.bar"
+        let baz_path = temp_dir.path().join("foo.bar.baz.md");
+        fs::write(&baz_path, "# Baz").unwrap();
+        ws.on_file_open(baz_path.clone(), "# Baz".to_string());
+
+        // Initialize workspace to trigger virtual note creation
+        ws.initialize();
+
+        // Check that virtual notes were created
+        let all_notes: Vec<_> = ws.store.all_notes().collect();
+        
+        // Should have 3 notes: "foo.bar.baz" (real) + "foo" (virtual) + "foo.bar" (virtual)
+        assert_eq!(all_notes.len(), 3, "Should have 3 notes (1 real + 2 virtual)");
+
+        // Check that "foo" virtual note exists
+        let foo_key = "foo".to_string();
+        let foo_id = ws.identity.lookup(&foo_key);
+        assert!(foo_id.is_some(), "Virtual note 'foo' should exist");
+        let foo_note = ws.store.get_note(foo_id.as_ref().unwrap());
+        assert!(foo_note.is_some(), "Virtual note 'foo' should be in store");
+        assert!(foo_note.unwrap().path.is_none(), "Virtual note 'foo' should have no path");
+
+        // Check that "foo.bar" virtual note exists
+        let foobar_key = "foo.bar".to_string();
+        let foobar_id = ws.identity.lookup(&foobar_key);
+        assert!(foobar_id.is_some(), "Virtual note 'foo.bar' should exist");
+        let foobar_note = ws.store.get_note(foobar_id.as_ref().unwrap());
+        assert!(foobar_note.is_some(), "Virtual note 'foo.bar' should be in store");
+        assert!(foobar_note.unwrap().path.is_none(), "Virtual note 'foo.bar' should have no path");
+
+        // Check that "foo.bar.baz" real note exists
+        let baz_key = "foo.bar.baz".to_string();
+        let baz_id = ws.identity.lookup(&baz_key);
+        assert!(baz_id.is_some(), "Real note 'foo.bar.baz' should exist");
+        let baz_note = ws.store.get_note(baz_id.as_ref().unwrap());
+        assert!(baz_note.is_some(), "Real note 'foo.bar.baz' should be in store");
+        assert!(baz_note.unwrap().path.is_some(), "Real note 'foo.bar.baz' should have path");
+    }
+
+    #[test]
+    fn test_tree_structure_built_correctly() {
+        let (mut ws, temp_dir) = create_test_workspace();
+
+        // Create hierarchical notes
+        let foo_path = temp_dir.path().join("foo.md");
+        fs::write(&foo_path, "# Foo").unwrap();
+        ws.on_file_open(foo_path.clone(), "# Foo".to_string());
+
+        let foobar_path = temp_dir.path().join("foo.bar.md");
+        fs::write(&foobar_path, "# Foo Bar").unwrap();
+        ws.on_file_open(foobar_path.clone(), "# Foo Bar".to_string());
+
+        let foobarbaz_path = temp_dir.path().join("foo.bar.baz.md");
+        fs::write(&foobarbaz_path, "# Foo Bar Baz").unwrap();
+        ws.on_file_open(foobarbaz_path.clone(), "# Foo Bar Baz".to_string());
+
+        // Initialize to build tree
+        ws.initialize();
+
+        // Get tree structure
+        let tree = ws.tree();
+
+        // "foo" should be a root node
+        let foo_key = "foo".to_string();
+        let foo_id = ws.identity.lookup(&foo_key).unwrap();
+        assert!(
+            tree.root_nodes.contains(&foo_id),
+            "foo should be a root node"
+        );
+
+        // "foo.bar" should be a child of "foo"
+        let foobar_key = "foo.bar".to_string();
+        let foobar_id = ws.identity.lookup(&foobar_key).unwrap();
+        assert!(
+            tree.children.get(&foo_id).map(|c| c.contains(&foobar_id)).unwrap_or(false),
+            "foo.bar should be a child of foo"
+        );
+
+        // "foo.bar.baz" should be a child of "foo.bar"
+        let foobarbaz_key = "foo.bar.baz".to_string();
+        let foobarbaz_id = ws.identity.lookup(&foobarbaz_key).unwrap();
+        assert!(
+            tree.children.get(&foobar_id).map(|c| c.contains(&foobarbaz_id)).unwrap_or(false),
+            "foo.bar.baz should be a child of foo.bar"
+        );
+
+        // Check parent relationships
+        assert_eq!(
+            tree.parent.get(&foobar_id),
+            Some(&foo_id),
+            "foo.bar's parent should be foo"
+        );
+        assert_eq!(
+            tree.parent.get(&foobarbaz_id),
+            Some(&foobar_id),
+            "foo.bar.baz's parent should be foo.bar"
+        );
+    }
+
+    #[test]
+    fn test_tree_cache_works() {
+        let (mut ws, temp_dir) = create_test_workspace();
+
+        // Create a note
+        let note_path = temp_dir.path().join("test.md");
+        fs::write(&note_path, "# Test").unwrap();
+        ws.on_file_open(note_path.clone(), "# Test".to_string());
+
+        // Initialize to build tree
+        ws.initialize();
+
+        // First call should build the tree
+        let tree1 = ws.tree();
+        assert!(!tree1.root_nodes.is_empty(), "Tree should be built");
+
+        // Second call should use cache (same tree structure)
+        let tree2 = ws.tree();
+        assert_eq!(tree1.root_nodes, tree2.root_nodes, "Cached tree should match");
+    }
+
+    #[test]
+    fn test_tree_invalidated_on_file_changes() {
+        let (mut ws, temp_dir) = create_test_workspace();
+
+        // Create initial note
+        let note_path = temp_dir.path().join("test.md");
+        fs::write(&note_path, "# Test").unwrap();
+        ws.on_file_open(note_path.clone(), "# Test".to_string());
+
+        // Initialize to build tree
+        ws.initialize();
+
+        // Get initial tree
+        let tree1 = ws.tree();
+        let initial_root_count = tree1.root_nodes.len();
+
+        // Add a new note (should invalidate tree)
+        let note2_path = temp_dir.path().join("test2.md");
+        fs::write(&note2_path, "# Test 2").unwrap();
+        ws.on_file_open(note2_path.clone(), "# Test 2".to_string());
+
+        // Tree should be rebuilt with new note
+        let tree2 = ws.tree();
+        assert!(
+            tree2.root_nodes.len() > initial_root_count,
+            "Tree should be rebuilt with new note"
+        );
+
+        // Delete a note (should invalidate tree)
+        ws.on_file_delete(note_path.clone());
+
+        // Tree should be rebuilt without deleted note
+        let tree3 = ws.tree();
+        assert!(
+            tree3.root_nodes.len() < tree2.root_nodes.len(),
+            "Tree should be rebuilt without deleted note"
+        );
+    }
+
+    #[test]
+    fn test_get_tree_view() {
+        let (mut ws, temp_dir) = create_test_workspace();
+
+        // Create hierarchical notes
+        let foo_path = temp_dir.path().join("foo.md");
+        fs::write(&foo_path, "# Foo").unwrap();
+        ws.on_file_open(foo_path.clone(), "# Foo".to_string());
+
+        let foobar_path = temp_dir.path().join("foo.bar.md");
+        fs::write(&foobar_path, "# Foo Bar").unwrap();
+        ws.on_file_open(foobar_path.clone(), "# Foo Bar".to_string());
+
+        // Initialize to build tree and create virtual notes
+        ws.initialize();
+
+        // Get tree view
+        let tree_view = ws.get_tree_view();
+
+        // Should have root nodes
+        assert!(!tree_view.is_empty(), "Tree view should have root nodes");
+
+        // Find "foo" node
+        let foo_node = tree_view.iter().find(|node| node.note.key.as_ref() == Some(&"foo".to_string()));
+        assert!(foo_node.is_some(), "Should find 'foo' node in tree view");
+        let foo_node = foo_node.unwrap();
+
+        // Check that "foo" has children
+        assert!(!foo_node.children.is_empty(), "foo should have children");
+
+        // Find "foo.bar" in children
+        let foobar_node = foo_node.children.iter().find(|node| {
+            node.note.key.as_ref() == Some(&"foo.bar".to_string())
+        });
+        assert!(foobar_node.is_some(), "Should find 'foo.bar' as child of 'foo'");
+
+        // Check NoteRef structure
+        let foobar_ref = &foobar_node.unwrap().note;
+        assert_eq!(foobar_ref.key, Some("foo.bar".to_string()), "Key should match");
+        assert!(foobar_ref.path.is_some(), "Real note should have path");
+        assert_eq!(foobar_ref.title, Some("Foo Bar".to_string()), "Title should match");
+    }
+
+    #[test]
+    fn test_virtual_notes_in_tree_view() {
+        let (mut ws, temp_dir) = create_test_workspace();
+
+        // Create a note with hierarchical key (missing parents)
+        let baz_path = temp_dir.path().join("foo.bar.baz.md");
+        fs::write(&baz_path, "# Baz").unwrap();
+        ws.on_file_open(baz_path.clone(), "# Baz".to_string());
+
+        // Initialize to create virtual notes
+        ws.initialize();
+
+        // Get tree view
+        let tree_view = ws.get_tree_view();
+
+        // Find "foo" virtual node
+        let foo_node = tree_view.iter().find(|node| node.note.key.as_ref() == Some(&"foo".to_string()));
+        assert!(foo_node.is_some(), "Should find 'foo' virtual node");
+        let foo_node = foo_node.unwrap();
+
+        // Virtual note should have no path
+        assert!(foo_node.note.path.is_none(), "Virtual note should have no path");
+        assert!(foo_node.note.title.is_none(), "Virtual note should have no title");
+
+        // "foo" should have "foo.bar" as child
+        let foobar_node = foo_node.children.iter().find(|node| {
+            node.note.key.as_ref() == Some(&"foo.bar".to_string())
+        });
+        assert!(foobar_node.is_some(), "Should find 'foo.bar' as child of 'foo'");
+        let foobar_node = foobar_node.unwrap();
+
+        // "foo.bar" should have "foo.bar.baz" as child
+        let baz_node = foobar_node.children.iter().find(|node| {
+            node.note.key.as_ref() == Some(&"foo.bar.baz".to_string())
+        });
+        assert!(baz_node.is_some(), "Should find 'foo.bar.baz' as child of 'foo.bar'");
+        let baz_node = baz_node.unwrap();
+
+        // Real note should have path
+        assert!(baz_node.note.path.is_some(), "Real note should have path");
+        assert_eq!(baz_node.note.title, Some("Baz".to_string()), "Real note should have title");
     }
 }

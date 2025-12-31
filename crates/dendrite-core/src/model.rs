@@ -66,3 +66,24 @@ pub enum LinkKind {
     WikiLink,     // [[target]]
     MarkdownLink, // [label](target)
 }
+
+/// Reference to a note for tree view
+/// Used for serialization in LSP protocol
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NoteRef {
+    /// Note ID as string (UUID)
+    pub id: String,
+    /// Note key (e.g., "foo.bar")
+    pub key: Option<String>,
+    /// File path as URI string
+    pub path: Option<String>,
+    /// Note title
+    pub title: Option<String>,
+}
+
+/// Tree view structure for hierarchy display
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TreeView {
+    pub note: NoteRef,
+    pub children: Vec<TreeView>,
+}

@@ -14,11 +14,13 @@ pub trait HierarchyResolver: Send + Sync {
     fn path_from_note_key(&self, key: &NoteKey) -> PathBuf;
 }
 
-pub struct DendronStrategy;
+pub struct DendronStrategy {
+    root: PathBuf,
+}
 
 impl DendronStrategy {
-    pub fn new() -> Self {
-        Self
+    pub fn new(root: PathBuf) -> Self {
+        Self { root }
     }
 }
 
@@ -64,6 +66,8 @@ impl HierarchyResolver for DendronStrategy {
         Some(parts[..parts.len() - 1].join("."))
     }
     fn path_from_note_key(&self, key: &NoteKey) -> std::path::PathBuf {
-        Path::new(&key).with_extension("md")
+        // Generate full path: root / "key.md"
+        // e.g., root = "/workspace", key = "foo.bar" -> "/workspace/foo.bar.md"
+        self.root.join(format!("{}.md", key))
     }
 }

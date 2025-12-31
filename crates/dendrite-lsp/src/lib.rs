@@ -49,8 +49,8 @@ impl tower_lsp::LanguageServer for Backend {
                 let root_path_clone = root_path.clone();
                 let (ws, files) = tokio::task::spawn_blocking(move || {
                     let mut workspace = Workspace::new(
-                        root_path_clone,
-                        Box::new(DendronStrategy::new()),
+                        root_path_clone.clone(),
+                        Box::new(DendronStrategy::new(root_path_clone.clone())),
                         Box::new(DendriteIdentityRegistry::new()),
                     );
                     let files = workspace.initialize();
