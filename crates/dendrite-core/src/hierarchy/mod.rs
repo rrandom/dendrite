@@ -27,8 +27,14 @@ impl HierarchyResolver for DendronStrategy {
         ResolverId("Dendron")
     }
     fn note_key_from_path(&self, path: &Path, _: &str) -> NoteKey {
-        let note_key = normalize_path_to_id(path);
-        note_key
+        // Dendron note key is just the filename without .md extension
+        // e.g., "foo.bar.md" -> "foo.bar"
+        if let Some(file_name) = path.file_stem() {
+            file_name.to_string_lossy().to_string()
+        } else {
+            // Fallback to normalize_path_to_id if no file stem
+            normalize_path_to_id(path)
+        }
     }
     fn note_key_from_link(&self, source: &NoteKey, raw: &str) -> NoteKey {
         let link_path = Path::new(raw);

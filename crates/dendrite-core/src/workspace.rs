@@ -112,6 +112,22 @@ impl Workspace {
         self.store.all_notes().collect()
     }
 
+    /// Get all note keys for completion
+    /// Returns a vector of (note_key, display_name) tuples
+    pub fn all_note_keys(&self) -> Vec<(NoteKey, String)> {
+        self.store
+            .all_notes()
+            .filter_map(|note| {
+                self.identity
+                    .key_of(&note.id)
+                    .map(|(_, key)| {
+                        let display_name = self.resolver.resolve_display_name(note);
+                        (key, display_name)
+                    })
+            })
+            .collect()
+    }
+
     /// Rename a note (semantic rename)
     pub fn rename_note(&mut self, old_path: PathBuf, new_key: NoteKey) {
         let old_key = self.resolver.note_key_from_path(&old_path, "");
@@ -695,6 +711,68 @@ mod tests {
             target_path_result.unwrap(),
             target_path,
             "Target path should match expected target"
+        );
+    }
+
+    #[test]
+    fn test_all_note_keys() {
+        let (mut ws, temp_dir) = create_test_workspace();
+
+        // Create multiple notes with different titles
+        let note1_path = temp_dir.path().join("note1.md");
+        fs::write(&note1_path, "# Note One").unwrap();
+        ws.on_file_open(note1_path.clone(), "# Note One".to_string());
+
+        let note2_path = temp_dir.path().join("note2.md");
+        fs::write(&note2_path, "# Note Two").unwrap();
+        ws.on_file_open(note2_path.clone(), "# Note Two".to_string());
+
+        let note3_path = temp_dir.path().join("note3.md");
+        fs::write(&note3_path, "No title here").unwrap();
+        ws.on_file_open(note3_path.clone(), "No title here".to_string());
+
+        // Get all note keys
+        let note_keys = ws.all_note_keys();
+
+        // Should have 3 notes
+        assert_eq!(note_keys.len(), 3, "Should have 3 notes");
+
+        // Check that keys and display names are correct
+        // Note: HashMap iteration order is not guaranteed, so we can't rely on index
+        let keys: Vec<String> = note_keys.iter().map(|(k, _)| k.clone()).collect();
+        let display_names: Vec<String> = note_keys.iter().map(|(_, d)| d.clone()).collect();
+
+        // Note keys should be just the filename without .md extension (Dendron design)
+        // e.g., "note1.md" -> "note1"
+        assert!(
+            keys.contains(&"note1".to_string()),
+            "Should contain note1 key, got: {:?}",
+            keys
+        );
+        assert!(
+            keys.contains(&"note2".to_string()),
+            "Should contain note2 key, got: {:?}",
+            keys
+        );
+        assert!(
+            keys.contains(&"note3".to_string()),
+            "Should contain note3 key, got: {:?}",
+            keys
+        );
+
+        // Display names should match titles
+        assert!(
+            display_names.contains(&"Note One".to_string()),
+            "Should contain 'Note One' as display name"
+        );
+        assert!(
+            display_names.contains(&"Note Two".to_string()),
+            "Should contain 'Note Two' as display name"
+        );
+        // Note without title should have empty display name
+        assert!(
+            display_names.contains(&"".to_string()),
+            "Should contain empty display name for note without title"
         );
     }
 }
