@@ -1,7 +1,7 @@
 use crate::model::{NoteId, NoteKey, ResolverId};
 use std::collections::HashMap;
 
-/// notekey => noteid
+/// NoteKey <=> NoteId
 #[allow(private_interfaces)]
 pub trait IdentityRegistry: Send + Sync {
     fn get_or_create(&mut self, key: &NoteKey) -> NoteId;

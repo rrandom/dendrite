@@ -3,8 +3,9 @@ use serde_json;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-/// Core identity identifier
-/// private and internal to the core library
+/// Core identifier of a noate
+/// Private and internal in the core library
+/// The ONLY stable identifier across file change
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub(crate) struct NoteId(pub Uuid);
 
@@ -14,6 +15,7 @@ impl NoteId {
     }
 }
 
+// Changeable name of a note
 pub type NoteKey = String;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

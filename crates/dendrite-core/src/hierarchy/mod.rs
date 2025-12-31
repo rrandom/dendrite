@@ -4,7 +4,7 @@ use crate::{
 };
 use std::path::{Path, PathBuf};
 
-/// path/link/text => notekey
+/// Path/Link/Text => NoteKey rules
 pub trait HierarchyResolver: Send + Sync {
     fn id(&self) -> ResolverId;
     fn note_key_from_path(&self, path: &Path, content: &str) -> NoteKey;
@@ -54,8 +54,14 @@ impl HierarchyResolver for DendronStrategy {
         note.title.clone().unwrap_or_default()
     }
     fn resolve_parent(&self, note: &NoteKey) -> Option<NoteKey> {
-        let parent_key = note.split('.').nth(0)?;
-        Some(parent_key.to_string())
+        // For Dendron: "foo.bar.baz" -> "foo.bar", "foo.bar" -> "foo", "foo" -> None
+        let parts: Vec<&str> = note.split('.').collect();
+        if parts.len() <= 1 {
+            // No parent (root level or single part)
+            return None;
+        }
+        // Return all parts except the last one, joined by '.'
+        Some(parts[..parts.len() - 1].join("."))
     }
     fn path_from_note_key(&self, key: &NoteKey) -> std::path::PathBuf {
         Path::new(&key).with_extension("md")
