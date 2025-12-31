@@ -10,12 +10,12 @@ pub trait IdentityRegistry: Send + Sync {
     fn key_of(&self, id: &NoteId) -> Option<(ResolverId, NoteKey)>;
 }
 
-pub struct DendriteIdentityRegistry {
+pub struct BasicIdentityRegistry {
     key_to_id: HashMap<NoteKey, NoteId>,
     id_to_key: HashMap<NoteId, NoteKey>,
 }
 
-impl DendriteIdentityRegistry {
+impl BasicIdentityRegistry {
     pub fn new() -> Self {
         Self {
             key_to_id: HashMap::new(),
@@ -25,7 +25,7 @@ impl DendriteIdentityRegistry {
 }
 
 #[allow(private_interfaces)]
-impl IdentityRegistry for DendriteIdentityRegistry {
+impl IdentityRegistry for BasicIdentityRegistry {
     fn get_or_create(&mut self, key: &NoteKey) -> NoteId {
         if let Some(id) = self.key_to_id.get(key) {
             return id.clone();

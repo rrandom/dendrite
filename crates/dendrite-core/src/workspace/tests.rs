@@ -1,6 +1,6 @@
 use super::*;
 use crate::hierarchy::DendronStrategy;
-use crate::identity::DendriteIdentityRegistry;
+use crate::identity::BasicIdentityRegistry;
 use crate::model::Point;
 use std::fs;
 use tempfile::TempDir;
@@ -8,7 +8,7 @@ use tempfile::TempDir;
 fn create_test_workspace() -> (Workspace, TempDir) {
     let temp_dir = TempDir::new().unwrap();
     let resolver = Box::new(DendronStrategy::new(temp_dir.path().to_path_buf()));
-    let identity = Box::new(DendriteIdentityRegistry::new());
+    let identity = Box::new(BasicIdentityRegistry::new());
     let workspace = Workspace::new(temp_dir.path().to_path_buf(), resolver, identity);
     (workspace, temp_dir)
 }

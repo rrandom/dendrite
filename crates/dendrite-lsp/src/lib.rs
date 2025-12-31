@@ -7,7 +7,7 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LspService};
 
 use conversion::{lsp_position_to_point, path_to_uri, text_range_to_lsp_range};
-use dendrite_core::{DendriteIdentityRegistry, DendronStrategy, Workspace};
+use dendrite_core::{BasicIdentityRegistry, DendronStrategy, Workspace};
 use handlers::{handle_get_hierarchy, handle_list_notes};
 use protocol::{GetHierarchyParams, ListNotesParams};
 use state::GlobalState;
@@ -54,7 +54,7 @@ impl tower_lsp::LanguageServer for Backend {
                     let mut workspace = Workspace::new(
                         root_path_clone.clone(),
                         Box::new(DendronStrategy::new(root_path_clone.clone())),
-                        Box::new(DendriteIdentityRegistry::new()),
+                        Box::new(BasicIdentityRegistry::new()),
                     );
                     let files = workspace.initialize();
                     (workspace, files)
