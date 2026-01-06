@@ -9,26 +9,34 @@ Dendrite follows a three-layer architecture pattern:
 ```mermaid
 graph TD
     Client[Client Layer - LSP / CLI]
-    Core[Core Engine - dendrite-core]
-    Strategy[Strategy Layer - Dendron / Flat]
+    Vault[Vault Orchestrator]
+    Indexer[Indexer - Process Logic]
+    Core[Core State - Workspace]
+    Strategy[Syntax Strategy - Traits]
+    VFS[FileSystem - Trait]
     
-    Client -- JSON-RPC --> Core
+    Client -- Orchestrates --> Vault
+    Vault -- Owns --> Core
+    Vault -- Uses --> Indexer
+    Indexer -- Mutates --> Core
+    Indexer -- Reads/Writes --> VFS
     Core -- Traits --> Strategy
-    Core -- Read/Write --> FS[(File System)]
 ```
 
 ### 1.1 Client Layer
 - **LSP Backend**: Implements the Language Server Protocol.
-- **VS Code Extension**: Provides the UI, Tree Views, and editing assistance.
+- **Vault Handle**: Uses the `Vault` orchestrator as the primary entry point for all operations.
 - **Document Cache**: Manages "dirty" buffers (unsaved changes) to provide real-time feedback.
 
 ### 1.2 Core Engine (`dendrite-core`)
-- **Workspace Manager**: Orchestrates file scanning, parsing, and indexing.
+- **Vault**: The top-level orchestrator that bridges `Workspace` with `FileSystem`.
+- **Indexer**: Orchestrates the "Process" of indexing (scan -> parse -> assemble -> upsert).
+- **Workspace**: A **pure state container** holding notes, links, and the hierarchy tree.
 - **Store**: An in-memory graph database storing notes, links, and backlinks.
 - **Identity Registry**: Ensures note IDs remain stable across renames.
 
 ### 1.3 Strategy Layer
-- **Trait-Based**: Business logic for hierarchy and ID resolution is abstracted behind traits.
+- **Trait-Based**: Business logic for hierarchy and ID resolution is abstracted behind the `SyntaxStrategy` trait.
 - **Dendron Strategy**: Implements dot-separated hierarchies (`foo.bar.md`).
 
 ---

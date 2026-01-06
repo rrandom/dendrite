@@ -28,10 +28,10 @@ pub struct Workspace {
 }
 
 impl Workspace {
-    pub fn new(resolver: Box<dyn SyntaxStrategy>, identity: IdentityRegistry) -> Self {
+    pub fn new(resolver: Box<dyn SyntaxStrategy>) -> Self {
         Self {
             resolver,
-            identity,
+            identity: IdentityRegistry::new(),
             store: Store::new(),
             tree_cache: RwLock::new(None),
         }

@@ -31,9 +31,11 @@ A **Link** represents a relationship between notes or blocks.
 | Term | Definition |
 | :--- | :--- |
 | **Engine** | The core Rust-based semantic engine (LSP server). |
-| **Workspace** | A root directory containing Markdown notes managed by the Engine. |
+| **Vault** | High-level orchestrator that combines `Workspace` (state) and `FileSystem` (I/O). |
+| **Workspace** | A **pure state container** holding notes, links, and hierarchy trees. No I/O knowledge. |
+| **FileSystem** | An abstraction layer (Trait) for file system operations, enabling portability (Desktop/WASM). |
 | **Identity Registry** | The module responsible for maintaining stable IDs for notes. |
-| **Hierarchy Resolver** | The strategy responsible for turning paths and links into Note Keys. |
+| **Syntax Strategy** | The strategy responsible for format-specific rules (hierarchy, links, display names). |
 | **Ghost / Virtual Note** | A node in the hierarchy that has children but no corresponding file on disk. |
 
 ---

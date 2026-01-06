@@ -1,7 +1,6 @@
 use super::assembler::NoteAssembler;
 use super::*;
 use crate::hierarchy::DendronStrategy;
-use crate::identity::IdentityRegistry;
 use crate::model::Point;
 use crate::parser::parse_markdown;
 use std::fs;
@@ -13,8 +12,7 @@ use crate::workspace::Indexer;
 fn create_test_workspace() -> (Workspace, TempDir) {
     let temp_dir = TempDir::new().unwrap();
     let resolver = Box::new(DendronStrategy::new(temp_dir.path().to_path_buf()));
-    let identity = IdentityRegistry::new();
-    let workspace = Workspace::new(resolver, identity);
+    let workspace = Workspace::new(resolver);
     (workspace, temp_dir)
 }
 

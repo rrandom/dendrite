@@ -1,5 +1,5 @@
 use crate::state::GlobalState;
-use dendrite_core::{DendronStrategy, IdentityRegistry, Vault, Workspace};
+use dendrite_core::{DendronStrategy, Vault, Workspace};
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::Client;
@@ -24,10 +24,8 @@ pub async fn handle_initialize(
             let root_path_clone = root_path.clone();
             let fs = state.fs.clone();
             let (vault, files) = tokio::task::spawn_blocking(move || {
-                let workspace = Workspace::new(
-                    Box::new(DendronStrategy::new(root_path_clone.clone())),
-                    IdentityRegistry::new(),
-                );
+                let workspace =
+                    Workspace::new(Box::new(DendronStrategy::new(root_path_clone.clone())));
                 let mut v = Vault::new(workspace, fs);
                 let files = v.initialize(root_path_clone);
                 (v, files)

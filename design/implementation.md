@@ -5,10 +5,13 @@ This document covers the technical implementation of the `dendrite-core` and its
 ## 1. Module Responsibilities
 
 ### 1.1 Workspace (`workspace/`)
-- **`mod.rs`**: Core coordinator.
-- **`file_ops.rs`**: Handles lifecycle of files (open, change, delete). Uses SHA256 digests to avoid unnecessary updates.
-- **`hierarchy.rs`**: Dynamically builds the `NoteTree` using the `HierarchyResolver`. Handles Ghost node generation.
-- **`queries.rs`**: Implementation of semantic queries like link resolution and backlink discovery.
+- **`mod.rs`**: Defines the `Workspace` (pure state) and `Vault` (orchestrator).
+- **`vault.rs`**: High-level API for clients. Orchestrates `Workspace` and `FileSystem`.
+- **`indexer.rs`**: Process-heavy logic for indexing, scanning, and mutating state.
+- **`assembler.rs`**: Transitions raw parse results into semantically linked `Note` objects.
+- **`hierarchy.rs`**: Dynamically builds the `NoteTree` using the `SyntaxStrategy`.
+- **`queries.rs`**: implementation of read-only queries (links, backlinks).
+- **`vfs.rs`**: `FileSystem` trait and concrete backends (`PhysicalFileSystem`).
 
 ### 1.2 Parser (`parser.rs`)
 - **Technique**: Uses `pulldown-cmark` for event-based Markdown parsing.
@@ -42,7 +45,7 @@ The hierarchical tree view is expensive to compute for large vaults. The `Worksp
 Dendrite is designed to be strategy-agnostic:
 
 ```rust
-pub trait HierarchyResolver: Send + Sync {
+pub trait SyntaxStrategy: Send + Sync {
     fn note_key_from_path(&self, path: &Path, content: &str) -> NoteKey;
     fn resolve_parent(&self, key: &NoteKey) -> Option<NoteKey>;
     fn resolve_display_name(&self, note: &Note) -> String;
