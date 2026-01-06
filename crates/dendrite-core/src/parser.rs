@@ -15,6 +15,7 @@ pub(crate) struct ParseResult {
     pub headings: Vec<Heading>,
     pub title: Option<String>,
     pub frontmatter: Option<serde_json::Value>,
+    pub digest: String,
 }
 
 pub(crate) fn parse_markdown(text: &str) -> ParseResult {
@@ -155,17 +156,50 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
         }
     }
 
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(text);
+    let digest = format!("{:x}", hasher.finalize());
+
     ParseResult {
         links,
         headings,
         title,
         frontmatter,
+        digest,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_frontmatter() {
+        let content = "---\ntitle: My Note\nid: 123\n---\n# Content";
+        let result = parse_markdown(content);
+
+        assert_eq!(result.title, Some("My Note".to_string()));
+        assert!(result.frontmatter.is_some());
+        let fm = result.frontmatter.unwrap();
+        assert_eq!(fm["title"], "My Note");
+        assert_eq!(fm["id"], 123);
+    }
+
+    #[test]
+    fn test_parse_digest() {
+        let content1 = "Content A";
+        let content2 = "Content A";
+        let content3 = "Content B";
+
+        let result1 = parse_markdown(content1);
+        let result2 = parse_markdown(content2);
+        let result3 = parse_markdown(content3);
+
+        assert_eq!(result1.digest, result2.digest);
+        assert_ne!(result1.digest, result3.digest);
+        assert_eq!(result1.digest.len(), 64); // SHA256 hex string length
+    }
 
     #[test]
     fn test_parse_wiki_link() {

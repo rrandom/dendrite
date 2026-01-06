@@ -51,6 +51,7 @@ pub struct Note {
     pub frontmatter: Option<serde_json::Value>,
     pub links: Vec<Link>,
     pub headings: Vec<Heading>,
+    pub digest: Option<String>,
 }
 /// Link entity
 #[derive(Debug, Clone, Serialize, Deserialize)]

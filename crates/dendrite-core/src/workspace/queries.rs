@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use crate::model::Point;
 use crate::model::{Link, Note, NoteKey};
 
+use crate::parser::parse_markdown;
+
 use super::Workspace;
 
 impl Workspace {
@@ -102,7 +104,8 @@ impl Workspace {
             let _ = self.identity.rebind(&old_key, &new_key);
         }
 
-        let note = self.parse_note(&content, &new_path, &id);
+        let parse_result = parse_markdown(&content);
+        let note = self.create_note_from_parse(parse_result, &new_path, &id);
         let targets: Vec<crate::model::NoteId> =
             note.links.iter().map(|link| link.target.clone()).collect();
         self.store.upsert_note(note);

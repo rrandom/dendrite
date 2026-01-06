@@ -32,7 +32,8 @@ impl Workspace {
             let _ = self.identity.rebind(&old_key, &new_key);
         }
 
-        let note = self.parse_note(content, &new_path, &old_id);
+        let parse_result = parse_markdown(content);
+        let note = self.create_note_from_parse(parse_result, &new_path, &old_id);
         let targets: Vec<NoteId> = note.links.iter().map(|link| link.target.clone()).collect();
         self.store.upsert_note(note);
         self.store.bind_path(new_path, old_id.clone());
@@ -55,8 +56,13 @@ impl Workspace {
     pub fn update_file(&mut self, file_path: &PathBuf, content: &str) {
         let new_key = self.resolver.note_key_from_path(file_path, content);
 
-        let note_id = if let Some(existing_id) = self.store.note_id_by_path(file_path) {
+        let (note_id, old_digest) = if let Some(existing_id) = self.store.note_id_by_path(file_path)
+        {
             let existing_id = existing_id.clone();
+            let old_digest = self
+                .store
+                .get_note(&existing_id)
+                .and_then(|n| n.digest.clone());
 
             if let Some((_, old_key)) = self.identity.key_of(&existing_id) {
                 if old_key != new_key {
@@ -64,12 +70,22 @@ impl Workspace {
                 }
             }
 
-            existing_id
+            (existing_id, old_digest)
         } else {
-            self.identity.get_or_create(&new_key)
+            (self.identity.get_or_create(&new_key), None)
         };
 
-        let note = self.parse_note(content, file_path, &note_id);
+        // Parse always to get the new digest
+        let parse_result = parse_markdown(content);
+
+        if let Some(old) = old_digest {
+            if old == parse_result.digest {
+                // Content unchanged, skip update
+                return;
+            }
+        }
+
+        let note = self.create_note_from_parse(parse_result, file_path, &note_id);
         let targets: Vec<NoteId> = note.links.iter().map(|link| link.target.clone()).collect();
         self.store.upsert_note(note);
         self.store.bind_path(file_path.clone(), note_id.clone());
@@ -92,9 +108,13 @@ impl Workspace {
         self.update_file(&path, &content);
     }
 
-    pub(crate) fn parse_note(&mut self, content: &str, path: &PathBuf, note_id: &NoteId) -> Note {
-        let parse_result = parse_markdown(content);
-        let source_key = self.resolver.note_key_from_path(path, content);
+    pub(crate) fn create_note_from_parse(
+        &mut self,
+        parse_result: crate::parser::ParseResult,
+        path: &PathBuf,
+        note_id: &NoteId,
+    ) -> Note {
+        let source_key = self.resolver.note_key_from_path(path, ""); // Content not needed for key extraction in DendronStrategy
 
         Note {
             id: note_id.clone(),
@@ -116,6 +136,7 @@ impl Workspace {
                 })
                 .collect(),
             headings: parse_result.headings,
+            digest: Some(parse_result.digest),
         }
     }
 }

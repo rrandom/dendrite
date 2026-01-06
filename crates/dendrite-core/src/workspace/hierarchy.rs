@@ -210,6 +210,7 @@ impl Workspace {
                 frontmatter: None,
                 links: Vec::new(),
                 headings: Vec::new(),
+                digest: None,
             };
 
             // add to store

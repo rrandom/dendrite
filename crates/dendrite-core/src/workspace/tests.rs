@@ -2,6 +2,7 @@ use super::*;
 use crate::hierarchy::DendronStrategy;
 use crate::identity::BasicIdentityRegistry;
 use crate::model::Point;
+use crate::parser::parse_markdown;
 use std::fs;
 use tempfile::TempDir;
 
@@ -27,7 +28,8 @@ fn test_parse_note_resolves_links_correctly() {
     let note1_key = ws.resolver.note_key_from_path(&note1_path, note1_content);
     let note1_id = ws.identity.get_or_create(&note1_key);
 
-    let note = ws.parse_note(note1_content, &note1_path, &note1_id);
+    let parse_result = parse_markdown(note1_content);
+    let note = ws.create_note_from_parse(parse_result, &note1_path, &note1_id);
 
     assert_eq!(note.links.len(), 1, "Should have one link");
 
