@@ -12,7 +12,20 @@
                 "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [
-                "$rustc"
+                {
+                    "owner": "rustc",
+                    "source": "rustc",
+                    "fileLocation": [
+                        "relative",
+                        "${workspaceFolder}"
+                    ],
+                    "pattern": {
+                        "regexp": "^(warning|error|note)(?:\\[(.*?)\\])?: (.*)$",
+                        "severity": 1,
+                        "code": 2,
+                        "message": 3
+                    }
+                }
             ],
             "group": {
                 "kind": "build",
@@ -60,4 +73,3 @@
         }
     ]
 }
-

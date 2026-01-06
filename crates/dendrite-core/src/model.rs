@@ -73,8 +73,9 @@ pub struct Link {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum LinkKind {
-    WikiLink,     // [[target]]
-    MarkdownLink, // [label](target)
+    WikiLink,         // [[target]]
+    EmbeddedWikiLink, // ![[target]]
+    MarkdownLink,     // [label](target)
 }
 
 /// Reference to a note for tree view
