@@ -53,5 +53,6 @@ coverage/
 *.lcov
 .nyc_output/
 
-design/
+design/archived
+design/v0
 test-docs/
