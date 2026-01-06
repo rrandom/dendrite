@@ -10,10 +10,11 @@ pub async fn handle_goto_definition(
     state: &GlobalState,
     params: GotoDefinitionParams,
 ) -> Result<Option<GotoDefinitionResponse>> {
-    let state = state.workspace.read().await;
-    let Some(ws) = &*state else {
+    let state_lock = state.vault.read().await;
+    let Some(vault) = &*state_lock else {
         return Ok(None);
     };
+    let ws = &vault.workspace;
 
     let uri = &params.text_document_position_params.text_document.uri;
     let position = params.text_document_position_params.position;
@@ -92,16 +93,14 @@ pub async fn handle_hover(
         )
         .await;
 
-    let state = state.workspace.read().await;
-    let Some(ws) = &*state else {
+    let state_lock = state.vault.read().await;
+    let Some(vault) = &*state_lock else {
         client
-            .log_message(
-                MessageType::WARNING,
-                "⚠️ Workspace not initialized for hover",
-            )
+            .log_message(MessageType::WARNING, "⚠️ Vault not initialized for hover")
             .await;
         return Ok(None);
     };
+    let ws = &vault.workspace;
 
     let uri = &params.text_document_position_params.text_document.uri;
     let position = params.text_document_position_params.position;
@@ -220,10 +219,11 @@ pub async fn handle_document_highlight(
         )
         .await;
 
-    let state = state.workspace.read().await;
-    let Some(ws) = &*state else {
+    let state_lock = state.vault.read().await;
+    let Some(vault) = &*state_lock else {
         return Ok(None);
     };
+    let ws = &vault.workspace;
 
     let uri = &params.text_document_position_params.text_document.uri;
     let position = params.text_document_position_params.position;

@@ -3,8 +3,6 @@ use std::path::PathBuf;
 use crate::model::Point;
 use crate::model::{Link, Note, NoteKey, TextRange};
 
-use crate::parser::parse_markdown;
-
 use super::Workspace;
 
 impl Workspace {
@@ -86,51 +84,5 @@ impl Workspace {
                 })
             })
             .collect()
-    }
-
-    /// Rename a note (semantic rename)
-    pub fn rename_note(&mut self, old_path: PathBuf, new_key: NoteKey) {
-        let old_key = self.resolver.note_key_from_path(&old_path, "");
-
-        let Some(id) = self.identity.rebind(&old_key, &new_key) else {
-            return;
-        };
-
-        let new_path = self.resolver.path_from_note_key(&new_key);
-        self.store.update_path(&id, new_path);
-    }
-
-    /// Move a note to a new path
-    pub fn move_note(&mut self, old_path: PathBuf, new_path: PathBuf) {
-        let Some(id) = self.store.note_id_by_path(&old_path).cloned() else {
-            let Ok(content) = std::fs::read_to_string(&new_path) else {
-                return;
-            };
-            self.update_file(&new_path, &content);
-            return;
-        };
-
-        let Ok(content) = std::fs::read_to_string(&new_path) else {
-            return;
-        };
-
-        let Some((_, old_key)) = self.identity.key_of(&id) else {
-            self.update_file(&new_path, &content);
-            return;
-        };
-
-        let new_key = self.resolver.note_key_from_path(&new_path, &content);
-
-        if old_key != new_key {
-            let _ = self.identity.rebind(&old_key, &new_key);
-        }
-
-        let parse_result = parse_markdown(&content);
-        let note = self.create_note_from_parse(parse_result, &new_path, &id);
-        let targets: Vec<crate::model::NoteId> =
-            note.links.iter().map(|link| link.target.clone()).collect();
-        self.store.upsert_note(note);
-        self.store.bind_path(new_path, id.clone());
-        self.store.set_outgoing_links(&id, targets);
     }
 }

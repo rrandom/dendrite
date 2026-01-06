@@ -1,9 +1,6 @@
-use std::path::PathBuf;
-
-use crate::model::{Link, Note, NoteId};
-use crate::parser::parse_markdown;
-
+use super::indexer::Indexer;
 use super::Workspace;
+use std::path::PathBuf;
 
 impl Workspace {
     pub fn on_file_open(&mut self, path: PathBuf, text: String) {
@@ -15,129 +12,24 @@ impl Workspace {
     }
 
     pub fn on_file_rename(&mut self, old_path: PathBuf, new_path: PathBuf, content: &str) {
-        let Some(old_id) = self.store.note_id_by_path(&old_path).cloned() else {
-            self.update_file(&new_path, content);
-            return;
-        };
-
-        let old_key = self
-            .identity
-            .key_of(&old_id)
-            .map(|(_, key)| key)
-            .unwrap_or_else(|| self.resolver.note_key_from_path(&old_path, content));
-
-        let new_key = self.resolver.note_key_from_path(&new_path, content);
-
-        if old_key != new_key {
-            let _ = self.identity.rebind(&old_key, &new_key);
-        }
-
-        let parse_result = parse_markdown(content);
-        let note = self.create_note_from_parse(parse_result, &new_path, &old_id);
-        let targets: Vec<NoteId> = note.links.iter().map(|link| link.target.clone()).collect();
-        self.store.upsert_note(note);
-        self.store.bind_path(new_path, old_id.clone());
-        self.store.set_outgoing_links(&old_id, targets);
-
-        // Key change affects tree structure
-        if old_key != new_key {
-            self.invalidate_tree();
-        }
+        let mut indexer = Indexer::new(self);
+        indexer.rename_file(old_path, new_path, content);
     }
 
     pub fn on_file_delete(&mut self, path: PathBuf) {
-        let Some(id) = self.store.note_id_by_path(&path).cloned() else {
-            return;
-        };
-        self.store.remove_note(&id);
-        self.invalidate_tree();
+        let mut indexer = Indexer::new(self);
+        indexer.delete_file(&path);
     }
 
     pub fn update_file(&mut self, file_path: &PathBuf, content: &str) {
-        let new_key = self.resolver.note_key_from_path(file_path, content);
-
-        let (note_id, old_digest) = if let Some(existing_id) = self.store.note_id_by_path(file_path)
-        {
-            let existing_id = existing_id.clone();
-            let old_digest = self
-                .store
-                .get_note(&existing_id)
-                .and_then(|n| n.digest.clone());
-
-            if let Some((_, old_key)) = self.identity.key_of(&existing_id) {
-                if old_key != new_key {
-                    let _ = self.identity.rebind(&old_key, &new_key);
-                }
-            }
-
-            (existing_id, old_digest)
-        } else {
-            (self.identity.get_or_create(&new_key), None)
-        };
-
-        // Parse always to get the new digest
-        let parse_result = parse_markdown(content);
-
-        if let Some(old) = old_digest {
-            if old == parse_result.digest {
-                // Content unchanged, skip update
-                return;
-            }
-        }
-
-        let note = self.create_note_from_parse(parse_result, file_path, &note_id);
-        let targets: Vec<NoteId> = note.links.iter().map(|link| link.target.clone()).collect();
-        self.store.upsert_note(note);
-        self.store.bind_path(file_path.clone(), note_id.clone());
-        self.store.set_outgoing_links(&note_id, targets);
-
-        // invalidate tree on file update (key might have changed, or new note added)
-        self.invalidate_tree();
+        let mut indexer = Indexer::new(self);
+        indexer.update_content(file_path.clone(), content);
     }
 
     pub fn index_files(&mut self, files: Vec<PathBuf>) {
+        let mut indexer = Indexer::new(self);
         for path in files {
-            self.index_file(path);
-        }
-    }
-
-    fn index_file(&mut self, path: PathBuf) {
-        let Ok(content) = std::fs::read_to_string(&path) else {
-            return;
-        };
-        self.update_file(&path, &content);
-    }
-
-    pub(crate) fn create_note_from_parse(
-        &mut self,
-        parse_result: crate::parser::ParseResult,
-        path: &PathBuf,
-        note_id: &NoteId,
-    ) -> Note {
-        let source_key = self.resolver.note_key_from_path(path, ""); // Content not needed for key extraction in DendronStrategy
-
-        Note {
-            id: note_id.clone(),
-            path: Some(path.clone()),
-            title: parse_result.title,
-            frontmatter: parse_result.frontmatter,
-            links: parse_result
-                .links
-                .iter()
-                .map(|link| {
-                    let link_key = self.resolver.note_key_from_link(&source_key, &link.target);
-                    Link {
-                        target: self.identity.get_or_create(&link_key),
-                        alias: link.alias.clone(),
-                        anchor: link.anchor.clone(),
-                        range: link.range,
-                        kind: link.kind.clone(),
-                    }
-                })
-                .collect(),
-            headings: parse_result.headings,
-            blocks: parse_result.blocks,
-            digest: Some(parse_result.digest),
+            indexer.index_file(path);
         }
     }
 }

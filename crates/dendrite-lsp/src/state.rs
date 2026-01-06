@@ -1,4 +1,5 @@
-use dendrite_core::Workspace;
+use dendrite_core::workspace::vfs::FileSystem;
+use dendrite_core::workspace::Vault;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -8,20 +9,21 @@ use tower_lsp::lsp_types::Url;
 /// Must be Send + Sync
 #[derive(Clone)]
 pub struct GlobalState {
-    /// RwLock-protected Core Workspace
-    /// Read operations (completion, goto) are concurrent
-    /// Write operations (didChange) are exclusive
-    pub workspace: Arc<RwLock<Option<Workspace>>>,
+    /// RwLock-protected Core Vault (Workspace + FS)
+    pub vault: Arc<RwLock<Option<Vault>>>,
     /// Document content cache (URI -> content)
     /// Stores the current document text for completion and other operations
     pub document_cache: Arc<RwLock<HashMap<Url, String>>>,
+    /// Virtual File System backend
+    pub fs: Arc<dyn FileSystem>,
 }
 
 impl GlobalState {
-    pub fn new() -> Self {
+    pub fn new(fs: Arc<dyn FileSystem>) -> Self {
         Self {
-            workspace: Arc::new(RwLock::new(None)),
+            vault: Arc::new(RwLock::new(None)),
             document_cache: Arc::new(RwLock::new(HashMap::new())),
+            fs,
         }
     }
 }

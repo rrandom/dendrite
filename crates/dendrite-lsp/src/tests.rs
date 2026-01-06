@@ -3,13 +3,16 @@ mod tests {
     use crate::handlers;
     use crate::state::GlobalState;
     use crate::Backend;
+    use dendrite_core::workspace::vfs::PhysicalFileSystem;
     use std::fs;
+    use std::sync::Arc;
     use tempfile::TempDir;
     use tower_lsp::lsp_types::*;
     use tower_lsp::LspService;
 
     async fn setup_test_context() -> (GlobalState, TempDir, tower_lsp::Client) {
-        let (service, _) = LspService::new(Backend::new);
+        let fs = Arc::new(PhysicalFileSystem);
+        let (service, _) = LspService::new(|client| Backend::new(client, fs.clone()));
         let client = service.inner().client.clone();
         let state = service.inner().state.clone();
         let temp_dir = TempDir::new().unwrap();
@@ -17,6 +20,7 @@ mod tests {
         (state, temp_dir, client)
     }
 
+    #[allow(deprecated)]
     fn create_initialize_params(root_uri: Url) -> InitializeParams {
         InitializeParams {
             process_id: None,
@@ -51,10 +55,11 @@ mod tests {
 
         assert!(result.capabilities.completion_provider.is_some());
 
-        // Check if workspace was initialized in state
-        let workspace = state.workspace.read().await;
-        assert!(workspace.is_some());
-        let ws = workspace.as_ref().unwrap();
+        // Check if vault was initialized in state
+        let vault_lock = state.vault.read().await;
+        assert!(vault_lock.is_some());
+        let vault = vault_lock.as_ref().unwrap();
+        let ws = &vault.workspace;
 
         assert!(ws.all_notes().len() >= 2);
     }

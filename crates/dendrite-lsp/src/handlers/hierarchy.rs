@@ -18,20 +18,21 @@ pub async fn handle_get_hierarchy(
         )
         .await;
 
-    let workspace = state.workspace.read().await;
-    let Some(ws) = &*workspace else {
+    let state_lock = state.vault.read().await;
+    let Some(vault) = &*state_lock else {
         client
             .log_message(
                 MessageType::WARNING,
-                "⚠️ Workspace not initialized for getHierarchy".to_string(),
+                "⚠️ Vault not initialized for getHierarchy".to_string(),
             )
             .await;
         return Err(Error {
             code: ErrorCode::InternalError,
-            message: "Workspace not initialized".into(),
+            message: "Vault not initialized".into(),
             data: None,
         });
     };
+    let ws = &vault.workspace;
 
     // Get tree view from workspace
     let tree_view = ws.get_tree_view();

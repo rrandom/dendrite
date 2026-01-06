@@ -4,8 +4,8 @@ use crate::{
 };
 use std::path::{Path, PathBuf};
 
-/// Path/Link/Text => NoteKey rules
-pub trait HierarchyResolver: Send + Sync {
+/// Syntax and Hierarchy rules for a specific vault format
+pub trait SyntaxStrategy: Send + Sync {
     fn id(&self) -> ResolverId;
     fn note_key_from_path(&self, path: &Path, content: &str) -> NoteKey;
     fn note_key_from_link(&self, source: &NoteKey, raw: &str) -> NoteKey;
@@ -24,7 +24,7 @@ impl DendronStrategy {
     }
 }
 
-impl HierarchyResolver for DendronStrategy {
+impl SyntaxStrategy for DendronStrategy {
     fn id(&self) -> ResolverId {
         ResolverId("Dendron")
     }

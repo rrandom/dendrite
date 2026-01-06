@@ -24,6 +24,6 @@ pub fn normalize_path_to_id(path: &Path) -> String {
     s
 }
 
-pub use hierarchy::{DendronStrategy, HierarchyResolver};
-pub use identity::{BasicIdentityRegistry, IdentityRegistry};
-pub use workspace::Workspace;
+pub use hierarchy::{DendronStrategy, SyntaxStrategy};
+pub use identity::IdentityRegistry;
+pub use workspace::{Vault, Workspace};

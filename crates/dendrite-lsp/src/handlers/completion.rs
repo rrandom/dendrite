@@ -19,13 +19,14 @@ pub async fn handle_completion(
         )
         .await;
 
-    let state_lock = state.workspace.read().await;
-    let Some(ws) = &*state_lock else {
+    let state_lock = state.vault.read().await;
+    let Some(vault) = &*state_lock else {
         client
-            .log_message(MessageType::WARNING, "⚠️ Workspace not initialized")
+            .log_message(MessageType::WARNING, "⚠️ Vault not initialized")
             .await;
         return Ok(None);
     };
+    let ws = &vault.workspace;
 
     let uri = &params.text_document_position.text_document.uri;
     let position = params.text_document_position.position;

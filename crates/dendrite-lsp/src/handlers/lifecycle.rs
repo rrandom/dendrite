@@ -1,5 +1,5 @@
 use crate::state::GlobalState;
-use dendrite_core::{BasicIdentityRegistry, DendronStrategy, Workspace};
+use dendrite_core::{DendronStrategy, IdentityRegistry, Vault, Workspace};
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::Client;
@@ -22,14 +22,15 @@ pub async fn handle_initialize(
                 .await;
 
             let root_path_clone = root_path.clone();
-            let (ws, files) = tokio::task::spawn_blocking(move || {
-                let mut workspace = Workspace::new(
-                    root_path_clone.clone(),
+            let fs = state.fs.clone();
+            let (vault, files) = tokio::task::spawn_blocking(move || {
+                let workspace = Workspace::new(
                     Box::new(DendronStrategy::new(root_path_clone.clone())),
-                    Box::new(BasicIdentityRegistry::new()),
+                    IdentityRegistry::new(),
                 );
-                let files = workspace.initialize();
-                (workspace, files)
+                let mut v = Vault::new(workspace, fs);
+                let files = v.initialize(root_path_clone);
+                (v, files)
             })
             .await
             .map_err(|e| tower_lsp::jsonrpc::Error {
@@ -50,7 +51,7 @@ pub async fn handle_initialize(
                     .await;
             }
 
-            let notes_count = ws.all_notes().len();
+            let notes_count = vault.workspace.all_notes().len();
             client
                 .log_message(
                     MessageType::INFO,
@@ -58,7 +59,7 @@ pub async fn handle_initialize(
                 )
                 .await;
 
-            for note in ws.all_notes() {
+            for note in vault.workspace.all_notes() {
                 client
                     .log_message(
                         MessageType::INFO,
@@ -107,8 +108,8 @@ pub async fn handle_initialize(
                 }
             }
 
-            let mut workspace = state.workspace.write().await;
-            *workspace = Some(ws);
+            let mut vault_lock = state.vault.write().await;
+            *vault_lock = Some(vault);
         }
     } else {
         client

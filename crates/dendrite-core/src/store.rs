@@ -55,19 +55,6 @@ impl Store {
         self.path_map.insert(path, id);
     }
 
-    pub(crate) fn update_path(&mut self, id: &NoteId, new_path: PathBuf) {
-        if let Some(note) = self.notes.get_mut(id) {
-            if let Some(old_path) = &note.path {
-                if self.path_map.get(old_path) == Some(id) {
-                    self.path_map.remove(old_path);
-                }
-            }
-
-            note.path = Some(new_path.clone());
-            self.path_map.insert(new_path, id.clone());
-        }
-    }
-
     pub(crate) fn note_id_by_path(&self, path: &PathBuf) -> Option<&NoteId> {
         self.path_map.get(path)
     }

@@ -12,11 +12,11 @@ pub async fn handle_did_open(state: &GlobalState, params: DidOpenTextDocumentPar
         cache.insert(uri.clone(), text.clone());
     }
 
-    // Update workspace
-    let mut workspace = state.workspace.write().await;
-    if let Some(ws) = &mut *workspace {
+    // Update vault
+    let mut vault_lock = state.vault.write().await;
+    if let Some(v) = &mut *vault_lock {
         if let Ok(path) = uri.to_file_path() {
-            ws.on_file_open(path, text);
+            v.update_content(path, &text);
         }
     }
 }
@@ -34,11 +34,11 @@ pub async fn handle_did_change(state: &GlobalState, params: DidChangeTextDocumen
             cache.insert(uri.clone(), text.clone());
         }
 
-        // Update workspace
-        let mut workspace = state.workspace.write().await;
-        if let Some(ws) = &mut *workspace {
+        // Update vault
+        let mut vault_lock = state.vault.write().await;
+        if let Some(v) = &mut *vault_lock {
             if let Ok(path) = uri.to_file_path() {
-                ws.on_file_changed(path, text);
+                v.update_content(path, &text);
             }
         }
     }
@@ -49,20 +49,20 @@ pub async fn handle_did_change_watched_files(
     state: &GlobalState,
     params: DidChangeWatchedFilesParams,
 ) {
-    let mut workspace = state.workspace.write().await;
-    if let Some(ws) = &mut *workspace {
+    let mut vault_lock = state.vault.write().await;
+    if let Some(v) = &mut *vault_lock {
         for change in params.changes {
             let uri = change.uri.clone();
             if let Ok(path) = uri.to_file_path() {
                 match change.typ {
                     FileChangeType::CREATED | FileChangeType::CHANGED => {
-                        if let Ok(content) = std::fs::read_to_string(&path) {
+                        if let Ok(content) = state.fs.read_to_string(&path) {
                             // Update cache
                             {
                                 let mut cache = state.document_cache.write().await;
                                 cache.insert(uri, content.clone());
                             }
-                            ws.update_file(&path, &content);
+                            v.update_content(path, &content);
                         }
                     }
                     FileChangeType::DELETED => {
@@ -71,7 +71,7 @@ pub async fn handle_did_change_watched_files(
                             let mut cache = state.document_cache.write().await;
                             cache.remove(&uri);
                         }
-                        ws.on_file_delete(path);
+                        v.delete_file(&path);
                     }
                     _ => {}
                 }

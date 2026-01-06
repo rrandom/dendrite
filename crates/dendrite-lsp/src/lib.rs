@@ -7,7 +7,9 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LspService};
 
 use crate::protocol::{GetHierarchyParams, ListNotesParams};
+use dendrite_core::workspace::vfs::PhysicalFileSystem;
 use state::GlobalState;
+use std::sync::Arc;
 
 mod conversion;
 mod handlers;
@@ -23,10 +25,10 @@ pub struct Backend {
 }
 
 impl Backend {
-    pub fn new(client: Client) -> Self {
+    pub fn new(client: Client, fs: Arc<PhysicalFileSystem>) -> Self {
         Self {
             client,
-            state: GlobalState::new(),
+            state: GlobalState::new(fs),
         }
     }
 }
@@ -126,5 +128,6 @@ impl tower_lsp::LanguageServer for Backend {
 
 /// Create and return LSP service and client socket
 pub fn create_lsp_service() -> (LspService<Backend>, tower_lsp::ClientSocket) {
-    LspService::new(|client| Backend::new(client))
+    let fs = Arc::new(PhysicalFileSystem);
+    LspService::new(|client| Backend::new(client, fs))
 }

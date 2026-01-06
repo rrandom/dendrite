@@ -19,20 +19,21 @@ pub async fn handle_list_notes(
         )
         .await;
 
-    let workspace = state.workspace.read().await;
-    let Some(ws) = &*workspace else {
+    let state_lock = state.vault.read().await;
+    let Some(vault) = &*state_lock else {
         client
             .log_message(
                 MessageType::WARNING,
-                "⚠️ Workspace not initialized for listNotes".to_string(),
+                "⚠️ Vault not initialized for listNotes".to_string(),
             )
             .await;
         return Err(Error {
             code: ErrorCode::InternalError,
-            message: "Workspace not initialized".into(),
+            message: "Vault not initialized".into(),
             data: None,
         });
     };
+    let ws = &vault.workspace;
 
     // Get all notes
     let all_notes = ws.all_notes();

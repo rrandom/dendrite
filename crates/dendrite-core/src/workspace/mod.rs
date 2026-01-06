@@ -1,37 +1,35 @@
 use std::path::PathBuf;
 use std::sync::RwLock;
 
-use crate::hierarchy::HierarchyResolver;
+use crate::hierarchy::SyntaxStrategy;
 use crate::identity::IdentityRegistry;
 use crate::store::Store;
+pub mod vfs;
 
-use walkdir::WalkDir;
-
-mod file_ops;
+mod assembler;
 mod hierarchy;
+mod indexer;
 mod queries;
+mod vault;
 
 #[cfg(test)]
 mod tests;
 
 use hierarchy::NoteTree;
+pub use indexer::Indexer;
+pub use vault::Vault;
+pub use vfs::FileSystem;
 
 pub struct Workspace {
-    pub(crate) root: PathBuf,
-    pub(crate) resolver: Box<dyn HierarchyResolver>,
-    pub(crate) identity: Box<dyn IdentityRegistry>,
+    pub(crate) resolver: Box<dyn SyntaxStrategy>,
+    pub(crate) identity: IdentityRegistry,
     pub(crate) store: Store,
     pub(crate) tree_cache: RwLock<Option<NoteTree>>,
 }
 
 impl Workspace {
-    pub fn new(
-        root: PathBuf,
-        resolver: Box<dyn HierarchyResolver>,
-        identity: Box<dyn IdentityRegistry>,
-    ) -> Self {
+    pub fn new(resolver: Box<dyn SyntaxStrategy>, identity: IdentityRegistry) -> Self {
         Self {
-            root,
             resolver,
             identity,
             store: Store::new(),
@@ -39,35 +37,8 @@ impl Workspace {
         }
     }
 
-    pub fn initialize(&mut self) -> Vec<PathBuf> {
-        // Step 1: scan
-        let mut md_files = Vec::new();
-
-        for entry in WalkDir::new(&self.root)
-            .follow_links(true)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            let path = entry.path();
-
-            if path.is_file() {
-                if let Some(ext) = path.extension() {
-                    if ext == "md" {
-                        md_files.push(path.to_path_buf());
-                    }
-                }
-            }
-        }
-
-        // NoteId ↔ NoteKey
-        self.index_files(md_files.clone());
-
-        // build virtual notes
-        self.fill_missing_hierarchy_levels();
-
-        // build NoteTree
-        self.invalidate_tree();
-
-        md_files
+    pub fn initialize(&mut self, root: PathBuf, fs: &dyn FileSystem) -> Vec<PathBuf> {
+        let mut indexer = Indexer::new(self, fs);
+        indexer.full_index(root)
     }
 }
