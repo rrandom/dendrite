@@ -106,7 +106,7 @@ dependencies = [
 
 [[package]]
 name = "dendrite-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "pulldown-cmark",
  "serde",
@@ -120,7 +120,7 @@ dependencies = [
 
 [[package]]
 name = "dendrite-lsp"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "dendrite-core",
  "env_logger",

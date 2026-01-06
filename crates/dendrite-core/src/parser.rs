@@ -125,33 +125,49 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
                 if is_wikilink {
                     let start = line_map.offset_to_point(range.start);
                     let full_dest = dest_url.to_string();
-                    let mut target = full_dest.clone();
-                    let mut anchor = None;
-
-                    if let Some(pos) = target.find('#') {
-                        anchor = Some(target[pos + 1..].to_string());
-                        target.truncate(pos);
-                    }
-
-                    pending_wiki_link =
-                        Some((target, anchor, full_dest, start, true, String::new()));
+                    // Delay anchor parsing because the target might come from the right side (alias position)
+                    // We store (raw_left, parsed_anchor_placeholder, raw_left_clone, start, is_wikilink, collector)
+                    pending_wiki_link = Some((
+                        full_dest.clone(),
+                        None,
+                        full_dest,
+                        start,
+                        true,
+                        String::new(),
+                    ));
                 }
             }
             Event::End(TagEnd::Link { .. }) => {
-                if let Some((target, anchor, full_dest, start_point, is_wikilink, collector)) =
+                if let Some((raw_left, _, _, start_point, is_wikilink, raw_right)) =
                     pending_wiki_link.take()
                 {
                     if is_wikilink {
                         let end_point = line_map.offset_to_point(range.end);
 
-                        let alias = if collector.is_empty() || collector == full_dest {
-                            None
+                        let left = raw_left.trim();
+                        let right = raw_right.trim();
+
+                        // Logic update: User requested [[Alias | Target]] format.
+                        // Standard parser yields Left=Dest (Part 1), Right=Text (Part 2).
+                        // So Left="Alias", Right="Target".
+
+                        let (mut final_target, alias) = if left == right || right.is_empty() {
+                            // Case [[Target]] (where left==right) or [[Target|]] (where right is empty?? no, then right is "")
+                            // Actually if [[Target]], left="Target", right="Target".
+                            (left.to_string(), None)
                         } else {
-                            Some(collector)
+                            // Case [[Alias | Target]]
+                            (right.to_string(), Some(left.to_string()))
                         };
 
+                        let mut anchor = None;
+                        if let Some(pos) = final_target.find('#') {
+                            anchor = Some(final_target[pos + 1..].to_string());
+                            final_target.truncate(pos);
+                        }
+
                         links.push(DocLink {
-                            target: target.clone(),
+                            target: final_target,
                             alias,
                             anchor,
                             range: TextRange {
@@ -264,7 +280,7 @@ mod tests {
 
     #[test]
     fn test_parse_wiki_link_with_alias() {
-        let content = "[[note2|My Alias]]";
+        let content = "[[My Alias | note2]]";
         let result = parse_markdown(content);
 
         assert_eq!(result.links.len(), 1);
@@ -285,7 +301,7 @@ mod tests {
 
     #[test]
     fn test_parse_wiki_link_with_alias_and_anchor() {
-        let content = "[[note2#section-1|My Alias]]";
+        let content = "[[My Alias|note2#section-1]]";
         let result = parse_markdown(content);
 
         assert_eq!(result.links.len(), 1);
@@ -296,7 +312,6 @@ mod tests {
 
     #[test]
     fn test_parse_headings() {
-        // ...
         let content = "# Title\n\n## Section";
         let result = parse_markdown(content);
 
