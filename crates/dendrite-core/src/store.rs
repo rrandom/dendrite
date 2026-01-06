@@ -107,6 +107,8 @@ impl Store {
                     .into_iter()
                     .map(|target| Link {
                         target,
+                        alias: None,
+                        anchor: None,
                         range: TextRange {
                             start: Point { line: 0, col: 0 },
                             end: Point { line: 0, col: 0 },

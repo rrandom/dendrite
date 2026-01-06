@@ -4,6 +4,8 @@ use pulldown_cmark::{Event, LinkType, MetadataBlockKind, Options, Parser, Tag, T
 
 pub(crate) struct DocLink {
     pub target: String,
+    pub alias: Option<String>,
+    pub anchor: Option<String>,
     pub range: TextRange,
     pub kind: LinkKind,
 }
@@ -35,7 +37,7 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
     let mut in_heading = false;
     let mut current_heading_level = 0;
     let mut pending_heading_text: Option<(String, Point)> = None;
-    let mut pending_wiki_link: Option<(String, Point, bool)> = None;
+    let mut pending_wiki_link: Option<(String, Option<String>, String, Point, bool, String)> = None;
 
     let mut in_frontmatter = false;
     let mut frontmatter_content = String::new();
@@ -92,16 +94,36 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
                 let is_wikilink = matches!(link_type, LinkType::WikiLink { .. });
                 if is_wikilink {
                     let start = line_map.offset_to_point(range.start);
-                    pending_wiki_link = Some((dest_url.to_string(), start, true));
+                    let full_dest = dest_url.to_string();
+                    let mut target = full_dest.clone();
+                    let mut anchor = None;
+
+                    if let Some(pos) = target.find('#') {
+                        anchor = Some(target[pos + 1..].to_string());
+                        target.truncate(pos);
+                    }
+
+                    pending_wiki_link =
+                        Some((target, anchor, full_dest, start, true, String::new()));
                 }
             }
             Event::End(TagEnd::Link { .. }) => {
-                if let Some((target, start_point, is_wikilink)) = pending_wiki_link.take() {
+                if let Some((target, anchor, full_dest, start_point, is_wikilink, collector)) =
+                    pending_wiki_link.take()
+                {
                     if is_wikilink {
                         let end_point = line_map.offset_to_point(range.end);
 
+                        let alias = if collector.is_empty() || collector == full_dest {
+                            None
+                        } else {
+                            Some(collector)
+                        };
+
                         links.push(DocLink {
-                            target,
+                            target: target.clone(),
+                            alias,
+                            anchor,
                             range: TextRange {
                                 start: start_point,
                                 end: end_point,
@@ -117,7 +139,10 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
 
                 if in_frontmatter {
                     frontmatter_content.push_str(text);
-                } else if in_heading && pending_wiki_link.is_none() {
+                } else if let Some((_, _, _, _, _, ref mut collector)) = pending_wiki_link.as_mut()
+                {
+                    collector.push_str(text);
+                } else if in_heading {
                     if let Some((ref mut heading_text, _)) = pending_heading_text.as_mut() {
                         if !heading_text.is_empty() {
                             heading_text.push(' ');
@@ -170,7 +195,40 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_wiki_link_with_alias() {
+        let content = "[[note2|My Alias]]";
+        let result = parse_markdown(content);
+
+        assert_eq!(result.links.len(), 1);
+        assert_eq!(result.links[0].target, "note2");
+        assert_eq!(result.links[0].alias, Some("My Alias".to_string()));
+    }
+
+    #[test]
+    fn test_parse_wiki_link_with_anchor() {
+        let content = "[[note2#section-1]]";
+        let result = parse_markdown(content);
+
+        assert_eq!(result.links.len(), 1);
+        assert_eq!(result.links[0].target, "note2");
+        assert_eq!(result.links[0].anchor, Some("section-1".to_string()));
+        assert_eq!(result.links[0].alias, None);
+    }
+
+    #[test]
+    fn test_parse_wiki_link_with_alias_and_anchor() {
+        let content = "[[note2#section-1|My Alias]]";
+        let result = parse_markdown(content);
+
+        assert_eq!(result.links.len(), 1);
+        assert_eq!(result.links[0].target, "note2");
+        assert_eq!(result.links[0].anchor, Some("section-1".to_string()));
+        assert_eq!(result.links[0].alias, Some("My Alias".to_string()));
+    }
+
+    #[test]
     fn test_parse_headings() {
+        // ...
         let content = "# Title\n\n## Section";
         let result = parse_markdown(content);
 

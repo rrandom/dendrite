@@ -57,6 +57,8 @@ pub struct Note {
 pub struct Link {
     #[allow(private_interfaces)]
     pub target: NoteId,
+    pub alias: Option<String>,
+    pub anchor: Option<String>,
     pub range: TextRange,
     pub kind: LinkKind,
 }

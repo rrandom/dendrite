@@ -108,6 +108,8 @@ impl Workspace {
                     let link_key = self.resolver.note_key_from_link(&source_key, &link.target);
                     Link {
                         target: self.identity.get_or_create(&link_key),
+                        alias: link.alias.clone(),
+                        anchor: link.anchor.clone(),
                         range: link.range,
                         kind: link.kind.clone(),
                     }
