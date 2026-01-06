@@ -1,5 +1,13 @@
+mod completion;
 mod hierarchy;
+mod lifecycle;
 mod lookup;
+mod navigation;
+mod notifications;
 
-pub use hierarchy::handle_get_hierarchy;
-pub use lookup::handle_list_notes;
+pub use completion::*;
+pub use hierarchy::*;
+pub use lifecycle::*;
+pub use lookup::*;
+pub use navigation::*;
+pub use notifications::*;
