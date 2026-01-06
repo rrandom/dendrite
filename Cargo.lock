@@ -126,6 +126,7 @@ dependencies = [
  "env_logger",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "tower-lsp",
  "url",

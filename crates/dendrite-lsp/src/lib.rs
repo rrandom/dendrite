@@ -13,11 +13,13 @@ mod conversion;
 mod handlers;
 mod protocol;
 mod state;
+#[cfg(test)]
+mod tests;
 
 /// LSP backend implementation
 pub struct Backend {
-    client: Client,
-    state: GlobalState,
+    pub(crate) client: Client,
+    pub(crate) state: GlobalState,
 }
 
 impl Backend {

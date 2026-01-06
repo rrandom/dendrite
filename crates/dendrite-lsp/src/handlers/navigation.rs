@@ -6,7 +6,7 @@ use tower_lsp::Client;
 
 /// Handle "textDocument/definition" request
 pub async fn handle_goto_definition(
-    _client: &Client,
+    client: &Client,
     state: &GlobalState,
     params: GotoDefinitionParams,
 ) -> Result<Option<GotoDefinitionResponse>> {
@@ -25,13 +25,33 @@ pub async fn handle_goto_definition(
     // Convert LSP Position to Core Point
     let point = lsp_position_to_point(position);
 
+    client
+        .log_message(
+            MessageType::INFO,
+            format!("🔍 Seeking link at path={:?}, point={:?}", path, point),
+        )
+        .await;
+
     // Find the link at the given position
     let Some(link) = ws.find_link_at_position(&path, point) else {
+        client
+            .log_message(MessageType::INFO, "❌ No link found at position")
+            .await;
         return Ok(None);
     };
 
+    client
+        .log_message(
+            MessageType::INFO,
+            format!("🔗 Found link at line {}", link.range.start.line),
+        )
+        .await;
+
     // Get the target note's path
     let Some(target_path) = ws.get_link_target_path(link) else {
+        client
+            .log_message(MessageType::WARNING, "⚠️ Target path not found")
+            .await;
         return Ok(None);
     };
 
