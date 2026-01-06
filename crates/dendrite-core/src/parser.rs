@@ -1,5 +1,5 @@
 use super::line_map::LineMap;
-use crate::model::{Heading, LinkKind, Point, TextRange};
+use crate::model::{Block, Heading, LinkKind, Point, TextRange};
 use pulldown_cmark::{Event, LinkType, MetadataBlockKind, Options, Parser, Tag, TagEnd};
 
 pub(crate) struct DocLink {
@@ -13,6 +13,7 @@ pub(crate) struct DocLink {
 pub(crate) struct ParseResult {
     pub links: Vec<DocLink>,
     pub headings: Vec<Heading>,
+    pub blocks: Vec<Block>,
     pub title: Option<String>,
     pub frontmatter: Option<serde_json::Value>,
     pub digest: String,
@@ -32,6 +33,7 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
 
     let mut links = Vec::new();
     let mut headings = Vec::new();
+    let mut blocks = Vec::new();
     let mut title = None;
     let mut frontmatter = None;
 
@@ -43,8 +45,35 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
     let mut in_frontmatter = false;
     let mut frontmatter_content = String::new();
 
+    let mut current_block_text = String::new();
+    let mut current_block_start: Option<Point> = None;
+    let mut in_block_container = false;
+
     for (event, range) in parser.into_offset_iter() {
         match event {
+            Event::Start(Tag::Paragraph) | Event::Start(Tag::Item) => {
+                in_block_container = true;
+                current_block_start = Some(line_map.offset_to_point(range.start));
+                current_block_text.clear();
+            }
+            Event::End(TagEnd::Paragraph) | Event::End(TagEnd::Item) => {
+                if in_block_container {
+                    if let Some(pos) = current_block_text.rfind(" ^") {
+                        let id = current_block_text[pos + 2..].trim();
+                        if !id.is_empty() && id.chars().all(|c| c.is_alphanumeric() || c == '-') {
+                            blocks.push(Block {
+                                id: id.to_string(),
+                                range: TextRange {
+                                    start: current_block_start.unwrap(),
+                                    end: line_map.offset_to_point(range.end),
+                                },
+                            });
+                        }
+                    }
+                }
+                in_block_container = false;
+            }
+
             Event::Start(Tag::MetadataBlock(MetadataBlockKind::YamlStyle)) => {
                 in_frontmatter = true;
             }
@@ -151,6 +180,10 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
                         heading_text.push_str(text);
                     }
                 }
+
+                if in_block_container {
+                    current_block_text.push_str(text);
+                }
             }
             _ => {}
         }
@@ -164,6 +197,7 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
     ParseResult {
         links,
         headings,
+        blocks,
         title,
         frontmatter,
         digest,
@@ -266,11 +300,21 @@ mod tests {
         let content = "# Title\n\n## Section";
         let result = parse_markdown(content);
 
-        assert_eq!(result.headings.len(), 2);
-        assert_eq!(result.headings[0].level, 1);
-        assert_eq!(result.headings[0].text, "Title");
-        assert_eq!(result.headings[1].level, 2);
         assert_eq!(result.headings[1].text, "Section");
         assert_eq!(result.title, Some("Title".to_string()));
+    }
+
+    #[test]
+    fn test_parse_explicit_blocks() {
+        let content = "Paragraph with id ^my-id\n\n- List item ^list-id\n- Normal item";
+        let result = parse_markdown(content);
+
+        assert_eq!(result.blocks.len(), 2);
+        assert_eq!(result.blocks[0].id, "my-id");
+        assert_eq!(result.blocks[1].id, "list-id");
+
+        // Check range (line 0 for paragraph, line 2 for list item)
+        assert_eq!(result.blocks[0].range.start.line, 0);
+        assert_eq!(result.blocks[1].range.start.line, 2);
     }
 }

@@ -136,6 +136,7 @@ impl Workspace {
                 })
                 .collect(),
             headings: parse_result.headings,
+            blocks: parse_result.blocks,
             digest: Some(parse_result.digest),
         }
     }

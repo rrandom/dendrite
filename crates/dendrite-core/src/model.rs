@@ -43,6 +43,12 @@ pub struct Heading {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Block {
+    pub id: String,
+    pub range: TextRange,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Note {
     #[allow(private_interfaces)]
     pub id: NoteId,
@@ -51,6 +57,7 @@ pub struct Note {
     pub frontmatter: Option<serde_json::Value>,
     pub links: Vec<Link>,
     pub headings: Vec<Heading>,
+    pub blocks: Vec<Block>,
     pub digest: Option<String>,
 }
 /// Link entity

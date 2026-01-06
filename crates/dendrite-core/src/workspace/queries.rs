@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::model::Point;
-use crate::model::{Link, Note, NoteKey};
+use crate::model::{Link, Note, NoteKey, TextRange};
 
 use crate::parser::parse_markdown;
 
@@ -31,6 +31,27 @@ impl Workspace {
         self.store
             .get_note(&link.target)
             .and_then(|note| note.path.clone())
+    }
+
+    /// Resolve a link's anchor to a specific range within the target note
+    pub fn resolve_link_anchor(&self, link: &Link) -> Option<TextRange> {
+        let note = self.store.get_note(&link.target)?;
+        let anchor = link.anchor.as_ref()?;
+
+        if anchor.starts_with('^') {
+            // Block anchor
+            let block_id = &anchor[1..];
+            note.blocks
+                .iter()
+                .find(|b| b.id == block_id)
+                .map(|b| b.range)
+        } else {
+            // Heading anchor
+            note.headings
+                .iter()
+                .find(|h| h.text == *anchor)
+                .map(|h| h.range)
+        }
     }
 
     pub fn backlinks_of(&self, path: &PathBuf) -> Vec<PathBuf> {

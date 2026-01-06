@@ -834,3 +834,38 @@ fn test_virtual_notes_in_tree_view() {
         "Real note should have title"
     );
 }
+
+#[test]
+fn test_resolve_link_anchor() {
+    let (mut ws, temp_dir) = create_test_workspace();
+
+    // Create target note with headings and blocks
+    let target_path = temp_dir.path().join("target.md");
+    let target_content = "# Heading 1\n\nSome text ^block-1\n\n## Heading 2\n\nMore text ^block-2";
+    fs::write(&target_path, target_content).unwrap();
+    ws.on_file_open(target_path.clone(), target_content.to_string());
+
+    let target_id = ws.store.note_id_by_path(&target_path).unwrap().clone();
+
+    // Create source note with links to anchors
+    let source_path = temp_dir.path().join("source.md");
+    let source_content = "[[target#Heading 1]], [[target#^block-2]]";
+    fs::write(&source_path, source_content).unwrap();
+    ws.on_file_open(source_path.clone(), source_content.to_string());
+
+    let note = ws.note_by_path(&source_path).unwrap();
+    assert_eq!(note.links.len(), 2);
+
+    // 1. Resolve Heading 1
+    let range1 = ws.resolve_link_anchor(&note.links[0]).unwrap();
+    assert_eq!(range1.start.line, 0);
+    assert_eq!(range1.start.col, 0);
+
+    // 2. Resolve Block 2
+    let range2 = ws.resolve_link_anchor(&note.links[1]).unwrap();
+    assert_eq!(range2.start.line, 6); // Heading 2 is line 4, block-2 is line 6
+    assert_eq!(
+        ws.store.get_note(&target_id).unwrap().blocks[1].id,
+        "block-2"
+    );
+}
