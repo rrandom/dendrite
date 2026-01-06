@@ -2,7 +2,7 @@
   "name": "dendrite",
   "private": true,
   "scripts": {
-    "build:server": "cargo build --release",
+    "build:server": "powershell -ExecutionPolicy Bypass -File scripts/build_server.ps1 -Release",
     "build:ext": "pnpm -C clients/vscode compile",
     "dev:ext": "pnpm -C clients/vscode watch",
     "sync:version": "node scripts/sync_version.js",
@@ -10,4 +10,3 @@
     "release": "npm run sync:version && npm run build:server && npm run build:ext"
   }
 }
-

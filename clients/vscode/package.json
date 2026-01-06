@@ -2,12 +2,11 @@
   "name": "dendrite-vscode",
   "displayName": "Dendrite",
   "description": "Dendrite for VS Code",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "engines": {
     "vscode": "^1.74.0"
   },
-  "categories": [
-  ],
+  "categories": [],
   "activationEvents": [
     "onLanguage:markdown"
   ],
@@ -66,4 +65,3 @@
     "vscode-languageclient": "^8.1.0"
   }
 }
-
