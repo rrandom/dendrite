@@ -69,7 +69,15 @@ export function activate(context: ExtensionContext) {
             treeDataProvider?.refresh();
         });
 
-        context.subscriptions.push(treeView, refreshCommand);
+        // Sync Tree View with active editor
+        const changeSelection = window.onDidChangeActiveTextEditor(editor => {
+            if (editor && treeDataProvider) {
+                const uri = editor.document.uri;
+                treeDataProvider.reveal(treeView, uri);
+            }
+        });
+
+        context.subscriptions.push(treeView, refreshCommand, changeSelection);
     }).catch((error) => {
         window.showErrorMessage(`Failed to start Dendrite server: ${error}`);
     });

@@ -58,7 +58,7 @@ export class DendriteTreeDataProvider implements vscode.TreeDataProvider<Dendrit
 
     private cachedTree: TreeView[] | null = null;
 
-    constructor(private client: LanguageClient) {}
+    constructor(private client: LanguageClient) { }
 
     refresh(): void {
         this.cachedTree = null;
@@ -136,5 +136,75 @@ export class DendriteTreeDataProvider implements vscode.TreeDataProvider<Dendrit
             collapsibleState
         );
     }
-}
 
+    // Implement getParent to allow reveal() to work
+    getParent(element: DendriteTreeItem): vscode.ProviderResult<DendriteTreeItem> {
+        if (!this.cachedTree) {
+            return null;
+        }
+
+        const findParentNode = (nodes: TreeView[], targetId: string): TreeView | null => {
+            for (const node of nodes) {
+                // Check if any child matches targetId
+                if (node.children.some(child => child.note.id === targetId)) {
+                    return node;
+                }
+                const found = findParentNode(node.children, targetId);
+                if (found) {
+                    return found;
+                }
+            }
+            return null;
+        };
+
+        const parent = findParentNode(this.cachedTree, element.noteRef.id);
+        if (parent) {
+            return this.convertToTreeItem(parent);
+        }
+        return null;
+    }
+
+    async reveal(treeView: vscode.TreeView<DendriteTreeItem>, uri: vscode.Uri): Promise<void> {
+        if (!this.cachedTree) {
+            return;
+        }
+
+        const targetPath = uri.fsPath;
+
+        // Find the node in the cached tree
+        const findNode = (nodes: TreeView[]): TreeView | null => {
+            for (const node of nodes) {
+                // Normalizing path checking
+                if (node.note.path) {
+                    // Try exact match first
+                    if (node.note.path === targetPath) {
+                        return node;
+                    }
+                    // Try URI parsing match
+                    try {
+                        if (vscode.Uri.parse(node.note.path).fsPath === targetPath) {
+                            return node;
+                        }
+                    } catch (e) { }
+                }
+
+                const found = findNode(node.children);
+                if (found) {
+                    return found;
+                }
+            }
+            return null;
+        };
+
+        const node = findNode(this.cachedTree);
+        if (node) {
+            const item = this.convertToTreeItem(node);
+            try {
+                // Select and focus the item
+                await treeView.reveal(item, { select: true, focus: false, expand: true });
+            } catch (e) {
+                console.error("Failed to reveal item", e);
+            }
+        }
+    }
+}

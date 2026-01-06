@@ -161,7 +161,15 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
                 if let Some((raw_left, _, _, start_point, is_embedded, raw_right)) =
                     pending_wiki_link.take()
                 {
-                    let end_point = line_map.offset_to_point(range.end);
+                    // Fix: pulldown_cmark might report range ending before the last ']'
+                    // Check if we need to extend the range
+                    // Note: range.end is an offset
+                    let mut end_offset = range.end;
+                    if end_offset < text.len() && text.as_bytes()[end_offset] == b']' {
+                        end_offset += 1;
+                    }
+
+                    let end_point = line_map.offset_to_point(end_offset);
 
                     let left = raw_left.trim();
                     let right = raw_right.trim();
@@ -341,6 +349,27 @@ mod tests {
         assert_eq!(result.links[0].anchor, Some("with-anchor".to_string()));
         assert_eq!(result.links[0].alias, Some("alias".to_string()));
         assert_eq!(result.links[0].kind, LinkKind::EmbeddedWikiLink);
+    }
+
+    #[test]
+    fn test_parse_wiki_link_with_spaces_and_range() {
+        let content = "[[alias | target]]";
+        //             012345678901234567
+        //             Start: 0, End: 18 (inclusive? range is usually half-open or end points to next char)
+        let result = parse_markdown(content);
+
+        assert_eq!(result.links.len(), 1);
+        assert_eq!(result.links[0].target, "target");
+        assert_eq!(result.links[0].alias, Some("alias".to_string()));
+
+        // Check range
+        assert_eq!(result.links[0].range.start.col, 0);
+        // "[[alias | target]]" length is 18 chars.
+        // If range is end-inclusive 0-based index of last char: 17.
+        // If half-open [start, end): 18.
+        // Let's print to see what we currently get, but assertion typically check what we WANT.
+        // Current implementation uses pulldown_cmark range.
+        assert_eq!(result.links[0].range.end.col, 18);
     }
 
     #[test]

@@ -79,25 +79,12 @@ pub async fn handle_goto_definition(
 
 /// Handle "textDocument/hover" request
 pub async fn handle_hover(
-    client: &Client,
+    _client: &Client,
     state: &GlobalState,
     params: HoverParams,
 ) -> Result<Option<Hover>> {
-    client
-        .log_message(
-            MessageType::INFO,
-            format!(
-                "🖱️ Hover requested at {:?}",
-                params.text_document_position_params.position
-            ),
-        )
-        .await;
-
     let state_lock = state.vault.read().await;
     let Some(vault) = &*state_lock else {
-        client
-            .log_message(MessageType::WARNING, "⚠️ Vault not initialized for hover")
-            .await;
         return Ok(None);
     };
     let ws = &vault.workspace;
@@ -105,102 +92,50 @@ pub async fn handle_hover(
     let uri = &params.text_document_position_params.text_document.uri;
     let position = params.text_document_position_params.position;
 
-    client
-        .log_message(
-            MessageType::INFO,
-            format!(
-                "📄 Hover URI: {:?}, Position: line {}, char {}",
-                uri, position.line, position.character
-            ),
-        )
-        .await;
-
     let Ok(path) = uri.to_file_path() else {
-        client
-            .log_message(
-                MessageType::WARNING,
-                "❌ Failed to convert URI to file path for hover",
-            )
-            .await;
         return Ok(None);
     };
 
     // Convert LSP Position to Core Point
     let point = lsp_position_to_point(position);
 
-    client
-        .log_message(
-            MessageType::INFO,
-            format!(
-                "📍 Converted to Point: line {}, col {}",
-                point.line, point.col
-            ),
-        )
-        .await;
-
     // Find the link at the given position
     let Some(link) = ws.find_link_at_position(&path, point) else {
-        client
-            .log_message(MessageType::INFO, "❌ No link found at position")
-            .await;
         return Ok(None);
     };
-
-    client
-        .log_message(
-            MessageType::INFO,
-            format!(
-                "🔗 Found link at range: line {}:{}-{}:{}",
-                link.range.start.line,
-                link.range.start.col,
-                link.range.end.line,
-                link.range.end.col
-            ),
-        )
-        .await;
 
     // Get the target note's path for hover information
     let target_path = ws.get_link_target_path(link);
     let target_info = if let Some(path) = &target_path {
-        format!("Target: {:?}", path)
+        // Read the first 10 lines of the file for preview
+        match std::fs::read_to_string(path) {
+            Ok(content) => {
+                let preview: String = content.lines().take(10).collect::<Vec<&str>>().join("\n");
+                let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("md");
+                format!(
+                    "**{}**\n\n```{}\n{}\n```",
+                    path.display(),
+                    extension,
+                    preview
+                )
+            }
+            Err(_) => format!("Target: {:?}", path),
+        }
     } else {
         "Target: (not found)".to_string()
     };
 
-    client
-        .log_message(
-            MessageType::INFO,
-            format!("🎯 Target path: {:?}", target_path),
-        )
-        .await;
-
     // Convert link range to LSP range for hover highlighting
     let link_range = text_range_to_lsp_range(link.range);
 
-    client
-        .log_message(
-            MessageType::INFO,
-            format!(
-                "📏 Link range (LSP): {:?} - {:?}",
-                link_range.start, link_range.end
-            ),
-        )
-        .await;
-
     // Return hover with the link range for proper highlighting
-    let hover = Hover {
+    Ok(Some(Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
             value: target_info,
         }),
         range: Some(link_range),
-    };
-
-    client
-        .log_message(MessageType::INFO, "✅ Returning hover response")
-        .await;
-
-    Ok(Some(hover))
+    }))
 }
 
 /// Handle "textDocument/documentHighlight" request
