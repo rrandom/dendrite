@@ -208,6 +208,7 @@ impl Workspace {
                 path: None, // virtual note has no actual file
                 title: None,
                 frontmatter: None,
+                content_offset: 0,
                 links: Vec::new(),
                 headings: Vec::new(),
                 blocks: Vec::new(),

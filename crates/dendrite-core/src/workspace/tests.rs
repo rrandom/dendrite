@@ -1,7 +1,7 @@
 use super::assembler::NoteAssembler;
 use super::*;
 use crate::hierarchy::DendronStrategy;
-use crate::model::Point;
+use crate::model::{Link, LinkKind, Point};
 use crate::parser::parse_markdown;
 use std::fs;
 use tempfile::TempDir;
@@ -920,4 +920,41 @@ fn test_resolve_link_anchor() {
         ws.store.get_note(&target_id).unwrap().blocks[1].id,
         "block-2"
     );
+}
+
+#[test]
+fn test_content_offset_preservation() {
+    let (mut ws, temp_dir) = create_test_workspace();
+    let fs = PhysicalFileSystem;
+
+    let path = temp_dir.path().join("note.md");
+    let content = "---\ntitle: Test\n---\nHello World";
+    fs::write(&path, content).unwrap();
+    Indexer::new(&mut ws, &fs).update_content(path.clone(), content);
+
+    let note = ws.note_by_path(&path).expect("Note should exist");
+    assert_eq!(note.content_offset, 19);
+}
+
+#[test]
+fn test_resolve_link_blocks() {
+    let (mut ws, temp_dir) = create_test_workspace();
+    let fs = PhysicalFileSystem;
+
+    let target_path = temp_dir.path().join("target.md");
+    let target_content = "Some text.\n\nMore text. ^block-123";
+    fs::write(&target_path, target_content).unwrap();
+    Indexer::new(&mut ws, &fs).update_content(target_path.clone(), target_content);
+
+    let target_id = ws.store.note_id_by_path(&target_path).unwrap().clone();
+    let link = Link {
+        target: target_id,
+        alias: None,
+        anchor: Some("^block-123".to_string()),
+        range: Default::default(),
+        kind: LinkKind::WikiLink,
+    };
+
+    let range = ws.resolve_link_anchor(&link).expect("Should resolve block");
+    assert_eq!(range.start.line, 2);
 }

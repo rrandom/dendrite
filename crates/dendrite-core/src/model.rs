@@ -23,13 +23,13 @@ pub struct ResolverId(pub &'static str);
 
 /// Core internal coordinate system (0-based)
 /// Does not directly use LSP Position to avoid coupling
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Point {
     pub line: usize,
     pub col: usize,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub struct TextRange {
     pub start: Point,
     pub end: Point,
@@ -55,6 +55,7 @@ pub struct Note {
     pub path: Option<PathBuf>,
     pub title: Option<String>,
     pub frontmatter: Option<serde_json::Value>,
+    pub content_offset: usize,
     pub links: Vec<Link>,
     pub headings: Vec<Heading>,
     pub blocks: Vec<Block>,

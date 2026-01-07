@@ -62,9 +62,10 @@ pub async fn handle_goto_definition(
     };
 
     // Return the definition location
-    Ok(Some(GotoDefinitionResponse::Scalar(Location {
-        uri: target_uri,
-        range: Range {
+    let target_range = ws
+        .resolve_link_anchor(link)
+        .map(text_range_to_lsp_range)
+        .unwrap_or(Range {
             start: Position {
                 line: 0,
                 character: 0,
@@ -73,7 +74,11 @@ pub async fn handle_goto_definition(
                 line: 0,
                 character: 0,
             },
-        },
+        });
+
+    Ok(Some(GotoDefinitionResponse::Scalar(Location {
+        uri: target_uri,
+        range: target_range,
     })))
 }
 
@@ -110,13 +115,26 @@ pub async fn handle_hover(
         return Ok(None);
     };
 
-    // Get the target note's path for hover information
+    // Get the target note for hover information
     let target_path = ws.get_link_target_path(link);
-    let target_info = if let Some(path) = &target_path {
-        // Read the first 10 lines of the file for preview
+    let target_node = target_path.as_ref().and_then(|path| ws.note_by_path(path));
+
+    let target_info = if let (Some(path), Some(note)) = (&target_path, target_node) {
+        // Read the file and skip frontmatter
         match std::fs::read_to_string(path) {
             Ok(content) => {
-                let preview: String = content.lines().take(10).collect::<Vec<&str>>().join("\n");
+                let content_start = note.content_offset;
+                let actual_content = if content_start < content.len() {
+                    &content[content_start..]
+                } else {
+                    ""
+                };
+
+                let preview: String = actual_content
+                    .lines()
+                    .take(10)
+                    .collect::<Vec<&str>>()
+                    .join("\n");
                 let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("md");
                 format!(
                     "**{}**\n\n```{}\n{}\n```",
@@ -127,6 +145,8 @@ pub async fn handle_hover(
             }
             Err(_) => format!("Target: {:?}", path),
         }
+    } else if let Some(path) = &target_path {
+        format!("Target: {:?}", path)
     } else {
         "Target: (not found)".to_string()
     };

@@ -16,6 +16,7 @@ pub(crate) struct ParseResult {
     pub blocks: Vec<Block>,
     pub title: Option<String>,
     pub frontmatter: Option<serde_json::Value>,
+    pub content_start_offset: usize,
     pub digest: String,
 }
 
@@ -36,6 +37,7 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
     let mut blocks = Vec::new();
     let mut title = None;
     let mut frontmatter = None;
+    let mut content_start_offset = 0;
 
     let mut in_heading = false;
     let mut current_heading_level = 0;
@@ -86,6 +88,7 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
                     }
                     frontmatter = Some(json);
                 }
+                content_start_offset = range.end;
             }
 
             Event::Start(Tag::Heading { level, .. }) => {
@@ -246,6 +249,7 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
         blocks,
         title,
         frontmatter,
+        content_start_offset,
         digest,
     }
 }
@@ -459,5 +463,20 @@ mod tests {
 
         assert_eq!(link.range.start.col, 4);
         assert_eq!(link.range.end.col, 24);
+    }
+
+    #[test]
+    fn test_content_offset_calculation() {
+        // Case 1: With frontmatter
+        let content_with_fm = "---\ntitle: Hello\n---\nActual content starts here.";
+        let result_fm = parse_markdown(content_with_fm);
+        // "---\ntitle: Hello\n---" -> 3 + 1 + 12 + 1 + 3 = 20 chars
+        // The offset should be exactly at the end of the block
+        assert_eq!(result_fm.content_start_offset, 20);
+
+        // Case 2: No frontmatter
+        let content_no_fm = "No frontmatter here.";
+        let result_no_fm = parse_markdown(content_no_fm);
+        assert_eq!(result_no_fm.content_start_offset, 0);
     }
 }
