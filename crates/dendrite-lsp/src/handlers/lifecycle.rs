@@ -43,11 +43,6 @@ pub async fn handle_initialize(
                     format!("Found {} markdown files:", files.len()),
                 )
                 .await;
-            for file in &files {
-                client
-                    .log_message(MessageType::INFO, format!(" - {:?}", file))
-                    .await;
-            }
 
             let notes_count = vault.workspace.all_notes().len();
             client

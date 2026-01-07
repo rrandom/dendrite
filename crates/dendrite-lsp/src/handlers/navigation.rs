@@ -120,28 +120,37 @@ pub async fn handle_hover(
     let target_node = target_path.as_ref().and_then(|path| ws.note_by_path(path));
 
     let target_info = if let (Some(path), Some(note)) = (&target_path, target_node) {
-        // Read the file and skip frontmatter
+        // Read the file accurately
         match std::fs::read_to_string(path) {
             Ok(content) => {
-                let content_start = note.content_offset;
-                let actual_content = if content_start < content.len() {
-                    &content[content_start..]
+                // Determine the starting point: Anchor/Block range or Content Offset
+                let lines: Vec<&str> = content.lines().collect();
+                let start_line = if let Some(range) = ws.resolve_link_anchor(link) {
+                    range.start.line
                 } else {
-                    ""
+                    // Find the line where note.content_offset falls
+                    let mut current_offset = 0;
+                    let mut found_line = 0;
+                    for (i, line) in lines.iter().enumerate() {
+                        if current_offset >= note.content_offset {
+                            found_line = i;
+                            break;
+                        }
+                        current_offset += line.len() + 1; // +1 for newline
+                    }
+                    found_line
                 };
 
-                let preview: String = actual_content
-                    .lines()
+                let preview: String = lines
+                    .iter()
+                    .skip(start_line)
                     .take(10)
+                    .cloned()
                     .collect::<Vec<&str>>()
                     .join("\n");
+
                 let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("md");
-                format!(
-                    "**{}**\n\n```{}\n{}\n```",
-                    path.display(),
-                    extension,
-                    preview
-                )
+                format!("```{}\n{}\n```", extension, preview.trim())
             }
             Err(_) => format!("Target: {:?}", path),
         }
