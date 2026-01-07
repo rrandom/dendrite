@@ -53,58 +53,9 @@ pub async fn handle_initialize(
             client
                 .log_message(
                     MessageType::INFO,
-                    format!("Parsed {} notes from workspace", notes_count),
+                    format!("✅ Parsed {} notes from workspace", notes_count),
                 )
                 .await;
-
-            for note in vault.workspace.all_notes() {
-                client
-                    .log_message(
-                        MessageType::INFO,
-                        format!("Note: (title: {:?})", note.title),
-                    )
-                    .await;
-
-                if !note.headings.is_empty() {
-                    client
-                        .log_message(
-                            MessageType::INFO,
-                            format!("  Headings ({}):", note.headings.len()),
-                        )
-                        .await;
-                    for heading in &note.headings {
-                        client
-                            .log_message(
-                                MessageType::INFO,
-                                format!("    H{}: {}", heading.level, heading.text),
-                            )
-                            .await;
-                    }
-                }
-
-                if !note.links.is_empty() {
-                    client
-                        .log_message(
-                            MessageType::INFO,
-                            format!("  Links ({}):", note.links.len()),
-                        )
-                        .await;
-                    for link in &note.links {
-                        client
-                            .log_message(
-                                MessageType::INFO,
-                                format!("    -> Link (kind: {:?})", link.kind),
-                            )
-                            .await;
-                    }
-                }
-
-                if note.frontmatter.is_some() {
-                    client
-                        .log_message(MessageType::INFO, "  Has frontmatter")
-                        .await;
-                }
-            }
 
             let mut vault_lock = state.vault.write().await;
             *vault_lock = Some(vault);
@@ -135,6 +86,14 @@ pub async fn handle_initialize(
                 ],
                 work_done_progress_options: Default::default(),
             }),
+            semantic_tokens_provider: Some(
+                SemanticTokensServerCapabilities::SemanticTokensOptions(SemanticTokensOptions {
+                    work_done_progress_options: WorkDoneProgressOptions::default(),
+                    legend: super::get_legend(),
+                    range: Some(false),
+                    full: Some(SemanticTokensFullOptions::Bool(true)),
+                }),
+            ),
             ..Default::default()
         },
         ..Default::default()

@@ -15,13 +15,14 @@ impl LineMap {
         Self { line_starts }
     }
 
-    pub fn offset_to_point(&self, offset: usize) -> Point {
+    pub fn offset_to_point(&self, text: &str, offset: usize) -> Point {
         match self.line_starts.binary_search(&offset) {
             Ok(line) => Point { line, col: 0 },
             Err(next_line_idx) => {
                 let line = next_line_idx - 1;
                 let line_start = self.line_starts[line];
-                let col = offset - line_start;
+                let line_text = &text[line_start..offset];
+                let col = line_text.encode_utf16().count();
                 Point { line, col }
             }
         }

@@ -88,6 +88,13 @@ impl tower_lsp::LanguageServer for Backend {
         handlers::handle_document_highlight(&self.client, &self.state, params).await
     }
 
+    async fn semantic_tokens_full(
+        &self,
+        params: SemanticTokensParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<SemanticTokensResult>> {
+        handlers::handle_semantic_tokens_full(&self.client, &self.state, params).await
+    }
+
     async fn execute_command(
         &self,
         params: ExecuteCommandParams,

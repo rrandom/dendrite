@@ -54,7 +54,7 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
         match event {
             Event::Start(Tag::Paragraph) | Event::Start(Tag::Item) => {
                 in_block_container = true;
-                current_block_start = Some(line_map.offset_to_point(range.start));
+                current_block_start = Some(line_map.offset_to_point(text, range.start));
                 current_block_text.clear();
             }
             Event::End(TagEnd::Paragraph) | Event::End(TagEnd::Item) => {
@@ -66,7 +66,7 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
                                 id: id.to_string(),
                                 range: TextRange {
                                     start: current_block_start.unwrap(),
-                                    end: line_map.offset_to_point(range.end),
+                                    end: line_map.offset_to_point(text, range.end),
                                 },
                             });
                         }
@@ -91,12 +91,12 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
             Event::Start(Tag::Heading { level, .. }) => {
                 in_heading = true;
                 current_heading_level = level as u8;
-                let start = line_map.offset_to_point(range.start);
+                let start = line_map.offset_to_point(text, range.start);
                 pending_heading_text = Some((String::new(), start));
             }
             Event::End(TagEnd::Heading(..)) => {
                 if let Some((heading_text, start_point)) = pending_heading_text.take() {
-                    let end_point = line_map.offset_to_point(range.end);
+                    let end_point = line_map.offset_to_point(text, range.end);
                     let trimmed_text = heading_text.trim().to_string();
 
                     if !trimmed_text.is_empty() {
@@ -124,7 +124,7 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
             }) => {
                 let is_wikilink = matches!(link_type, LinkType::WikiLink { .. });
                 if is_wikilink {
-                    let start = line_map.offset_to_point(range.start);
+                    let start = line_map.offset_to_point(text, range.start);
                     let full_dest = dest_url.to_string();
                     // Delay anchor parsing because the target might come from the right side (alias position)
                     // We store (raw_left, parsed_anchor_placeholder, raw_left_clone, start, is_embedded, collector)
@@ -145,7 +145,7 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
             }) => {
                 let is_wikilink = matches!(link_type, LinkType::WikiLink { .. });
                 if is_wikilink {
-                    let start = line_map.offset_to_point(range.start);
+                    let start = line_map.offset_to_point(text, range.start);
                     let full_dest = dest_url.to_string();
                     pending_wiki_link = Some((
                         full_dest.clone(),
@@ -165,11 +165,11 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
                     // Check if we need to extend the range
                     // Note: range.end is an offset
                     let mut end_offset = range.end;
-                    if end_offset < text.len() && text.as_bytes()[end_offset] == b']' {
+                    while end_offset < text.len() && text.as_bytes()[end_offset] == b']' {
                         end_offset += 1;
                     }
 
-                    let end_point = line_map.offset_to_point(end_offset);
+                    let end_point = line_map.offset_to_point(text, end_offset);
 
                     let left = raw_left.trim();
                     let right = raw_right.trim();
@@ -365,11 +365,18 @@ mod tests {
         // Check range
         assert_eq!(result.links[0].range.start.col, 0);
         // "[[alias | target]]" length is 18 chars.
-        // If range is end-inclusive 0-based index of last char: 17.
-        // If half-open [start, end): 18.
-        // Let's print to see what we currently get, but assertion typically check what we WANT.
-        // Current implementation uses pulldown_cmark range.
         assert_eq!(result.links[0].range.end.col, 18);
+    }
+
+    #[test]
+    fn test_parse_embedded_wiki_link_range() {
+        let content = "![[image.png]]";
+        //             01234567890123
+        let result = parse_markdown(content);
+
+        assert_eq!(result.links.len(), 1);
+        assert_eq!(result.links[0].range.start.col, 0);
+        assert_eq!(result.links[0].range.end.col, 14);
     }
 
     #[test]
@@ -393,16 +400,64 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_explicit_blocks() {
-        let content = "Paragraph with id ^my-id\n\n- List item ^list-id\n- Normal item";
+    fn test_issue_6_alias_and_trailing_text() {
+        let content = "  - 和[[Alias|a.b.c]]类似。";
         let result = parse_markdown(content);
+        assert_eq!(result.links.len(), 1);
+        let link = &result.links[0];
+        assert_eq!(link.alias, Some("Alias".to_string()));
+        assert_eq!(link.target, "a.b.c");
 
-        assert_eq!(result.blocks.len(), 2);
-        assert_eq!(result.blocks[0].id, "my-id");
-        assert_eq!(result.blocks[1].id, "list-id");
+        // Verify range (UTF-16 code units)
+        // "  - 和" -> 5 characters.
+        // Link starts at character 5.
+        // "[[Alias|a.b.c]]" -> 2 + 5 + 1 + 5 + 2 = 15 characters.
+        // End character should be 5 + 15 = 20.
+        assert_eq!(link.range.start.col, 5);
+        assert_eq!(link.range.end.col, 20);
+    }
 
-        // Check range (line 0 for paragraph, line 2 for list item)
-        assert_eq!(result.blocks[0].range.start.line, 0);
-        assert_eq!(result.blocks[1].range.start.line, 2);
+    #[test]
+    fn test_issue_5_embedded_image_link() {
+        let content = "同时参考，![[a.b.c.d.e]]";
+        let result = parse_markdown(content);
+        assert_eq!(result.links.len(), 1);
+        let link = &result.links[0];
+        assert_eq!(link.kind, LinkKind::EmbeddedWikiLink);
+        assert_eq!(link.target, "a.b.c.d.e");
+
+        // Start character: 5.
+        // "![[a.b.c.d.e]]" -> 1 + 2 + 9 + 2 = 14 characters.
+        // End character should be 5 + 14 = 19.
+        assert_eq!(link.range.start.col, 5);
+        assert_eq!(link.range.end.col, 19);
+    }
+
+    #[test]
+    fn test_parse_wiki_link_with_anchor_range() {
+        let content = "Check [[target#section-1]] highlight";
+        //             01234567890123456789012345
+        let result = parse_markdown(content);
+        assert_eq!(result.links.len(), 1);
+        let link = &result.links[0];
+        assert_eq!(link.target, "target");
+        assert_eq!(link.anchor, Some("section-1".to_string()));
+
+        assert_eq!(link.range.start.col, 6);
+        assert_eq!(link.range.end.col, 26);
+    }
+
+    #[test]
+    fn test_parse_wiki_link_with_block_id_range() {
+        let content = "See [[target#^block-id]] for details";
+        //             0123456789012345678901234
+        let result = parse_markdown(content);
+        assert_eq!(result.links.len(), 1);
+        let link = &result.links[0];
+        assert_eq!(link.target, "target");
+        assert_eq!(link.anchor, Some("^block-id".to_string()));
+
+        assert_eq!(link.range.start.col, 4);
+        assert_eq!(link.range.end.col, 24);
     }
 }

@@ -101,6 +101,12 @@ pub async fn handle_hover(
 
     // Find the link at the given position
     let Some(link) = ws.find_link_at_position(&path, point) else {
+        _client
+            .log_message(
+                MessageType::INFO,
+                format!("❌ No link found for hover at point={:?}", point),
+            )
+            .await;
         return Ok(None);
     };
 
@@ -173,7 +179,10 @@ pub async fn handle_document_highlight(
     // Find the link at the given position
     let Some(link) = ws.find_link_at_position(&path, point) else {
         client
-            .log_message(MessageType::INFO, "❌ No link found for highlight")
+            .log_message(
+                MessageType::INFO,
+                format!("❌ No link found for highlight at point={:?}", point),
+            )
             .await;
         return Ok(None);
     };
@@ -185,7 +194,7 @@ pub async fn handle_document_highlight(
         .log_message(
             MessageType::INFO,
             format!(
-                "✨ Highlighting link range: {:?} - {:?}",
+                "✨ Highlighting link at range {:?}-{:?}",
                 link_range.start, link_range.end
             ),
         )
