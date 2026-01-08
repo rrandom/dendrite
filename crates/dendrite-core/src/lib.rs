@@ -10,6 +10,7 @@ pub mod identity;
 mod line_map;
 pub mod model;
 pub mod parser;
+pub mod refactor;
 pub mod store;
 pub mod workspace;
 
