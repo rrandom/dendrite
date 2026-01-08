@@ -39,6 +39,11 @@
         "command": "dendrite.refreshHierarchy",
         "title": "Refresh Hierarchy",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "dendrite.renameNote",
+        "title": "Rename Note",
+        "category": "Dendrite"
       }
     ],
     "menus": {

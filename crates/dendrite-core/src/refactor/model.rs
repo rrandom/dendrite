@@ -47,7 +47,7 @@ pub enum ResourceOperation {
     RenameFile { new_uri: String, overwrite: bool },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Precondition {
     #[allow(private_interfaces)]
     NoteExists(String),

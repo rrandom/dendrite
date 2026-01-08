@@ -65,6 +65,7 @@ pub async fn handle_initialize(
         capabilities: ServerCapabilities {
             text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
             definition_provider: Some(OneOf::Left(true)),
+            rename_provider: Some(OneOf::Left(true)),
             hover_provider: Some(HoverProviderCapability::Simple(true)),
             document_highlight_provider: Some(OneOf::Left(true)),
             completion_provider: Some(CompletionOptions {

@@ -95,6 +95,13 @@ impl tower_lsp::LanguageServer for Backend {
         handlers::handle_semantic_tokens_full(&self.client, &self.state, params).await
     }
 
+    async fn rename(
+        &self,
+        params: RenameParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<WorkspaceEdit>> {
+        handlers::rename::handle_rename(&self.client, &self.state, params).await
+    }
+
     async fn execute_command(
         &self,
         params: ExecuteCommandParams,

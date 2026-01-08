@@ -69,6 +69,10 @@ export function activate(context: ExtensionContext) {
             treeDataProvider?.refresh();
         });
 
+        const renameCommand = commands.registerCommand('dendrite.renameNote', () => {
+            commands.executeCommand('editor.action.rename');
+        });
+
         // Sync Tree View with active editor
         const changeSelection = window.onDidChangeActiveTextEditor(editor => {
             if (editor && treeDataProvider && treeView.visible) {
@@ -84,7 +88,7 @@ export function activate(context: ExtensionContext) {
             }
         });
 
-        context.subscriptions.push(treeView, refreshCommand, changeSelection, changeVisibility);
+        context.subscriptions.push(treeView, refreshCommand, renameCommand, changeSelection, changeVisibility);
     }).catch((error) => {
         window.showErrorMessage(`Failed to start Dendrite server: ${error}`);
     });

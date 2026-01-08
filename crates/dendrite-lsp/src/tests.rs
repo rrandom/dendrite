@@ -192,4 +192,132 @@ mod tests {
             _ => panic!("Expected scalar location response to {:?}", target_uri),
         }
     }
+
+    #[tokio::test]
+    async fn test_lsp_rename() {
+        let (state, temp_dir, client) = setup_test_context().await;
+
+        let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+        let params = create_initialize_params(root_uri.clone());
+        handlers::handle_initialize(&client, &state, params)
+            .await
+            .unwrap();
+
+        // 1. Create target note
+        let _old_name = "old_note";
+        let old_path = temp_dir.path().join("old_note.md");
+        fs::write(&old_path, "# Old Note").unwrap();
+        let old_uri = Url::from_file_path(&old_path).unwrap();
+
+        // 2. Create source note with link
+        let _source_name = "source";
+        let source_path = temp_dir.path().join("source.md");
+        let source_content = "Link to [[old_note]]";
+        fs::write(&source_path, source_content).unwrap();
+        let source_uri = Url::from_file_path(&source_path).unwrap();
+
+        handlers::handle_did_open(
+            &state,
+            DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: old_uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 0,
+                    text: "# Old Note".to_string(),
+                },
+            },
+        )
+        .await;
+
+        handlers::handle_did_open(
+            &state,
+            DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: source_uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 0,
+                    text: source_content.to_string(),
+                },
+            },
+        )
+        .await;
+
+        // Verify "old_note" exists in workspace
+        {
+            let vault_lock = state.vault.read().await;
+            let vault = vault_lock.as_ref().unwrap();
+            let key_check = vault.workspace.resolve_note_key(&old_path);
+            assert_eq!(
+                key_check,
+                Some("old_note".to_string()),
+                "Key resolution failed"
+            );
+        }
+
+        // 3. Request Rename: old_note -> new_note
+        let new_name = "new_note";
+        let rename_params = RenameParams {
+            text_document_position: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier {
+                    uri: old_uri.clone(),
+                },
+                position: Position {
+                    line: 0,
+                    character: 0,
+                },
+            },
+            new_name: new_name.to_string(),
+            work_done_progress_params: Default::default(),
+        };
+
+        let response = handlers::rename::handle_rename(&client, &state, rename_params)
+            .await
+            .unwrap();
+
+        assert!(response.is_some(), "Rename should return edits");
+        let workspace_edit = response.unwrap();
+
+        // Verify WorkspaceEdit
+        let changes = workspace_edit.document_changes.unwrap();
+
+        let mut rename_found = false;
+        let mut link_update_found = false;
+
+        match changes {
+            DocumentChanges::Edits(_) => panic!("Expected DocumentChanges::Operations"),
+            DocumentChanges::Operations(ops) => {
+                for op in ops {
+                    match op {
+                        DocumentChangeOperation::Op(ResourceOp::Rename(rename_file)) => {
+                            if rename_file.old_uri == old_uri {
+                                let expected_new_path = temp_dir.path().join("new_note.md");
+                                let expected_new_uri =
+                                    Url::from_file_path(expected_new_path).unwrap();
+                                let actual_new_uri = rename_file.new_uri;
+
+                                assert_eq!(actual_new_uri.path(), expected_new_uri.path());
+
+                                rename_found = true;
+                            }
+                        }
+                        DocumentChangeOperation::Edit(text_edit) => {
+                            if text_edit.text_document.uri == source_uri {
+                                assert!(!text_edit.edits.is_empty());
+                                if let OneOf::Left(edit) = &text_edit.edits[0] {
+                                    assert_eq!(edit.new_text, "[[new_note]]");
+                                } else {
+                                    panic!("Expected standard TextEdit");
+                                }
+                                link_update_found = true;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        assert!(rename_found, "Should find RenameFile operation");
+        assert!(link_update_found, "Should find link update TextEdit");
+    }
 }

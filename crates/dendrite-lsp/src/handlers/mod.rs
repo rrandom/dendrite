@@ -4,6 +4,7 @@ mod lifecycle;
 mod lookup;
 mod navigation;
 mod notifications;
+pub mod rename;
 mod semantic_tokens;
 
 pub use completion::*;
