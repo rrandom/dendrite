@@ -89,7 +89,9 @@ pub async fn handle_did_rename_files(state: &GlobalState, params: RenameFilesPar
             let new_uri = file_rename.new_uri.parse::<Url>();
 
             if let (Ok(old_url), Ok(new_url)) = (old_uri, new_uri) {
-                if let (Ok(old_path), Ok(new_path)) = (old_url.to_file_path(), new_url.to_file_path()) {
+                if let (Ok(old_path), Ok(new_path)) =
+                    (old_url.to_file_path(), new_url.to_file_path())
+                {
                     // Read content of the new file
                     if let Ok(content) = state.fs.read_to_string(&new_path) {
                         // Update cache for the new URI

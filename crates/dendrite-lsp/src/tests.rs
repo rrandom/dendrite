@@ -523,9 +523,7 @@ mod tests {
             ..Default::default()
         };
 
-        let response = backend.handle_execute_command(params)
-            .await
-            .unwrap();
+        let response = backend.handle_execute_command(params).await.unwrap();
 
         assert!(response.is_some());
         let result: crate::protocol::GetNoteKeyResult =

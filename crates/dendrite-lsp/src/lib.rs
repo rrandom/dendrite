@@ -66,10 +66,10 @@ impl Backend {
                 let params = if let Some(first_arg) = params.arguments.first() {
                     serde_json::from_value::<crate::protocol::GetNoteKeyParams>(first_arg.clone())
                         .map_err(|e| Error {
-                            code: ErrorCode::InvalidParams,
-                            message: format!("Invalid parameters: {}", e).into(),
-                            data: None,
-                        })?
+                        code: ErrorCode::InvalidParams,
+                        message: format!("Invalid parameters: {}", e).into(),
+                        data: None,
+                    })?
                 } else {
                     return Err(Error {
                         code: ErrorCode::InvalidParams,
@@ -77,7 +77,8 @@ impl Backend {
                         data: None,
                     });
                 };
-                let result = handlers::handle_get_note_key(&self.client, &self.state, params).await?;
+                let result =
+                    handlers::handle_get_note_key(&self.client, &self.state, params).await?;
                 serde_json::to_value(result).map(Some).map_err(|e| Error {
                     code: ErrorCode::InternalError,
                     message: format!("Failed to serialize result: {}", e).into(),

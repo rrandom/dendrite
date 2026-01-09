@@ -150,11 +150,14 @@ pub async fn handle_get_note_key(
         });
     };
 
-    let key = vault.workspace.resolve_note_key(&path).ok_or_else(|| Error {
-        code: ErrorCode::InvalidParams,
-        message: "Note not found".into(),
-        data: None,
-    })?;
+    let key = vault
+        .workspace
+        .resolve_note_key(&path)
+        .ok_or_else(|| Error {
+            code: ErrorCode::InvalidParams,
+            message: "Note not found".into(),
+            data: None,
+        })?;
 
     Ok(crate::protocol::GetNoteKeyResult { key })
 }
