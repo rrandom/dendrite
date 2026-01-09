@@ -91,6 +91,22 @@ pub async fn handle_initialize(
                     full: Some(SemanticTokensFullOptions::Bool(true)),
                 }),
             ),
+            workspace: Some(WorkspaceServerCapabilities {
+                workspace_folders: None,
+                file_operations: Some(WorkspaceFileOperationsServerCapabilities {
+                    did_rename: Some(FileOperationRegistrationOptions {
+                        filters: vec![FileOperationFilter {
+                            scheme: Some("file".to_string()),
+                            pattern: FileOperationPattern {
+                                glob: "**/*.md".to_string(),
+                                matches: None,
+                                options: None,
+                            },
+                        }],
+                    }),
+                    ..Default::default()
+                }),
+            }),
             ..Default::default()
         },
         ..Default::default()
