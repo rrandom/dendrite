@@ -24,9 +24,14 @@ This document covers the technical implementation of the `dendrite-core` and its
 ### 1.3 Store (`store.rs`)
 - **Graph**: Uses adjacency lists to track `links` (outgoing) and `backlinks` (incoming).
 - **Map**: maintains a mapping between `PathBuf`, `NoteId`, and `Note`.
+ 
+### 1.4 Refactor (`refactor/`)
+- **`model.rs`**: Definitions for `EditPlan`, `Change`, and `Precondition`.
+- **`rename.rs`**: Implementation of the Rename Note refactoring logic.
+- **`move.rs`**: Implementation of the Move Note refactoring logic (Planned).
 
 ---
-
+ 
 ## 2. Optimization Strategies
 
 ### 2.1 Content Digesting
@@ -53,3 +58,47 @@ pub trait SyntaxStrategy: Send + Sync {
 ```
 
 The current implementation uses `DendronStrategy`, which interprets `.` as a hierarchy separator in filenames.
+
+---
+
+## 4. Refactoring Data Models
+
+### 4.1 EditPlan Structure
+
+```rust
+struct EditPlan {
+    refactor_kind: RefactorKind,
+    edits: Vec<EditGroup>,
+    preconditions: Vec<Precondition>,
+    diagnostics: Vec<Diagnostic>,
+    reversible: bool,
+}
+
+enum Change {
+    TextEdit(TextEdit),
+    ResourceOp(ResourceOperation),
+}
+```
+
+### 4.2 LSP Mapping
+
+| Core Concept | LSP Equivalent |
+| :--- | :--- |
+| `EditPlan` | `WorkspaceEdit` (partially) |
+| `EditGroup` | `TextDocumentEdit` |
+| `TextEdit` | `TextEdit` |
+| `ResourceOperation` | `CreateFile`, `RenameFile`, `DeleteFile` |
+
+### 4.3 Supported Operations
+
+#### Rename Note
+1.  Identify the note via `NoteId`.
+2.  Calculate the new path using `SyntaxStrategy`.
+3.  Query `Store` for all notes linking to the target.
+4.  Generate `TextEdit`s for all inbound WikiLinks and Markdown links.
+5.  Generate a `RenameFile` resource operation.
+
+#### Move Note
+1.  Move the file to a new relative path.
+2.  Update relative links *within* the note if necessary.
+3.  Update inbound links that might be path-dependent.

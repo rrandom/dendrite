@@ -24,6 +24,12 @@ A **Link** represents a relationship between notes or blocks.
 - **Metadata**: Supports aliases `[[target|alias]]` and anchors `[[target#anchor]]`.
 - **Graph**: The collection of all links forms a directed graph, enabling backlink discovery.
 
+### 1.4 EditPlan
+An **EditPlan** is a set of proposed structural changes to the workspace.
+- **Atomic**: A plan represents a single logical operation (e.g., Rename).
+- **Side-Effect Free**: The Refactor Engine only generates the plan; it does not apply it.
+- **Safety**: Plans include **Preconditions** that the client must verify before execution.
+
 ---
 
 ## 2. Terminology
@@ -36,6 +42,7 @@ A **Link** represents a relationship between notes or blocks.
 | **FileSystem** | An abstraction layer (Trait) for file system operations, enabling portability (Desktop/WASM). |
 | **Identity Registry** | The module responsible for maintaining stable IDs for notes. |
 | **Syntax Strategy** | The strategy responsible for format-specific rules (hierarchy, links, display names). |
+| **Refactor Engine** | The core component responsible for calculating safe, semantic-aware structural changes (Rename, Move, etc.). |
 | **Ghost / Virtual Note** | A node in the hierarchy that has children but no corresponding file on disk. |
 
 ---

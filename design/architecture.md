@@ -34,7 +34,8 @@ graph TD
 - **Workspace**: A **pure state container** holding notes, links, and the hierarchy tree.
 - **Store**: An in-memory graph database storing notes, links, and backlinks.
 - **Identity Registry**: Ensures note IDs remain stable across renames.
-
+- **Refactor Engine**: A read-only component that calculates `EditPlan` objects based on graph relationships.
+ 
 ### 1.3 Strategy Layer
 - **Trait-Based**: Business logic for hierarchy and ID resolution is abstracted behind the `SyntaxStrategy` trait.
 - **Dendron Strategy**: Implements dot-separated hierarchies (`foo.bar.md`).
@@ -62,6 +63,51 @@ The Engine provides several distinct API surfaces:
 - **Query API**: Read-only access to notes, links, and graph relationships.
 - **Refactor API**: Generates **Edit Plans** (Atomic, previewable file changes).
 - **Introspection API**: Provides indexing status and engine capabilities.
+ 
+## 4. Refactoring Philosophy
+
+Dendrite's refactor engine operates on a **Pure Calculation** model:
+1. **Read-Only Core**: The engine never modifies files; it only produces an `EditPlan`.
+2. **Client-Driven Execution**: The Client (LSP/Editor) is responsible for applying changes and handling undo/redo.
+3. **Semantic Aware**: Changes are calculated using the Knowledge Graph, ensuring all backlinks and references are identified.
+
+### 4.1 Refactoring Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Client (VS Code)
+    participant Core (Refactor Engine)
+    participant Store (Knowledge Graph)
+
+    User->>Client: Trigger Refactor (e.g. Rename)
+    Client->>Core: Request EditPlan (old_id, new_name)
+    
+    rect rgb(20, 20, 20)
+        Note right of Core: Plain Calculation (No Side Effects)
+        Core->>Store: Query Backlinks
+        Core->>Core: Calculate Text Edits
+        Core->>Core: Generate Preconditions
+    end
+
+    Core-->>Client: Return EditPlan (JSON)
+
+    rect rgb(20, 20, 30)
+        Note right of Client: User Confirmation & Safety Checks
+        Client->>Client: Check Unsaved Buffers
+        Client->>User: Show Diff / Confirm
+    end
+
+    User->>Client: Confirm
+    
+    rect rgb(40, 20, 20)
+        Note right of Client: Atomic Execution
+        Client->>FileSystem: Apply Edits (Atomic Write)
+    end
+
+    FileSystem-->>Core: File Watcher Events
+    Core->>Store: Update Index (Eventual Consistency)
+```
 
 > [!IMPORTANT]
 > The Engine **never** directly edits files during refactoring. It provides an `EditPlan` which the Client interprets and applies.
