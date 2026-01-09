@@ -37,3 +37,13 @@ pub struct GetHierarchyResult {
     /// Root nodes of the hierarchy tree
     pub roots: Vec<dendrite_core::model::TreeView>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GetNoteKeyParams {
+    pub uri: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GetNoteKeyResult {
+    pub key: String,
+}

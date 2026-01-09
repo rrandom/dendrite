@@ -114,3 +114,47 @@ pub async fn handle_list_notes(
         notes: note_summaries,
     })
 }
+
+/// Handle "dendrite/getNoteKey" request
+/// Returns the NoteId for a given file URI
+pub async fn handle_get_note_key(
+    client: &Client,
+    state: &GlobalState,
+    params: crate::protocol::GetNoteKeyParams,
+) -> Result<crate::protocol::GetNoteKeyResult> {
+    client
+        .log_message(
+            MessageType::INFO,
+            format!("🔍 GetNoteKey request received for: {}", params.uri),
+        )
+        .await;
+
+    let uri = tower_lsp::lsp_types::Url::parse(&params.uri).map_err(|e| Error {
+        code: ErrorCode::InvalidParams,
+        message: format!("Invalid URI: {}", e).into(),
+        data: None,
+    })?;
+
+    let path = uri.to_file_path().map_err(|_| Error {
+        code: ErrorCode::InvalidParams,
+        message: "URI is not a file path".into(),
+        data: None,
+    })?;
+
+    let state_lock = state.vault.read().await;
+    let Some(vault) = &*state_lock else {
+        return Err(Error {
+            code: ErrorCode::InternalError,
+            message: "Vault not initialized".into(),
+            data: None,
+        });
+    };
+
+    let key = vault.workspace.resolve_note_key(&path).ok_or_else(|| Error {
+        code: ErrorCode::InvalidParams,
+        message: "Note not found".into(),
+        data: None,
+    })?;
+
+    Ok(crate::protocol::GetNoteKeyResult { key })
+}

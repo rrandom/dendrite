@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
     use crate::handlers;
-    use crate::state::GlobalState;
     use crate::Backend;
     use dendrite_core::workspace::vfs::PhysicalFileSystem;
     use std::fs;
@@ -10,14 +9,13 @@ mod tests {
     use tower_lsp::lsp_types::*;
     use tower_lsp::LspService;
 
-    async fn setup_test_context() -> (GlobalState, TempDir, tower_lsp::Client) {
+    async fn setup_test_context() -> (Backend, TempDir) {
         let fs = Arc::new(PhysicalFileSystem);
         let (service, _) = LspService::new(|client| Backend::new(client, fs.clone()));
-        let client = service.inner().client.clone();
-        let state = service.inner().state.clone();
+        let backend = service.inner().clone();
         let temp_dir = TempDir::new().unwrap();
 
-        (state, temp_dir, client)
+        (backend, temp_dir)
     }
 
     #[allow(deprecated)]
@@ -37,7 +35,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_lsp_initialize() {
-        let (state, temp_dir, client) = setup_test_context().await;
+        let (backend, temp_dir) = setup_test_context().await;
+        let client = &backend.client;
+        let state = &backend.state;
 
         // Create some test notes
         let note_path = temp_dir.path().join("root.md");
@@ -49,7 +49,7 @@ mod tests {
         let params = create_initialize_params(Url::from_file_path(temp_dir.path()).unwrap());
 
         // Call initialize handler
-        let result = handlers::handle_initialize(&client, &state, params)
+        let result = handlers::handle_initialize(client, state, params)
             .await
             .unwrap();
 
@@ -66,10 +66,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_lsp_completion() {
-        let (state, temp_dir, client) = setup_test_context().await;
+        let (backend, temp_dir) = setup_test_context().await;
+        let client = &backend.client;
+        let state = &backend.state;
 
         let params = create_initialize_params(Url::from_file_path(temp_dir.path()).unwrap());
-        handlers::handle_initialize(&client, &state, params)
+        handlers::handle_initialize(client, state, params)
             .await
             .unwrap();
 
@@ -80,7 +82,7 @@ mod tests {
         let uri = Url::from_file_path(&note_path).unwrap();
 
         handlers::handle_did_open(
-            &state,
+            state,
             DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {
                     uri: uri.clone(),
@@ -105,7 +107,7 @@ mod tests {
             context: None,
         };
 
-        let response = handlers::handle_completion(&client, &state, completion_params)
+        let response = handlers::handle_completion(client, state, completion_params)
             .await
             .unwrap();
 
@@ -119,11 +121,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_lsp_goto_definition() {
-        let (state, temp_dir, client) = setup_test_context().await;
+        let (backend, temp_dir) = setup_test_context().await;
+        let client = &backend.client;
+        let state = &backend.state;
 
         let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
         let params = create_initialize_params(root_uri);
-        handlers::handle_initialize(&client, &state, params)
+        handlers::handle_initialize(client, state, params)
             .await
             .unwrap();
 
@@ -141,7 +145,7 @@ mod tests {
 
         // Populate workspace using standard LSP notifications
         handlers::handle_did_open(
-            &state,
+            state,
             DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {
                     uri: target_uri.clone(),
@@ -154,7 +158,7 @@ mod tests {
         .await;
 
         handlers::handle_did_open(
-            &state,
+            state,
             DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {
                     uri: source_uri.clone(),
@@ -181,7 +185,7 @@ mod tests {
             partial_result_params: Default::default(),
         };
 
-        let response = handlers::handle_goto_definition(&client, &state, definition_params)
+        let response = handlers::handle_goto_definition(client, state, definition_params)
             .await
             .unwrap();
 
@@ -195,11 +199,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_lsp_rename() {
-        let (state, temp_dir, client) = setup_test_context().await;
+        let (backend, temp_dir) = setup_test_context().await;
+        let client = &backend.client;
+        let state = &backend.state;
 
         let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
         let params = create_initialize_params(root_uri.clone());
-        handlers::handle_initialize(&client, &state, params)
+        handlers::handle_initialize(client, state, params)
             .await
             .unwrap();
 
@@ -217,7 +223,7 @@ mod tests {
         let source_uri = Url::from_file_path(&source_path).unwrap();
 
         handlers::handle_did_open(
-            &state,
+            state,
             DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {
                     uri: old_uri.clone(),
@@ -230,7 +236,7 @@ mod tests {
         .await;
 
         handlers::handle_did_open(
-            &state,
+            state,
             DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {
                     uri: source_uri.clone(),
@@ -270,7 +276,7 @@ mod tests {
             work_done_progress_params: Default::default(),
         };
 
-        let response = handlers::rename::handle_rename(&client, &state, rename_params)
+        let response = handlers::rename::handle_rename(client, state, rename_params)
             .await
             .unwrap();
 
@@ -323,11 +329,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_lsp_multi_block_scenario() {
-        let (state, temp_dir, client) = setup_test_context().await;
+        let (backend, temp_dir) = setup_test_context().await;
+        let client = &backend.client;
+        let state = &backend.state;
 
         let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
         let params = create_initialize_params(root_uri.clone());
-        handlers::handle_initialize(&client, &state, params)
+        handlers::handle_initialize(client, state, params)
             .await
             .unwrap();
 
@@ -345,7 +353,7 @@ mod tests {
 
         // Open both notes to populate workspace
         handlers::handle_did_open(
-            &state,
+            state,
             DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {
                     uri: note_b_uri.clone(),
@@ -358,7 +366,7 @@ mod tests {
         .await;
 
         handlers::handle_did_open(
-            &state,
+            state,
             DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {
                     uri: note_a_uri.clone(),
@@ -386,7 +394,7 @@ mod tests {
             work_done_progress_params: Default::default(),
         };
 
-        let hover = handlers::handle_hover(&client, &state, hover_params)
+        let hover = handlers::handle_hover(client, state, hover_params)
             .await
             .unwrap();
         assert!(hover.is_some());
@@ -473,5 +481,55 @@ mod tests {
         } else {
             panic!("Expected DocumentChanges::Operations with edits");
         }
+    }
+
+    #[tokio::test]
+    async fn test_lsp_get_note_key() {
+        let (backend, temp_dir) = setup_test_context().await;
+
+        let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+        let params = create_initialize_params(root_uri.clone());
+        handlers::handle_initialize(&backend.client, &backend.state, params)
+            .await
+            .unwrap();
+
+        // 1. Create a note
+        let note_path = temp_dir.path().join("my_note.md");
+        let note_content = "# My Note";
+        fs::write(&note_path, note_content).unwrap();
+        let note_uri = Url::from_file_path(&note_path).unwrap();
+
+        // Open note to populate workspace
+        handlers::handle_did_open(
+            &backend.state,
+            DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: note_uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 0,
+                    text: note_content.to_string(),
+                },
+            },
+        )
+        .await;
+
+        // 2. Request Note Key
+        let params = ExecuteCommandParams {
+            command: "dendrite/getNoteKey".to_string(),
+            arguments: vec![serde_json::to_value(crate::protocol::GetNoteKeyParams {
+                uri: note_uri.to_string(),
+            })
+            .unwrap()],
+            ..Default::default()
+        };
+
+        let response = backend.handle_execute_command(params)
+            .await
+            .unwrap();
+
+        assert!(response.is_some());
+        let result: crate::protocol::GetNoteKeyResult =
+            serde_json::from_value(response.unwrap()).unwrap();
+        assert_eq!(result.key, "my_note");
     }
 }

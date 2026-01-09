@@ -79,6 +79,7 @@ pub async fn handle_initialize(
                 commands: vec![
                     "dendrite/getHierarchy".to_string(),
                     "dendrite/listNotes".to_string(),
+                    "dendrite/getNoteKey".to_string(),
                 ],
                 work_done_progress_options: Default::default(),
             }),

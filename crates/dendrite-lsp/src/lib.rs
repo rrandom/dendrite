@@ -19,6 +19,7 @@ mod state;
 mod tests;
 
 /// LSP backend implementation
+#[derive(Clone)]
 pub struct Backend {
     pub(crate) client: Client,
     pub(crate) state: GlobalState,
@@ -29,6 +30,65 @@ impl Backend {
         Self {
             client,
             state: GlobalState::new(fs),
+        }
+    }
+
+    pub async fn handle_execute_command(
+        &self,
+        params: ExecuteCommandParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<serde_json::Value>> {
+        match params.command.as_str() {
+            "dendrite/getHierarchy" => {
+                let params = GetHierarchyParams::default();
+                let result =
+                    handlers::handle_get_hierarchy(&self.client, &self.state, params).await?;
+                serde_json::to_value(result).map(Some).map_err(|e| Error {
+                    code: ErrorCode::InternalError,
+                    message: format!("Failed to serialize result: {}", e).into(),
+                    data: None,
+                })
+            }
+            "dendrite/listNotes" => {
+                let list_params = if let Some(first_arg) = params.arguments.first() {
+                    serde_json::from_value::<ListNotesParams>(first_arg.clone()).unwrap_or_default()
+                } else {
+                    ListNotesParams::default()
+                };
+                let result =
+                    handlers::handle_list_notes(&self.client, &self.state, list_params).await?;
+                serde_json::to_value(result).map(Some).map_err(|e| Error {
+                    code: ErrorCode::InternalError,
+                    message: format!("Failed to serialize result: {}", e).into(),
+                    data: None,
+                })
+            }
+            "dendrite/getNoteKey" => {
+                let params = if let Some(first_arg) = params.arguments.first() {
+                    serde_json::from_value::<crate::protocol::GetNoteKeyParams>(first_arg.clone())
+                        .map_err(|e| Error {
+                            code: ErrorCode::InvalidParams,
+                            message: format!("Invalid parameters: {}", e).into(),
+                            data: None,
+                        })?
+                } else {
+                    return Err(Error {
+                        code: ErrorCode::InvalidParams,
+                        message: "Missing parameters".into(),
+                        data: None,
+                    });
+                };
+                let result = handlers::handle_get_note_key(&self.client, &self.state, params).await?;
+                serde_json::to_value(result).map(Some).map_err(|e| Error {
+                    code: ErrorCode::InternalError,
+                    message: format!("Failed to serialize result: {}", e).into(),
+                    data: None,
+                })
+            }
+            _ => Err(Error {
+                code: ErrorCode::MethodNotFound,
+                message: format!("Unknown command: {}", params.command).into(),
+                data: None,
+            }),
         }
     }
 }
@@ -95,48 +155,11 @@ impl tower_lsp::LanguageServer for Backend {
         handlers::handle_semantic_tokens_full(&self.client, &self.state, params).await
     }
 
-    async fn rename(
-        &self,
-        params: RenameParams,
-    ) -> tower_lsp::jsonrpc::Result<Option<WorkspaceEdit>> {
-        handlers::rename::handle_rename(&self.client, &self.state, params).await
-    }
-
     async fn execute_command(
         &self,
         params: ExecuteCommandParams,
     ) -> tower_lsp::jsonrpc::Result<Option<serde_json::Value>> {
-        match params.command.as_str() {
-            "dendrite/getHierarchy" => {
-                let params = GetHierarchyParams::default();
-                let result =
-                    handlers::handle_get_hierarchy(&self.client, &self.state, params).await?;
-                serde_json::to_value(result).map(Some).map_err(|e| Error {
-                    code: ErrorCode::InternalError,
-                    message: format!("Failed to serialize result: {}", e).into(),
-                    data: None,
-                })
-            }
-            "dendrite/listNotes" => {
-                let list_params = if let Some(first_arg) = params.arguments.first() {
-                    serde_json::from_value::<ListNotesParams>(first_arg.clone()).unwrap_or_default()
-                } else {
-                    ListNotesParams::default()
-                };
-                let result =
-                    handlers::handle_list_notes(&self.client, &self.state, list_params).await?;
-                serde_json::to_value(result).map(Some).map_err(|e| Error {
-                    code: ErrorCode::InternalError,
-                    message: format!("Failed to serialize result: {}", e).into(),
-                    data: None,
-                })
-            }
-            _ => Err(Error {
-                code: ErrorCode::MethodNotFound,
-                message: format!("Unknown command: {}", params.command).into(),
-                data: None,
-            }),
-        }
+        self.handle_execute_command(params).await
     }
 }
 
