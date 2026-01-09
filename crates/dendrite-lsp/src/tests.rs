@@ -320,4 +320,158 @@ mod tests {
         assert!(rename_found, "Should find RenameFile operation");
         assert!(link_update_found, "Should find link update TextEdit");
     }
+
+    #[tokio::test]
+    async fn test_lsp_multi_block_scenario() {
+        let (state, temp_dir, client) = setup_test_context().await;
+
+        let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+        let params = create_initialize_params(root_uri.clone());
+        handlers::handle_initialize(&client, &state, params)
+            .await
+            .unwrap();
+
+        // 1. Create Note B with multiple blocks
+        let note_b_path = temp_dir.path().join("note_b.md");
+        let note_b_content = "# Note B\n\nFirst block ^block-1\n\nSecond block ^block-2";
+        fs::write(&note_b_path, note_b_content).unwrap();
+        let note_b_uri = Url::from_file_path(&note_b_path).unwrap();
+
+        // 2. Create Note A with links to Note B's blocks
+        let note_a_path = temp_dir.path().join("note_a.md");
+        let note_a_content = "# Note A\n\nLink 1: [[note_b#^block-1]]\nLink 2: [[note_b#^block-2]]";
+        fs::write(&note_a_path, note_a_content).unwrap();
+        let note_a_uri = Url::from_file_path(&note_a_path).unwrap();
+
+        // Open both notes to populate workspace
+        handlers::handle_did_open(
+            &state,
+            DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: note_b_uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 0,
+                    text: note_b_content.to_string(),
+                },
+            },
+        )
+        .await;
+
+        handlers::handle_did_open(
+            &state,
+            DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: note_a_uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 0,
+                    text: note_a_content.to_string(),
+                },
+            },
+        )
+        .await;
+
+        // VERIFICATION 1: Hover
+        // Hover on [[note_b#^block-1]]
+        // Position: line 2, character 15ish
+        let hover_params = HoverParams {
+            text_document_position_params: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier {
+                    uri: note_a_uri.clone(),
+                },
+                position: Position {
+                    line: 2,
+                    character: 15,
+                },
+            },
+            work_done_progress_params: Default::default(),
+        };
+
+        let hover = handlers::handle_hover(&client, &state, hover_params)
+            .await
+            .unwrap();
+        assert!(hover.is_some());
+        if let Hover {
+            contents: HoverContents::Markup(markup),
+            ..
+        } = hover.unwrap()
+        {
+            assert!(markup.value.contains("First block"));
+        } else {
+            panic!("Expected markup hover contents");
+        }
+
+        // VERIFICATION 2: Goto Definition
+        let definition_params = GotoDefinitionParams {
+            text_document_position_params: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier {
+                    uri: note_a_uri.clone(),
+                },
+                position: Position {
+                    line: 3,
+                    character: 15, // [[note_b#^block-2]]
+                },
+            },
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+        };
+
+        let definition = handlers::handle_goto_definition(&client, &state, definition_params)
+            .await
+            .unwrap();
+        match definition {
+            Some(GotoDefinitionResponse::Scalar(location)) => {
+                assert_eq!(location.uri, note_b_uri);
+                // Should point to line 4 (where ^block-2 is)
+                assert_eq!(location.range.start.line, 4);
+            }
+            _ => panic!("Expected definition to lead to Note B"),
+        }
+
+        // VERIFICATION 3: Rename Note B -> Note C
+        let rename_params = RenameParams {
+            text_document_position: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier {
+                    uri: note_b_uri.clone(),
+                },
+                position: Position {
+                    line: 0,
+                    character: 0,
+                },
+            },
+            new_name: "note_c".to_string(),
+            work_done_progress_params: Default::default(),
+        };
+
+        let rename_response = handlers::rename::handle_rename(&client, &state, rename_params)
+            .await
+            .unwrap();
+
+        assert!(rename_response.is_some());
+        let edits = rename_response.unwrap();
+
+        if let Some(DocumentChanges::Operations(ops)) = edits.document_changes {
+            let mut a_edits = Vec::new();
+            for op in ops {
+                if let DocumentChangeOperation::Edit(text_edit) = op {
+                    if text_edit.text_document.uri == note_a_uri {
+                        a_edits.push(text_edit);
+                    }
+                }
+            }
+
+            // Note A should have 2 edits for the 2 links
+            assert_eq!(a_edits.len(), 1); // Grouped by file
+            let edit_group = &a_edits[0];
+            assert_eq!(edit_group.edits.len(), 2);
+
+            if let OneOf::Left(edit) = &edit_group.edits[0] {
+                assert_eq!(edit.new_text, "[[note_c#^block-1]]");
+            }
+            if let OneOf::Left(edit) = &edit_group.edits[1] {
+                assert_eq!(edit.new_text, "[[note_c#^block-2]]");
+            }
+        } else {
+            panic!("Expected DocumentChanges::Operations with edits");
+        }
+    }
 }

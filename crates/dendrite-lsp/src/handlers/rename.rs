@@ -31,8 +31,12 @@ pub async fn handle_rename(
         None => return Ok(None),
     };
 
-    // Calculate edits using Workspace API
-    let plan = workspace.rename_note(&old_key, &new_name);
+    // Calculate edits using Vault API
+    // We use match instead of ? to handle Option->Result correctly
+    let plan = match &*vault {
+        Some(v) => v.rename_note(&old_key, &new_name),
+        None => return Ok(None),
+    };
 
     match plan {
         Some(p) => Ok(Some(edit_plan_to_workspace_edit(p))),

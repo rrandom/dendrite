@@ -32,4 +32,12 @@ impl Vault {
         let mut indexer = Indexer::new(&mut self.workspace, &*self.fs);
         indexer.rename_file(old_path, new_path, content);
     }
+
+    pub fn rename_note(
+        &self,
+        old_key: &str,
+        new_key: &str,
+    ) -> Option<crate::refactor::model::EditPlan> {
+        self.workspace.rename_note(old_key, new_key)
+    }
 }
