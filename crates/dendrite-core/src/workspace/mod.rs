@@ -51,6 +51,7 @@ impl Workspace {
     /// Initiate a Rename Refactoring from old_key to new_key.
     pub fn rename_note(
         &self,
+        content_provider: &dyn crate::refactor::model::ContentProvider,
         old_key: &str,
         new_key: &str,
     ) -> Option<crate::refactor::model::EditPlan> {
@@ -61,6 +62,12 @@ impl Workspace {
         let new_path = self.resolver.path_from_note_key(&new_key.to_string());
 
         // 3. Delegate to Core Refactor Engine
-        crate::refactor::rename::calculate_rename_edits(&self.store, &note_id, new_path, new_key)
+        crate::refactor::rename::calculate_rename_edits(
+            &self.store,
+            content_provider,
+            &note_id,
+            new_path,
+            new_key,
+        )
     }
 }

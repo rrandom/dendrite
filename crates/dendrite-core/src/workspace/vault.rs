@@ -38,6 +38,12 @@ impl Vault {
         old_key: &str,
         new_key: &str,
     ) -> Option<crate::refactor::model::EditPlan> {
-        self.workspace.rename_note(old_key, new_key)
+        self.workspace.rename_note(self, old_key, new_key)
+    }
+}
+
+impl crate::refactor::model::ContentProvider for Vault {
+    fn get_content(&self, uri: &str) -> Option<String> {
+        self.fs.read_to_string(&std::path::PathBuf::from(uri)).ok()
     }
 }

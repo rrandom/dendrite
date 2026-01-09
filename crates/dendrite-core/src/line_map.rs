@@ -27,4 +27,25 @@ impl LineMap {
             }
         }
     }
+
+    pub fn point_to_offset(&self, text: &str, point: Point) -> Option<usize> {
+        let line_start = *self.line_starts.get(point.line)?;
+        let mut current_col = 0;
+
+        for (i, c) in text[line_start..].char_indices() {
+            if current_col == point.col {
+                return Some(line_start + i);
+            }
+            if c == '\n' {
+                break;
+            }
+            current_col += c.len_utf16();
+        }
+
+        if current_col == point.col {
+            return Some(text.len()); // or end of line segment
+        }
+
+        None
+    }
 }

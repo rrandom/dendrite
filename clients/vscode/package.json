@@ -44,6 +44,11 @@
         "command": "dendrite.renameNote",
         "title": "Rename Note",
         "category": "Dendrite"
+      },
+      {
+        "command": "dendrite.undoRefactor",
+        "title": "Undo Last Refactor",
+        "category": "Dendrite"
       }
     ],
     "menus": {
@@ -51,7 +56,12 @@
         {
           "command": "dendrite.refreshHierarchy",
           "when": "view == dendriteHierarchy",
-          "group": "navigation"
+          "group": "navigation@1"
+        },
+        {
+          "command": "dendrite.undoRefactor",
+          "when": "view == dendriteHierarchy",
+          "group": "navigation@2"
         }
       ]
     }

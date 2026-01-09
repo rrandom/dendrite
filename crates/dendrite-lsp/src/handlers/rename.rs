@@ -39,7 +39,17 @@ pub async fn handle_rename(
     };
 
     match plan {
-        Some(p) => Ok(Some(edit_plan_to_workspace_edit(p))),
+        Some(p) => {
+            if p.reversible {
+                let mut history = state.refactor_history.write().await;
+                history.push_back(p.clone());
+                // Limit history size to 5
+                if history.len() > 5 {
+                    history.pop_front();
+                }
+            }
+            Ok(Some(edit_plan_to_workspace_edit(p)))
+        }
         None => Ok(None),
     }
 }

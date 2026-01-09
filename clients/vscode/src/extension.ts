@@ -122,6 +122,17 @@ export function activate(context: ExtensionContext) {
             }
         });
 
+        const undoCommand = commands.registerCommand('dendrite.undoRefactor', async () => {
+            try {
+                await client.sendRequest('workspace/executeCommand', {
+                    command: 'dendrite/undoRefactor',
+                    arguments: []
+                });
+            } catch (error) {
+                window.showErrorMessage(`Undo failed: ${error}`);
+            }
+        });
+
         // Sync Tree View with active editor
         const changeSelection = window.onDidChangeActiveTextEditor(editor => {
             if (editor && treeDataProvider && treeView.visible) {
@@ -137,7 +148,7 @@ export function activate(context: ExtensionContext) {
             }
         });
 
-        context.subscriptions.push(treeView, refreshCommand, renameCommand, changeSelection, changeVisibility);
+        context.subscriptions.push(treeView, refreshCommand, renameCommand, undoCommand, changeSelection, changeVisibility);
     }).catch((error) => {
         window.showErrorMessage(`Failed to start Dendrite server: ${error}`);
     });

@@ -85,6 +85,10 @@ impl Backend {
                     data: None,
                 })
             }
+            "dendrite/undoRefactor" => {
+                handlers::handle_undo_refactor(&self.client, &self.state).await?;
+                Ok(None)
+            }
             _ => Err(Error {
                 code: ErrorCode::MethodNotFound,
                 message: format!("Unknown command: {}", params.command).into(),

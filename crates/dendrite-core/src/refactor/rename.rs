@@ -1,6 +1,8 @@
+use crate::line_map::LineMap;
 use crate::model::{LinkKind, NoteId};
 use crate::refactor::model::{
-    Change, EditGroup, EditPlan, Precondition, RefactorKind, ResourceOperation, TextEdit,
+    Change, ContentProvider, EditGroup, EditPlan, Precondition, RefactorKind, ResourceOperation,
+    TextEdit,
 };
 use crate::store::Store;
 
@@ -16,6 +18,7 @@ use crate::store::Store;
 /// * `Option<EditPlan>` - The plan, or None if the old note doesn't exist.
 pub(crate) fn calculate_rename_edits(
     store: &Store,
+    content_provider: &dyn ContentProvider,
     note_id: &NoteId,
     new_path: std::path::PathBuf,
     new_key: &str,
@@ -95,10 +98,22 @@ pub(crate) fn calculate_rename_edits(
                         }
                     };
 
+                    let mut undo_text = None;
+                    if let Some(content) = content_provider.get_content(&source_uri) {
+                        let line_map = LineMap::new(&content);
+                        if let Some(start) = line_map.point_to_offset(&content, link.range.start) {
+                            if let Some(end) = line_map.point_to_offset(&content, link.range.end) {
+                                if start <= end && end <= content.len() {
+                                    undo_text = Some(content[start..end].to_string());
+                                }
+                            }
+                        }
+                    }
+
                     changes.push(Change::TextEdit(TextEdit {
                         range: link.range.clone(),
                         new_text,
-                        undo_text: None, // Content not available in Store
+                        undo_text,
                     }));
                 }
             }
@@ -116,7 +131,7 @@ pub(crate) fn calculate_rename_edits(
         edits,
         preconditions,
         diagnostics: vec![],
-        reversible: false, // Incomplete without undo_text
+        reversible: true,
     })
 }
 
@@ -128,9 +143,16 @@ mod tests {
     use std::path::PathBuf;
     use uuid::Uuid;
 
-    fn create_dummy_note(name: &str) -> Note {
+    struct MockContentProvider;
+    impl ContentProvider for MockContentProvider {
+        fn get_content(&self, _uri: &str) -> Option<String> {
+            None
+        }
+    }
+
+    fn create_dummy_note(name: &str) -> crate::model::Note {
         let id = NoteId::new();
-        Note {
+        crate::model::Note {
             id,
             path: Some(PathBuf::from(format!("{}.md", name))),
             title: Some(name.to_string()),
@@ -170,7 +192,8 @@ mod tests {
         let new_key = "C";
         let new_path = PathBuf::from("C.md");
         let plan =
-            calculate_rename_edits(&store, &note_b.id, new_path, new_key).expect("Plan generated");
+            calculate_rename_edits(&store, &MockContentProvider, &note_b.id, new_path, new_key)
+                .expect("Plan generated");
 
         assert!(matches!(plan.refactor_kind, RefactorKind::RenameNote));
 
@@ -252,7 +275,7 @@ mod tests {
         let new_key = "New Name";
         let new_path = PathBuf::from("folder/New Name.md");
 
-        let plan = calculate_rename_edits(&store, &note_id, new_path, new_key)
+        let plan = calculate_rename_edits(&store, &MockContentProvider, &note_id, new_path, new_key)
             .expect("Should generate plan");
 
         // VERIFICATION 1: Identity Stability
@@ -327,7 +350,7 @@ mod tests {
         store.upsert_note(ref_note.clone());
         store.set_outgoing_links(&ref_note.id, vec![note_id.clone()]);
 
-        let plan = calculate_rename_edits(&store, &note_id, new_path, new_name)
+        let plan = calculate_rename_edits(&store, &MockContentProvider, &note_id, new_path, new_name)
             .expect("Plan generation failed");
 
         // Verify link update
@@ -345,5 +368,64 @@ mod tests {
             link_edit.new_text, "[[New Note#^block-id]]",
             "Block anchor must be preserved"
         );
+    }
+
+    #[test]
+    fn test_rename_undo_text_extraction() {
+        let mut store = Store::new();
+        struct MockWithContent;
+        impl ContentProvider for MockWithContent {
+            fn get_content(&self, uri: &str) -> Option<String> {
+                if uri.contains("Referencer.md") {
+                    Some("Check [[Old Note]] here.".to_string())
+                } else {
+                    None
+                }
+            }
+        }
+
+        let old_note = create_dummy_note("Old Note");
+        let note_id = old_note.id.clone();
+        let mut ref_note = create_dummy_note("Referencer");
+        ref_note.path = Some(PathBuf::from("Referencer.md"));
+
+        use crate::model::Point;
+        ref_note.links.push(Link {
+            target: note_id.clone(),
+            alias: None,
+            anchor: None,
+            range: TextRange {
+                start: Point { line: 0, col: 6 },
+                end: Point { line: 0, col: 18 },
+            },
+            kind: LinkKind::WikiLink,
+        });
+
+        store.upsert_note(old_note);
+        store.upsert_note(ref_note.clone());
+        store.set_outgoing_links(&ref_note.id, vec![note_id.clone()]);
+
+        let plan = calculate_rename_edits(
+            &store,
+            &MockWithContent,
+            &note_id,
+            PathBuf::from("New Note.md"),
+            "New Note",
+        )
+        .expect("Should generate plan");
+
+        let link_edit = plan
+            .edits
+            .iter()
+            .flat_map(|g| &g.changes)
+            .find_map(|c| match c {
+                Change::TextEdit(t) => Some(t),
+                _ => None,
+            })
+            .expect("Should have link update");
+
+        assert_eq!(link_edit.undo_text, Some("[[Old Note]]".to_string()));
+        assert_eq!(link_edit.new_text, "[[New Note]]");
+        assert!(plan.reversible);
     }
 }

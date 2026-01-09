@@ -6,6 +6,7 @@ mod navigation;
 mod notifications;
 pub mod rename;
 mod semantic_tokens;
+mod undo;
 
 pub use completion::*;
 pub use hierarchy::*;
@@ -14,3 +15,4 @@ pub use lookup::*;
 pub use navigation::*;
 pub use notifications::*;
 pub use semantic_tokens::*;
+pub use undo::*;
