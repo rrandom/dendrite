@@ -62,19 +62,19 @@ pub(crate) fn calculate_rename_edits(
                 if link.target == *note_id {
                     let new_text = match link.kind {
                         LinkKind::WikiLink | LinkKind::EmbeddedWikiLink => {
-                            // Reconstruct [[name|alias]]
+                            // Reconstruct [[alias|name#anchor]]
                             let mut text = String::from("[[");
                             if link.kind == LinkKind::EmbeddedWikiLink {
                                 text = String::from("![[");
+                            }
+                            if let Some(alias) = &link.alias {
+                                text.push_str(alias);
+                                text.push('|');
                             }
                             text.push_str(new_key);
                             if let Some(anchor) = &link.anchor {
                                 text.push('#');
                                 text.push_str(anchor);
-                            }
-                            if let Some(alias) = &link.alias {
-                                text.push('|');
-                                text.push_str(alias);
                             }
                             text.push_str("]]");
                             text

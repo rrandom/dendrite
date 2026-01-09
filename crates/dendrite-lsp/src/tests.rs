@@ -530,4 +530,98 @@ mod tests {
             serde_json::from_value(response.unwrap()).unwrap();
         assert_eq!(result.key, "my_note");
     }
+
+    #[tokio::test]
+    async fn test_lsp_rename_link_order_dendron() {
+        let (backend, temp_dir) = setup_test_context().await;
+        let client = &backend.client;
+        let state = &backend.state;
+
+        let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+        let params = create_initialize_params(root_uri.clone());
+        handlers::handle_initialize(client, state, params)
+            .await
+            .unwrap();
+
+        // 1. Create Note B
+        let note_b_path = temp_dir.path().join("note_b.md");
+        let note_b_content = "# Note B";
+        fs::write(&note_b_path, note_b_content).unwrap();
+        let note_b_uri = Url::from_file_path(&note_b_path).unwrap();
+
+        // 2. Create Note A with Dendron style link [[Alias|Target]]
+        // According to user, Dendron is [[alias|target]]
+        let note_a_path = temp_dir.path().join("note_a.md");
+        let note_a_content = "# Note A\n\nLink: [[note_b_alias|note_b]]";
+        fs::write(&note_a_path, note_a_content).unwrap();
+        let note_a_uri = Url::from_file_path(&note_a_path).unwrap();
+
+        handlers::handle_did_open(
+            state,
+            DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: note_b_uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 0,
+                    text: note_b_content.to_string(),
+                },
+            },
+        )
+        .await;
+
+        handlers::handle_did_open(
+            state,
+            DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: note_a_uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 0,
+                    text: note_a_content.to_string(),
+                },
+            },
+        )
+        .await;
+
+        // 3. Rename Note B -> Note C
+        let rename_params = RenameParams {
+            text_document_position: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier {
+                    uri: note_b_uri.clone(),
+                },
+                position: Position {
+                    line: 0,
+                    character: 0,
+                },
+            },
+            new_name: "note_c".to_string(),
+            work_done_progress_params: Default::default(),
+        };
+
+        let rename_response = handlers::rename::handle_rename(client, state, rename_params)
+            .await
+            .unwrap();
+
+        assert!(rename_response.is_some());
+        let edits = rename_response.unwrap();
+
+        if let Some(DocumentChanges::Operations(ops)) = edits.document_changes {
+            let mut a_edit_found = false;
+            for op in ops {
+                if let DocumentChangeOperation::Edit(text_edit) = op {
+                    if text_edit.text_document.uri == note_a_uri {
+                        assert_eq!(text_edit.edits.len(), 1);
+                        if let OneOf::Left(edit) = &text_edit.edits[0] {
+                            // User says it SHOULD be [[note_b_alias|note_c]]
+                            // If bug exists, it might be [[note_c|note_b_alias]]
+                            assert_eq!(edit.new_text, "[[note_b_alias|note_c]]");
+                        }
+                        a_edit_found = true;
+                    }
+                }
+            }
+            assert!(a_edit_found, "Note A should be updated");
+        } else {
+            panic!("Expected DocumentChanges::Operations with edits");
+        }
+    }
 }
