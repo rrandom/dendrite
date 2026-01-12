@@ -61,6 +61,24 @@ impl SemanticModel for DendronModel {
         Some(parts[..parts.len() - 1].join("."))
     }
 
+    fn is_descendant(&self, candidate: &NoteKey, parent: &NoteKey) -> bool {
+        // Dendron: candidate starts with "parent."
+        // e.g. "a.b" is descendant of "a"
+        if candidate.len() <= parent.len() {
+            return false;
+        }
+        candidate.starts_with(parent) && candidate.chars().nth(parent.len()) == Some('.')
+    }
+
+    fn reparent_key(&self, key: &NoteKey, old_parent: &NoteKey, new_parent: &NoteKey) -> NoteKey {
+        // Replace prefix: "old.child" -> "new.child"
+        if !self.is_descendant(key, old_parent) {
+            return key.clone();
+        }
+        let suffix = &key[old_parent.len()..];
+        format!("{}{}", new_parent, suffix)
+    }
+
     fn path_from_note_key(&self, key: &NoteKey) -> std::path::PathBuf {
         // Generate full path: root / "key.md"
         // e.g., root = "/workspace", key = "foo.bar" -> "/workspace/foo.bar.md"

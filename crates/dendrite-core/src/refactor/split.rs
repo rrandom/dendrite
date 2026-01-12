@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use crate::identity::IdentityRegistry;
 use crate::model::{NoteId, TextRange};
 use crate::refactor::model::{
@@ -120,6 +118,7 @@ fn extract_text(content: &str, range: TextRange) -> Option<String> {
 mod tests {
     use super::*;
     use crate::model::{Note, Point};
+    use std::path::PathBuf;
 
     struct MockProvider {
         content: String,

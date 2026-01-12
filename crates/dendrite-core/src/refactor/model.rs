@@ -35,9 +35,8 @@ pub enum RefactorKind {
     RenameNote,
     MoveNote,
     SplitNote,
-    MergeNotes,
     WorkspaceAudit,
-    ReorganizeHierarchy,
+    HierarchyRefactor,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -20,6 +20,12 @@ pub trait SemanticModel: Send + Sync {
 
     fn resolve_parent(&self, note: &NoteKey) -> Option<NoteKey>;
 
+    /// Check if `candidate` is a descendant of `parent` in the hierarchy
+    fn is_descendant(&self, candidate: &NoteKey, parent: &NoteKey) -> bool;
+
+    /// Calculate new key for a descendant when its parent is renamed/moved
+    fn reparent_key(&self, key: &NoteKey, old_parent: &NoteKey, new_parent: &NoteKey) -> NoteKey;
+
     // --- Display & Formatting ---
 
     fn resolve_display_name(&self, note: &Note) -> String;

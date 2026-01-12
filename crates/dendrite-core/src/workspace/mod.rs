@@ -48,7 +48,8 @@ impl Workspace {
         Some(key)
     }
 
-    /// Initiate a Rename Refactoring from old_key to new_key.
+    /// Initiate a standard Rename Refactoring from old_key to new_key.
+    /// This ONLY renames the specific note, not its children.
     pub fn rename_note(
         &self,
         content_provider: &dyn crate::refactor::model::ContentProvider,
@@ -61,7 +62,7 @@ impl Workspace {
         // 2. Calculate New Path (Forward Calculation using SyntaxStrategy)
         let new_path = self.resolver.path_from_note_key(&new_key.to_string());
 
-        // 3. Delegate to Core Refactor Engine
+        // 3. Delegate to Core Refactor Engine (Structural only)
         crate::refactor::structural::calculate_structural_edits(
             &self.store,
             &self.identity,
@@ -69,6 +70,24 @@ impl Workspace {
             self.resolver.as_ref(),
             &note_id,
             new_path,
+            new_key,
+        )
+    }
+
+    /// Initiate a Hierarchy Refactoring.
+    /// This renames the note AND all its descendants (e.g. `foo`->`bar` moves `foo.child`->`bar.child`).
+    pub fn rename_hierarchy(
+        &self,
+        content_provider: &dyn crate::refactor::model::ContentProvider,
+        old_key: &str,
+        new_key: &str,
+    ) -> Option<crate::refactor::model::EditPlan> {
+        crate::refactor::hierarchy::calculate_hierarchy_edits(
+            &self.store,
+            &self.identity,
+            content_provider,
+            self.resolver.as_ref(),
+            old_key,
             new_key,
         )
     }
