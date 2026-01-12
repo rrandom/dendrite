@@ -949,6 +949,7 @@ fn test_resolve_link_blocks() {
     let target_id = ws.store.note_id_by_path(&target_path).unwrap().clone();
     let link = Link {
         target: target_id,
+        raw_target: "target".to_string(),
         alias: None,
         anchor: Some("^block-123".to_string()),
         range: Default::default(),

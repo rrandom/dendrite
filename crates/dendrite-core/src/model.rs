@@ -15,6 +15,12 @@ impl NoteId {
     }
 }
 
+impl Default for NoteId {
+    fn default() -> Self {
+        Self(Uuid::nil())
+    }
+}
+
 // Changeable name of a note
 pub type NoteKey = String;
 
@@ -35,20 +41,20 @@ pub struct TextRange {
     pub end: Point,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Heading {
     pub level: u8,
     pub text: String,
     pub range: TextRange,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Block {
     pub id: String,
     pub range: TextRange,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Note {
     #[allow(private_interfaces)]
     pub id: NoteId,
@@ -62,18 +68,20 @@ pub struct Note {
     pub digest: Option<String>,
 }
 /// Link entity
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Link {
     #[allow(private_interfaces)]
     pub target: NoteId,
+    pub raw_target: String,
     pub alias: Option<String>,
     pub anchor: Option<String>,
     pub range: TextRange,
     pub kind: LinkKind,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum LinkKind {
+    #[default]
     WikiLink,         // [[target]]
     EmbeddedWikiLink, // ![[target]]
     MarkdownLink,     // [label](target)

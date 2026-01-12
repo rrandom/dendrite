@@ -94,6 +94,7 @@ impl Store {
                     .into_iter()
                     .map(|target| Link {
                         target,
+                        raw_target: "".to_string(), // Store update is often semantic, raw target unknown
                         alias: None,
                         anchor: None,
                         range: TextRange {

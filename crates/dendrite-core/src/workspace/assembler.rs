@@ -43,6 +43,7 @@ impl<'a> NoteAssembler<'a> {
                     let link_key = self.strategy.note_key_from_link(&source_key, &link.target);
                     Link {
                         target: self.identity.get_or_create(&link_key),
+                        raw_target: link.raw_target.clone(),
                         alias: link.alias.clone(),
                         anchor: link.anchor.clone(),
                         range: link.range,

@@ -242,6 +242,7 @@ mod tests {
         let mut note_a = note_a;
         note_a.links.push(Link {
             target: id_b.clone(),
+            raw_target: "B".to_string(),
             alias: None,
             anchor: None,
             range: TextRange::default(),
@@ -346,6 +347,7 @@ mod tests {
 
         note_ref.links.push(Link {
             target: id_old.clone(),
+            raw_target: "Old Note".to_string(),
             alias: None,
             anchor: Some("^block-id".to_string()),
             range: TextRange::default(),
@@ -399,6 +401,7 @@ mod tests {
         
         note_source.links.push(Link {
             target: id_target.clone(),
+            raw_target: "Target.md".to_string(),
             alias: None,
             anchor: None,
             range: TextRange::default(),
@@ -454,6 +457,7 @@ mod tests {
         note_source.path = Some(PathBuf::from("Source.md"));
         note_source.links.push(Link {
             target: id_target.clone(),
+            raw_target: "Target.md".to_string(),
             alias: None,
             anchor: None,
             range: TextRange {

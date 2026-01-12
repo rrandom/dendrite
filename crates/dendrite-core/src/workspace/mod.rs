@@ -97,4 +97,9 @@ impl Workspace {
             &new_key,
         )
     }
+
+    /// Audit the entire workspace for reference graph health.
+    pub fn audit(&self) -> crate::refactor::model::EditPlan {
+        crate::refactor::audit::calculate_audit_diagnostics(&self.store, self.resolver.as_ref())
+    }
 }

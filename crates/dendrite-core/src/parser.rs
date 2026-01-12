@@ -5,6 +5,7 @@ use pulldown_cmark::{Event, LinkType, MetadataBlockKind, Options, Parser, Tag, T
 
 pub(crate) struct DocLink {
     pub target: String,
+    pub raw_target: String,
     pub alias: Option<String>,
     pub anchor: Option<String>,
     pub range: TextRange,
@@ -212,6 +213,7 @@ pub(crate) fn parse_markdown(text: &str, wikilink_format: WikiLinkFormat) -> Par
 
                     links.push(DocLink {
                         target: final_target,
+                        raw_target: left.to_string(), // Preserve the original text
                         alias,
                         anchor,
                         range: TextRange {

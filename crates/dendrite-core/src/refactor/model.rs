@@ -36,7 +36,7 @@ pub enum RefactorKind {
     MoveNote,
     SplitNote,
     MergeNotes,
-    UpdateLinks,
+    WorkspaceAudit,
     ReorganizeHierarchy,
 }
 
@@ -162,6 +162,8 @@ pub enum Precondition {
 pub struct Diagnostic {
     pub severity: DiagnosticSeverity,
     pub message: String,
+    pub uri: Option<String>,
+    pub range: Option<TextRange>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
