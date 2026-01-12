@@ -124,8 +124,13 @@ pub async fn handle_did_rename_files(
                                 let _ = client.apply_edit(workspace_edit).await;
                                 
                                 // Store in history for undo
-                                let mut history = state.refactor_history.write().await;
-                                history.push_back(plan);
+                                if plan.reversible {
+                                    let mut history = state.refactor_history.write().await;
+                                    history.push_back(plan);
+                                    if history.len() > 5 {
+                                        history.pop_front();
+                                    }
+                                }
                             }
                         }
                     }

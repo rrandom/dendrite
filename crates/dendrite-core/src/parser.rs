@@ -46,10 +46,17 @@ pub(crate) fn parse_markdown(text: &str, wikilink_format: WikiLinkFormat) -> Par
     let mut in_heading = false;
     let mut current_heading_level = 0;
     let mut pending_heading_text: Option<(String, Point)> = None;
-    let mut pending_wiki_link: Option<(String, Option<String>, String, Point, bool, String)> = None;
-
     let mut in_frontmatter = false;
     let mut frontmatter_content = String::new();
+
+    struct PendingLink {
+        raw_left: String,
+        start_point: Point,
+        is_embedded: bool,
+        is_wikilink: bool,
+        collector: String,
+    }
+    let mut pending_link: Option<PendingLink> = None;
 
     let mut current_block_text = String::new();
     let mut current_block_start: Option<Point> = None;
@@ -129,76 +136,72 @@ pub(crate) fn parse_markdown(text: &str, wikilink_format: WikiLinkFormat) -> Par
                 dest_url,
                 ..
             }) => {
+                let start = line_map.offset_to_point(text, range.start);
                 let is_wikilink = matches!(link_type, LinkType::WikiLink { .. });
-                if is_wikilink {
-                    let start = line_map.offset_to_point(text, range.start);
-                    let full_dest = dest_url.to_string();
-                    // Delay anchor parsing because the target might come from the right side (alias position)
-                    // We store (raw_left, parsed_anchor_placeholder, raw_left_clone, start, is_embedded, collector)
-                    pending_wiki_link = Some((
-                        full_dest.clone(),
-                        None,
-                        full_dest,
-                        start,
-                        false,
-                        String::new(),
-                    ));
-                }
+                pending_link = Some(PendingLink {
+                    raw_left: dest_url.to_string(),
+                    start_point: start,
+                    is_embedded: false,
+                    is_wikilink,
+                    collector: String::new(),
+                });
             }
             Event::Start(Tag::Image {
                 link_type,
                 dest_url,
                 ..
             }) => {
+                let start = line_map.offset_to_point(text, range.start);
                 let is_wikilink = matches!(link_type, LinkType::WikiLink { .. });
-                if is_wikilink {
-                    let start = line_map.offset_to_point(text, range.start);
-                    let full_dest = dest_url.to_string();
-                    pending_wiki_link = Some((
-                        full_dest.clone(),
-                        None,
-                        full_dest,
-                        start,
-                        true, // is_embedded
-                        String::new(),
-                    ));
-                }
+                pending_link = Some(PendingLink {
+                    raw_left: dest_url.to_string(),
+                    start_point: start,
+                    is_embedded: true,
+                    is_wikilink,
+                    collector: String::new(),
+                });
             }
             Event::End(TagEnd::Link { .. }) | Event::End(TagEnd::Image) => {
-                if let Some((raw_left, _, _, start_point, is_embedded, raw_right)) =
-                    pending_wiki_link.take()
-                {
-                    // Fix: pulldown_cmark might report range ending before the last ']'
-                    // Check if we need to extend the range
-                    // Note: range.end is an offset
+                if let Some(pending) = pending_link.take() {
                     let mut end_offset = range.end;
-                    while end_offset < text.len() && text.as_bytes()[end_offset] == b']' {
-                        end_offset += 1;
+                    // For wikilinks, pulldown_cmark might report range ending before the last ']'
+                    if pending.is_wikilink {
+                        while end_offset < text.len() && text.as_bytes()[end_offset] == b']' {
+                            end_offset += 1;
+                        }
                     }
 
                     let end_point = line_map.offset_to_point(text, end_offset);
+                    let left = pending.raw_left.trim();
+                    let right = pending.collector.trim();
 
-                    let left = raw_left.trim();
-                    let right = raw_right.trim();
-
-                    // Use wikilink_format to determine parsing order
-                    let (mut final_target, alias) = match wikilink_format {
-                        WikiLinkFormat::AliasFirst => {
-                            // Dendron: [[alias|target]]
-                            if left == right || right.is_empty() {
-                                (left.to_string(), None)
-                            } else {
-                                (right.to_string(), Some(left.to_string()))
+                    let (mut final_target, alias, kind) = if pending.is_wikilink {
+                        let (target, alias) = match wikilink_format {
+                            WikiLinkFormat::AliasFirst => {
+                                if left == right || right.is_empty() {
+                                    (left.to_string(), None)
+                                } else {
+                                    (right.to_string(), Some(left.to_string()))
+                                }
                             }
-                        }
-                        WikiLinkFormat::TargetFirst => {
-                            // Obsidian: [[target|alias]]
-                            if left == right || right.is_empty() {
-                                (left.to_string(), None)
-                            } else {
-                                (left.to_string(), Some(right.to_string()))
+                            WikiLinkFormat::TargetFirst => {
+                                if left == right || right.is_empty() {
+                                    (left.to_string(), None)
+                                } else {
+                                    (left.to_string(), Some(right.to_string()))
+                                }
                             }
-                        }
+                        };
+                        let kind = if pending.is_embedded {
+                            LinkKind::EmbeddedWikiLink
+                        } else {
+                            LinkKind::WikiLink
+                        };
+                        (target, alias, kind)
+                    } else {
+                        // Standard Markdown link: [alias](target)
+                        // Dest is left, alias text is right.
+                        (left.to_string(), if right.is_empty() { None } else { Some(right.to_string()) }, LinkKind::MarkdownLink)
                     };
 
                     let mut anchor = None;
@@ -212,14 +215,10 @@ pub(crate) fn parse_markdown(text: &str, wikilink_format: WikiLinkFormat) -> Par
                         alias,
                         anchor,
                         range: TextRange {
-                            start: start_point,
+                            start: pending.start_point,
                             end: end_point,
                         },
-                        kind: if is_embedded {
-                            LinkKind::EmbeddedWikiLink
-                        } else {
-                            LinkKind::WikiLink
-                        },
+                        kind,
                     });
                 }
             }
@@ -229,9 +228,8 @@ pub(crate) fn parse_markdown(text: &str, wikilink_format: WikiLinkFormat) -> Par
 
                 if in_frontmatter {
                     frontmatter_content.push_str(text);
-                } else if let Some((_, _, _, _, _, ref mut collector)) = pending_wiki_link.as_mut()
-                {
-                    collector.push_str(text);
+                } else if let Some(pending) = pending_link.as_mut() {
+                    pending.collector.push_str(text);
                 } else if in_heading {
                     if let Some((ref mut heading_text, _)) = pending_heading_text.as_mut() {
                         if !heading_text.is_empty() {
@@ -489,5 +487,46 @@ mod tests {
         let content_no_fm = "No frontmatter here.";
         let result_no_fm = parse_markdown(content_no_fm, WikiLinkFormat::AliasFirst);
         assert_eq!(result_no_fm.content_start_offset, 0);
+    }
+
+    #[test]
+    fn test_parse_markdown_link() {
+        let content = "Check [My Alias](note2.md) link";
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+
+        assert_eq!(result.links.len(), 1);
+        let link = &result.links[0];
+        assert_eq!(link.target, "note2.md");
+        assert_eq!(link.alias, Some("My Alias".to_string()));
+        assert_eq!(link.kind, LinkKind::MarkdownLink);
+        
+        // Range verification
+        // "Check " -> 6 chars
+        // "[My Alias](note2.md)" -> 1 + 8 + 1 + 1 + 8 + 1 = 20 chars
+        assert_eq!(link.range.start.col, 6);
+        assert_eq!(link.range.end.col, 26);
+    }
+
+    #[test]
+    fn test_parse_markdown_link_with_anchor() {
+        let content = "[Target](note.md#section-1)";
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+
+        assert_eq!(result.links.len(), 1);
+        let link = &result.links[0];
+        assert_eq!(link.target, "note.md");
+        assert_eq!(link.anchor, Some("section-1".to_string()));
+    }
+
+    #[test]
+    fn test_parse_markdown_image() {
+        let content = "![Alt Text](image.png)";
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+
+        assert_eq!(result.links.len(), 1);
+        let link = &result.links[0];
+        assert_eq!(link.target, "image.png");
+        assert_eq!(link.kind, LinkKind::MarkdownLink); // Images are also MarkdownLinks for now
+        assert_eq!(link.alias, Some("Alt Text".to_string()));
     }
 }

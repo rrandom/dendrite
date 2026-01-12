@@ -203,7 +203,7 @@ fn calculate_relative_path(from: &Path, to: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{Link, LinkKind, NoteId, TextRange};
+    use crate::model::{Link, LinkKind, NoteId, Point, TextRange};
     use crate::store::Store;
     use std::path::PathBuf;
 
@@ -306,14 +306,9 @@ mod tests {
 
         store.upsert_note(note_a.clone());
 
-        // Move A.md to sub/A.md. Key stays "A" in some models (but Dendron would change it).
-        // Let's assume we are moving and the Key STAYS THE SAME.
         let new_key = "A"; 
         let new_path = PathBuf::from("sub/A.md");
         let strategy = crate::semantic::DendronModel::new(PathBuf::from("/test"));
-        
-        // Note: DendronModel usually derives Key from path, so if we pass "A" but new_path is "sub/A.md",
-        // calculate_structural_edits will see "A" (old) vs "A" (new) -> No Rename.
         
         let plan = calculate_structural_edits(
             &store,
@@ -327,7 +322,6 @@ mod tests {
         .expect("Plan generated");
 
         assert!(matches!(plan.refactor_kind, RefactorKind::MoveNote));
-        // We only expect 1 edit: the file rename
         assert_eq!(plan.edits.len(), 1);
         
         let move_group = &plan.edits[0];
@@ -401,7 +395,6 @@ mod tests {
         let note_target = create_dummy_note(id_target.clone(), "Target");
         let mut note_source = create_dummy_note(id_source.clone(), "Source");
         
-        // Source is in root/source dir, Target is moved from root/Target.md to root/sub/Target.md
         note_source.path = Some(PathBuf::from("docs/Source.md"));
         
         note_source.links.push(Link {
@@ -417,7 +410,7 @@ mod tests {
         store.set_outgoing_links(&id_source, vec![id_target.clone()]);
 
         let new_path = PathBuf::from("archive/Target.md");
-        let new_key = "Target"; // Key stays same
+        let new_key = "Target";
         
         let strategy = crate::semantic::DendronModel::new(PathBuf::from("/test"));
         let plan = calculate_structural_edits(
@@ -441,11 +434,82 @@ mod tests {
             })
             .expect("Should have link update");
 
-        // From docs/Source.md to archive/Target.md -> ../archive/Target.md
         assert_eq!(
             link_edit.new_text, "[Target](../archive/Target.md)",
             "Markdown link should use relative path"
         );
     }
-}
 
+    #[test]
+    fn test_move_note_undo_cycle() {
+        let mut store = Store::new();
+        let mut identity = IdentityRegistry::new();
+
+        let id_target = identity.get_or_create(&"Target".to_string());
+        let id_source = identity.get_or_create(&"Source".to_string());
+
+        let note_target = create_dummy_note(id_target.clone(), "Target");
+        let mut note_source = create_dummy_note(id_source.clone(), "Source");
+        
+        note_source.path = Some(PathBuf::from("Source.md"));
+        note_source.links.push(Link {
+            target: id_target.clone(),
+            alias: None,
+            anchor: None,
+            range: TextRange {
+                start: Point { line: 0, col: 0 },
+                end: Point { line: 0, col: 19 },
+            },
+            kind: LinkKind::MarkdownLink,
+        });
+
+        store.upsert_note(note_target);
+        store.upsert_note(note_source.clone());
+        store.set_outgoing_links(&id_source, vec![id_target.clone()]);
+
+        let _old_path = PathBuf::from("Target.md");
+        let new_path = PathBuf::from("sub/Target.md");
+        let new_key = "Target";
+        
+        let strategy = crate::semantic::DendronModel::new(PathBuf::from("/test"));
+        
+        struct MockProvider;
+        impl ContentProvider for MockProvider {
+            fn get_content(&self, uri: &str) -> Option<String> {
+                if uri.ends_with("Source.md") {
+                    Some("[Target](Target.md)".to_string())
+                } else {
+                    None
+                }
+            }
+        }
+
+        let plan = calculate_structural_edits(
+            &store,
+            &identity,
+            &MockProvider,
+            &strategy,
+            &id_target,
+            new_path.clone(),
+            new_key,
+        ).expect("Plan generated");
+
+        assert!(matches!(plan.refactor_kind, RefactorKind::MoveNote));
+        let link_edit = plan.edits.iter().find(|g| g.uri.ends_with("Source.md")).expect("Should find Source.md edit group");
+        let forward_new_text = link_edit.changes[0].clone().text_edit().unwrap().new_text;
+        assert_eq!(forward_new_text, "[Target](sub/Target.md)", "Forward link should be relative to sub/");
+
+        let inverted = plan.invert();
+        
+        let rename_back = inverted.edits.iter().find(|g| g.uri.contains("sub")).expect("Should find inverted group for sub/Target.md");
+        if let Change::ResourceOp(ResourceOperation::RenameFile { new_uri, .. }) = &rename_back.changes[0] {
+            assert!(new_uri.ends_with("Target.md"), "Rename back should target original filename");
+        } else {
+            panic!("Expected RenameFile back to original");
+        }
+
+        let link_back = inverted.edits.iter().find(|g| g.uri.ends_with("Source.md")).expect("Should find inverted group for Source.md");
+        let backward_new_text = link_back.changes[0].clone().text_edit().unwrap().new_text;
+        assert_eq!(backward_new_text, "[Target](Target.md)", "Backward link should be original");
+    }
+}
