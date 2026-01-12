@@ -21,8 +21,9 @@ A **Block** is a semantic unit within a note (Paragraph, List Item, etc.) that c
 ### 1.3 Link
 A **Link** represents a relationship between notes or blocks.
 - **Types**: Supports WikiLinks `[[target]]` and standard Markdown links `[label](target)`.
-- **Metadata**: Supports aliases `[[target|alias]]` and anchors `[[target#anchor]]`.
+- **Metadata**: Supports aliases and anchors. The exact format (e.g., `[[alias|target]]` vs `[[target|alias]]`) is determined by the active `SyntaxStrategy`.
 - **Graph**: The collection of all links forms a directed graph, enabling backlink discovery.
+- **Resolution**: Link targets are resolved to stable `NoteId`s through the `SyntaxStrategy`.
 
 ### 1.4 EditPlan
 An **EditPlan** is a set of proposed structural changes to the workspace.
@@ -41,7 +42,7 @@ An **EditPlan** is a set of proposed structural changes to the workspace.
 | **Workspace** | A **pure state container** holding notes, links, and hierarchy trees. No I/O knowledge. |
 | **FileSystem** | An abstraction layer (Trait) for file system operations, enabling portability (Desktop/WASM). |
 | **Identity Registry** | The module responsible for maintaining stable IDs for notes. |
-| **Syntax Strategy** | The strategy responsible for format-specific rules (hierarchy, links, display names). |
+| **SyntaxStrategy** | A pluggable trait that defines syntax-specific behaviors: file naming conventions, link formats (WikiLink syntax), hierarchy rules, and text generation for refactoring. Enables support for multiple note-taking formats (Dendron, Obsidian, etc.). |
 | **Refactor Engine** | The core component responsible for calculating safe, semantic-aware structural changes (Rename, Move, etc.). |
 | **Ghost / Virtual Note** | A node in the hierarchy that has children but no corresponding file on disk. |
 

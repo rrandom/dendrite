@@ -36,9 +36,20 @@ graph TD
 - **Identity Registry**: Ensures note IDs remain stable across renames.
 - **Refactor Engine**: A read-only component that calculates `EditPlan` objects based on graph relationships.
  
-### 1.3 Strategy Layer
-- **Trait-Based**: Business logic for hierarchy and ID resolution is abstracted behind the `SyntaxStrategy` trait.
-- **Dendron Strategy**: Implements dot-separated hierarchies (`foo.bar.md`).
+### 1.3 Strategy Layer (Syntax Abstraction)
+- **Trait-Based**: All syntax-specific behaviors (file naming, link formats, hierarchy rules) are abstracted behind the `SyntaxStrategy` trait.
+- **Pluggable Design**: The core engine is syntax-agnostic; different note-taking formats are supported by implementing the `SyntaxStrategy` trait.
+- **Example Strategies**:
+  - **Dendron Strategy**: Dot-separated hierarchies (`foo.bar.md`), `[[alias|target]]` link format
+  - **Future**: Obsidian, Logseq, or custom formats
+
+#### SyntaxStrategy Responsibilities
+A `SyntaxStrategy` implementation defines:
+1. **File System Mapping**: How file paths map to Note Keys (e.g., `foo.bar.md` ↔ `"foo.bar"`)
+2. **Hierarchy Rules**: How parent-child relationships are determined
+3. **Link Parsing**: WikiLink format (`[[alias|target]]` vs `[[target|alias]]`)
+4. **Link Generation**: How to reconstruct link text during refactoring
+5. **Display Names**: How note titles are resolved and displayed
 
 ---
 
