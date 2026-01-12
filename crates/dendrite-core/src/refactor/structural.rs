@@ -5,8 +5,8 @@ use crate::refactor::model::{
     Change, ContentProvider, EditGroup, EditPlan, Precondition, RefactorKind, ResourceOperation,
     TextEdit,
 };
-use crate::store::Store;
 use crate::semantic::SemanticModel;
+use crate::store::Store;
 use std::path::{Path, PathBuf};
 
 /// Calculate the plan for structural changes to a note (Rename and/or Move).
@@ -101,7 +101,7 @@ pub(crate) fn calculate_structural_edits(
                                     text.push_str(new_key);
                                 }
                                 text.push_str("](");
-                                
+
                                 // Calculate relative path if we have both paths
                                 if let Some(source_path) = source_note.path.as_ref() {
                                     let rel_path = calculate_relative_path(source_path, &new_path);
@@ -109,12 +109,13 @@ pub(crate) fn calculate_structural_edits(
                                     text.push_str(&rel_str);
                                 } else {
                                     // Fallback to simple key-based path
-                                    let ext = strategy.supported_extensions().first().unwrap_or(&"md");
+                                    let ext =
+                                        strategy.supported_extensions().first().unwrap_or(&"md");
                                     text.push_str(new_key);
                                     text.push('.');
                                     text.push_str(ext);
                                 }
-                                
+
                                 text.push(')');
                                 new_text = text;
                             }
@@ -125,9 +126,11 @@ pub(crate) fn calculate_structural_edits(
                         let mut undo_text = None;
                         if let Some(content) = content_provider.get_content(&source_uri) {
                             let line_map = LineMap::new(&content);
-                            if let Some(start) = line_map.point_to_offset(&content, link.range.start)
+                            if let Some(start) =
+                                line_map.point_to_offset(&content, link.range.start)
                             {
-                                if let Some(end) = line_map.point_to_offset(&content, link.range.end)
+                                if let Some(end) =
+                                    line_map.point_to_offset(&content, link.range.end)
                                 {
                                     if start <= end && end <= content.len() {
                                         undo_text = Some(content[start..end].to_string());
@@ -168,10 +171,10 @@ pub(crate) fn calculate_structural_edits(
 
 fn calculate_relative_path(from: &Path, to: &Path) -> PathBuf {
     let from_dir = from.parent().unwrap_or(Path::new(""));
-    
+
     let from_comps: Vec<_> = from_dir.components().collect();
     let to_comps: Vec<_> = to.components().collect();
-    
+
     let mut common_count = 0;
     for (f, t) in from_comps.iter().zip(to_comps.iter()) {
         if f == t {
@@ -180,7 +183,7 @@ fn calculate_relative_path(from: &Path, to: &Path) -> PathBuf {
             break;
         }
     }
-    
+
     let mut result = PathBuf::new();
     for _ in 0..(from_comps.len() - common_count) {
         result.push("..");
@@ -188,7 +191,7 @@ fn calculate_relative_path(from: &Path, to: &Path) -> PathBuf {
     for comp in &to_comps[common_count..] {
         result.push(comp);
     }
-    
+
     if result.as_os_str().is_empty() {
         if let Some(filename) = to.file_name() {
             PathBuf::from(filename)
@@ -307,10 +310,10 @@ mod tests {
 
         store.upsert_note(note_a.clone());
 
-        let new_key = "A"; 
+        let new_key = "A";
         let new_path = PathBuf::from("sub/A.md");
         let strategy = crate::semantic::DendronModel::new(PathBuf::from("/test"));
-        
+
         let plan = calculate_structural_edits(
             &store,
             &identity,
@@ -324,10 +327,12 @@ mod tests {
 
         assert!(matches!(plan.refactor_kind, RefactorKind::MoveNote));
         assert_eq!(plan.edits.len(), 1);
-        
+
         let move_group = &plan.edits[0];
         assert!(move_group.uri.ends_with("A.md"));
-        if let Change::ResourceOp(ResourceOperation::RenameFile { new_uri, .. }) = &move_group.changes[0] {
+        if let Change::ResourceOp(ResourceOperation::RenameFile { new_uri, .. }) =
+            &move_group.changes[0]
+        {
             assert!(new_uri.contains("sub"));
         } else {
             panic!("Expected RenameFile op");
@@ -396,9 +401,9 @@ mod tests {
 
         let note_target = create_dummy_note(id_target.clone(), "Target");
         let mut note_source = create_dummy_note(id_source.clone(), "Source");
-        
+
         note_source.path = Some(PathBuf::from("docs/Source.md"));
-        
+
         note_source.links.push(Link {
             target: id_target.clone(),
             raw_target: "Target.md".to_string(),
@@ -414,7 +419,7 @@ mod tests {
 
         let new_path = PathBuf::from("archive/Target.md");
         let new_key = "Target";
-        
+
         let strategy = crate::semantic::DendronModel::new(PathBuf::from("/test"));
         let plan = calculate_structural_edits(
             &store,
@@ -453,7 +458,7 @@ mod tests {
 
         let note_target = create_dummy_note(id_target.clone(), "Target");
         let mut note_source = create_dummy_note(id_source.clone(), "Source");
-        
+
         note_source.path = Some(PathBuf::from("Source.md"));
         note_source.links.push(Link {
             target: id_target.clone(),
@@ -474,9 +479,9 @@ mod tests {
         let _old_path = PathBuf::from("Target.md");
         let new_path = PathBuf::from("sub/Target.md");
         let new_key = "Target";
-        
+
         let strategy = crate::semantic::DendronModel::new(PathBuf::from("/test"));
-        
+
         struct MockProvider;
         impl ContentProvider for MockProvider {
             fn get_content(&self, uri: &str) -> Option<String> {
@@ -496,24 +501,48 @@ mod tests {
             &id_target,
             new_path.clone(),
             new_key,
-        ).expect("Plan generated");
+        )
+        .expect("Plan generated");
 
         assert!(matches!(plan.refactor_kind, RefactorKind::MoveNote));
-        let link_edit = plan.edits.iter().find(|g| g.uri.ends_with("Source.md")).expect("Should find Source.md edit group");
+        let link_edit = plan
+            .edits
+            .iter()
+            .find(|g| g.uri.ends_with("Source.md"))
+            .expect("Should find Source.md edit group");
         let forward_new_text = link_edit.changes[0].clone().text_edit().unwrap().new_text;
-        assert_eq!(forward_new_text, "[Target](sub/Target.md)", "Forward link should be relative to sub/");
+        assert_eq!(
+            forward_new_text, "[Target](sub/Target.md)",
+            "Forward link should be relative to sub/"
+        );
 
         let inverted = plan.invert();
-        
-        let rename_back = inverted.edits.iter().find(|g| g.uri.contains("sub")).expect("Should find inverted group for sub/Target.md");
-        if let Change::ResourceOp(ResourceOperation::RenameFile { new_uri, .. }) = &rename_back.changes[0] {
-            assert!(new_uri.ends_with("Target.md"), "Rename back should target original filename");
+
+        let rename_back = inverted
+            .edits
+            .iter()
+            .find(|g| g.uri.contains("sub"))
+            .expect("Should find inverted group for sub/Target.md");
+        if let Change::ResourceOp(ResourceOperation::RenameFile { new_uri, .. }) =
+            &rename_back.changes[0]
+        {
+            assert!(
+                new_uri.ends_with("Target.md"),
+                "Rename back should target original filename"
+            );
         } else {
             panic!("Expected RenameFile back to original");
         }
 
-        let link_back = inverted.edits.iter().find(|g| g.uri.ends_with("Source.md")).expect("Should find inverted group for Source.md");
+        let link_back = inverted
+            .edits
+            .iter()
+            .find(|g| g.uri.ends_with("Source.md"))
+            .expect("Should find inverted group for Source.md");
         let backward_new_text = link_back.changes[0].clone().text_edit().unwrap().new_text;
-        assert_eq!(backward_new_text, "[Target](Target.md)", "Backward link should be original");
+        assert_eq!(
+            backward_new_text, "[Target](Target.md)",
+            "Backward link should be original"
+        );
     }
 }

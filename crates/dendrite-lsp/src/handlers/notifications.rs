@@ -1,6 +1,6 @@
 use crate::state::GlobalState;
-use tower_lsp::Client;
 use tower_lsp::lsp_types::*;
+use tower_lsp::Client;
 
 /// Handle "textDocument/didOpen" notification
 pub async fn handle_did_open(state: &GlobalState, params: DidOpenTextDocumentParams) {
@@ -114,15 +114,19 @@ pub async fn handle_did_rename_files(
                             // 3. Filter out the RenameFile operation (it's already done by the user in the IDE)
                             plan.edits.retain(|group| {
                                 group.changes.iter().all(|change| {
-                                    !matches!(change, dendrite_core::refactor::model::Change::ResourceOp(_))
+                                    !matches!(
+                                        change,
+                                        dendrite_core::refactor::model::Change::ResourceOp(_)
+                                    )
                                 })
                             });
 
                             if !plan.edits.is_empty() {
                                 // 4. Convert and apply edits
-                                let workspace_edit = crate::conversion::edit_plan_to_workspace_edit(plan.clone());
+                                let workspace_edit =
+                                    crate::conversion::edit_plan_to_workspace_edit(plan.clone());
                                 let _ = client.apply_edit(workspace_edit).await;
-                                
+
                                 // Store in history for undo
                                 if plan.reversible {
                                     let mut history = state.refactor_history.write().await;

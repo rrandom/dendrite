@@ -2,8 +2,8 @@ use std::path::PathBuf;
 use std::sync::RwLock;
 
 use crate::identity::IdentityRegistry;
-use crate::store::Store;
 use crate::semantic::SemanticModel;
+use crate::store::Store;
 pub mod vfs;
 
 mod assembler;
@@ -101,5 +101,29 @@ impl Workspace {
     /// Audit the entire workspace for reference graph health.
     pub fn audit(&self) -> crate::refactor::model::EditPlan {
         crate::refactor::audit::calculate_audit_diagnostics(&self.store, self.resolver.as_ref())
+    }
+
+    /// Extract a selection into a new note (Split Note).
+    pub fn split_note(
+        &self,
+        content_provider: &dyn crate::refactor::model::ContentProvider,
+        source_path: &std::path::Path,
+        selection: crate::model::TextRange,
+        new_note_title: &str,
+    ) -> Option<crate::refactor::model::EditPlan> {
+        let source_id = self
+            .store
+            .note_id_by_path(&source_path.to_path_buf())?
+            .clone();
+
+        crate::refactor::split::calculate_split_edits(
+            &self.store,
+            &self.identity,
+            content_provider,
+            self.resolver.as_ref(),
+            &source_id,
+            selection,
+            new_note_title,
+        )
     }
 }

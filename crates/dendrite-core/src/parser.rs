@@ -202,7 +202,15 @@ pub(crate) fn parse_markdown(text: &str, wikilink_format: WikiLinkFormat) -> Par
                     } else {
                         // Standard Markdown link: [alias](target)
                         // Dest is left, alias text is right.
-                        (left.to_string(), if right.is_empty() { None } else { Some(right.to_string()) }, LinkKind::MarkdownLink)
+                        (
+                            left.to_string(),
+                            if right.is_empty() {
+                                None
+                            } else {
+                                Some(right.to_string())
+                            },
+                            LinkKind::MarkdownLink,
+                        )
                     };
 
                     let mut anchor = None;
@@ -501,7 +509,7 @@ mod tests {
         assert_eq!(link.target, "note2.md");
         assert_eq!(link.alias, Some("My Alias".to_string()));
         assert_eq!(link.kind, LinkKind::MarkdownLink);
-        
+
         // Range verification
         // "Check " -> 6 chars
         // "[My Alias](note2.md)" -> 1 + 8 + 1 + 1 + 8 + 1 = 20 chars

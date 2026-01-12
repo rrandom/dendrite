@@ -35,7 +35,7 @@ pub struct Point {
     pub col: usize,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TextRange {
     pub start: Point,
     pub end: Point,
@@ -82,7 +82,7 @@ pub struct Link {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum LinkKind {
     #[default]
-    WikiLink,         // [[target]]
+    WikiLink, // [[target]]
     EmbeddedWikiLink, // ![[target]]
     MarkdownLink,     // [label](target)
 }

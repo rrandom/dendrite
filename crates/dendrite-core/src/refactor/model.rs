@@ -190,7 +190,7 @@ mod tests {
         };
 
         let inverted = edit.invert();
-        
+
         // The start should remain the same
         assert_eq!(inverted.range.start, Point { line: 1, col: 5 });
         // The end should accommodate the new text "NewText\nMultiLine"
@@ -232,7 +232,9 @@ mod tests {
 
         let inverted = group.invert();
         assert_eq!(inverted.uri, "new.md");
-        if let Change::ResourceOp(ResourceOperation::RenameFile { new_uri, .. }) = &inverted.changes[0] {
+        if let Change::ResourceOp(ResourceOperation::RenameFile { new_uri, .. }) =
+            &inverted.changes[0]
+        {
             assert_eq!(new_uri, "old.md");
         } else {
             panic!("Expected RenameFile in inverted group");
