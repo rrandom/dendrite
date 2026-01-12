@@ -5,7 +5,7 @@ use crate::refactor::model::{
     TextEdit,
 };
 use crate::store::Store;
-use crate::syntax::SyntaxStrategy;
+use crate::semantic::SemanticModel;
 
 /// Calculate the plan for renaming a note.
 ///
@@ -20,7 +20,7 @@ use crate::syntax::SyntaxStrategy;
 pub(crate) fn calculate_rename_edits(
     store: &Store,
     content_provider: &dyn ContentProvider,
-    strategy: &dyn SyntaxStrategy,
+    strategy: &dyn SemanticModel,
     note_id: &NoteId,
     new_path: std::path::PathBuf,
     new_key: &str,
@@ -84,9 +84,12 @@ pub(crate) fn calculate_rename_edits(
                                 text.push_str(new_key);
                             }
                             text.push_str("](");
-                            // Best effort: usage of new name with md extension
+                            // Best effort: usage of new name with preferred extension
+                            let ext = strategy.supported_extensions().first().unwrap_or(&"md");
                             text.push_str(new_key);
-                            text.push_str(".md)");
+                            text.push('.');
+                            text.push_str(ext);
+                            text.push(')');
                             text
                         }
                     };
@@ -184,10 +187,16 @@ mod tests {
         // Perform rename: B -> C
         let new_key = "C";
         let new_path = PathBuf::from("C.md");
-        let strategy = crate::syntax::DendronStrategy::new(PathBuf::from("/test"));
-        let plan =
-            calculate_rename_edits(&store, &MockContentProvider, &strategy, &note_b.id, new_path, new_key)
-                .expect("Plan generated");
+        let strategy = crate::semantic::DendronModel::new(PathBuf::from("/test"));
+        let plan = calculate_rename_edits(
+            &store,
+            &MockContentProvider,
+            &strategy,
+            &note_b.id,
+            new_path,
+            new_key,
+        )
+        .expect("Plan generated");
 
         assert!(matches!(plan.refactor_kind, RefactorKind::RenameNote));
 
@@ -269,9 +278,16 @@ mod tests {
         let new_key = "New Name";
         let new_path = PathBuf::from("folder/New Name.md");
 
-        let strategy = crate::syntax::DendronStrategy::new(PathBuf::from("/test"));
-        let plan = calculate_rename_edits(&store, &MockContentProvider, &strategy, &note_id, new_path, new_key)
-            .expect("Should generate plan");
+        let strategy = crate::semantic::DendronModel::new(PathBuf::from("/test"));
+        let plan = calculate_rename_edits(
+            &store,
+            &MockContentProvider,
+            &strategy,
+            &note_id,
+            new_path,
+            new_key,
+        )
+        .expect("Should generate plan");
 
         // VERIFICATION 1: Identity Stability
         // We called calculate_rename_edits with the ID directly.
@@ -345,9 +361,16 @@ mod tests {
         store.upsert_note(ref_note.clone());
         store.set_outgoing_links(&ref_note.id, vec![note_id.clone()]);
 
-        let strategy = crate::syntax::DendronStrategy::new(PathBuf::from("/test"));
-        let plan = calculate_rename_edits(&store, &MockContentProvider, &strategy, &note_id, new_path, new_name)
-            .expect("Plan generation failed");
+        let strategy = crate::semantic::DendronModel::new(PathBuf::from("/test"));
+        let plan = calculate_rename_edits(
+            &store,
+            &MockContentProvider,
+            &strategy,
+            &note_id,
+            new_path,
+            new_name,
+        )
+        .expect("Plan generation failed");
 
         // Verify link update
         let link_edit = plan
@@ -401,7 +424,7 @@ mod tests {
         store.upsert_note(ref_note.clone());
         store.set_outgoing_links(&ref_note.id, vec![note_id.clone()]);
 
-        let strategy = crate::syntax::DendronStrategy::new(PathBuf::from("/test"));
+        let strategy = crate::semantic::DendronModel::new(PathBuf::from("/test"));
         let plan = calculate_rename_edits(
             &store,
             &MockWithContent,

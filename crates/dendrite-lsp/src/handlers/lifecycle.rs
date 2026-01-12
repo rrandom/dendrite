@@ -1,5 +1,5 @@
 use crate::state::GlobalState;
-use dendrite_core::{DendronStrategy, Vault, Workspace};
+use dendrite_core::{DendronModel, Vault, Workspace};
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::Client;
@@ -25,7 +25,7 @@ pub async fn handle_initialize(
             let fs = state.fs.clone();
             let (vault, files) = tokio::task::spawn_blocking(move || {
                 let workspace =
-                    Workspace::new(Box::new(DendronStrategy::new(root_path_clone.clone())));
+                    Workspace::new(Box::new(DendronModel::new(root_path_clone.clone())));
                 let mut v = Vault::new(workspace, fs);
                 let files = v.initialize(root_path_clone);
                 (v, files)
@@ -38,10 +38,7 @@ pub async fn handle_initialize(
             })?;
 
             client
-                .log_message(
-                    MessageType::INFO,
-                    format!("Found {} markdown files:", files.len()),
-                )
+                .log_message(MessageType::INFO, format!("Found {} files:", files.len()))
                 .await;
 
             let notes_count = vault.workspace.all_notes().len();

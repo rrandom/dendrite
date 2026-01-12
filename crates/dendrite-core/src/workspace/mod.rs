@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 use std::sync::RwLock;
 
-use crate::syntax::SyntaxStrategy;
 use crate::identity::IdentityRegistry;
 use crate::store::Store;
+use crate::semantic::SemanticModel;
 pub mod vfs;
 
 mod assembler;
@@ -21,14 +21,14 @@ pub use vault::Vault;
 pub use vfs::FileSystem;
 
 pub struct Workspace {
-    pub(crate) resolver: Box<dyn SyntaxStrategy>,
+    pub(crate) resolver: Box<dyn SemanticModel>,
     pub(crate) identity: IdentityRegistry,
     pub(crate) store: Store,
     pub(crate) tree_cache: RwLock<Option<NoteTree>>,
 }
 
 impl Workspace {
-    pub fn new(resolver: Box<dyn SyntaxStrategy>) -> Self {
+    pub fn new(resolver: Box<dyn SemanticModel>) -> Self {
         Self {
             resolver,
             identity: IdentityRegistry::new(),

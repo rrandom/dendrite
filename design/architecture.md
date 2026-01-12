@@ -12,7 +12,7 @@ graph TD
     Vault[Vault Orchestrator]
     Indexer[Indexer - Process Logic]
     Core[Core State - Workspace]
-    Strategy[Syntax Strategy - Traits]
+    Strategy[Semantic Model - Traits]
     VFS[FileSystem - Trait]
     
     Client -- Orchestrates --> Vault
@@ -36,20 +36,22 @@ graph TD
 - **Identity Registry**: Ensures note IDs remain stable across renames.
 - **Refactor Engine**: A read-only component that calculates `EditPlan` objects based on graph relationships.
  
-### 1.3 Strategy Layer (Syntax Abstraction)
-- **Trait-Based**: All syntax-specific behaviors (file naming, link formats, hierarchy rules) are abstracted behind the `SyntaxStrategy` trait.
-- **Pluggable Design**: The core engine is syntax-agnostic; different note-taking formats are supported by implementing the `SyntaxStrategy` trait.
-- **Example Strategies**:
-  - **Dendron Strategy**: Dot-separated hierarchies (`foo.bar.md`), `[[alias|target]]` link format
-  - **Future**: Obsidian, Logseq, or custom formats
+### 1.3 Strategy Layer (Semantic Abstraction)
+- **Trait-Based**: All syntax-specific behaviors (file naming, link formats, hierarchy rules) are abstracted behind the `SemanticModel` trait.
+- **Pluggable Design**: The core engine is syntax-agnostic; different note-taking systems (Obisidan, Logseq) are supported by implementing the `SemanticModel` trait.
+- **Example Models**:
+  - **Dendron Model**: Dot-separated hierarchies (`foo.bar.md`), `[[alias|target]]` link format.
+  - **Future Models**: Obsidian, Logseq, or custom formats.
 
-#### SyntaxStrategy Responsibilities
-A `SyntaxStrategy` implementation defines:
-1. **File System Mapping**: How file paths map to Note Keys (e.g., `foo.bar.md` ↔ `"foo.bar"`)
-2. **Hierarchy Rules**: How parent-child relationships are determined
-3. **Link Parsing**: WikiLink format (`[[alias|target]]` vs `[[target|alias]]`)
-4. **Link Generation**: How to reconstruct link text during refactoring
-5. **Display Names**: How note titles are resolved and displayed
+#### SemanticModel Responsibilities
+A `SemanticModel` implementation defines:
+1. **Identity & Resolution**: How file paths map to Note Keys (e.g., `foo.bar.md` ↔ `"foo.bar"`) and how links are resolved.
+2. **Hierarchy Rules**: How parent-child relationships are determined (Folder, Namespace, or Block-Tree).
+3. **Link Parsing/Generation**: WikiLink format (`[[alias|target]]` vs `[[target|alias]]`) and reconstruction text.
+4. **Display Names**: How note titles are resolved and displayed.
+5. **Extension Points**:
+   - `supported_extensions()`: Dynamic file scanning (e.g., `.md`, `.org`).
+   - `parsing_hints()`: Custom parsing rules for specific models (e.g., Logseq bullets).
 
 ---
 

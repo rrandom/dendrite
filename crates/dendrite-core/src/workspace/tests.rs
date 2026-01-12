@@ -1,8 +1,8 @@
 use super::assembler::NoteAssembler;
 use super::*;
-use crate::syntax::DendronStrategy;
 use crate::model::{Link, LinkKind, Point};
 use crate::parser::parse_markdown;
+use crate::semantic::DendronModel;
 use std::fs;
 use tempfile::TempDir;
 
@@ -11,7 +11,7 @@ use crate::workspace::Indexer;
 
 fn create_test_workspace() -> (Workspace, TempDir) {
     let temp_dir = TempDir::new().unwrap();
-    let resolver = Box::new(DendronStrategy::new(temp_dir.path().to_path_buf()));
+    let resolver = Box::new(DendronModel::new(temp_dir.path().to_path_buf()));
     let workspace = Workspace::new(resolver);
     (workspace, temp_dir)
 }
@@ -32,7 +32,7 @@ fn test_parse_note_resolves_links_correctly() {
     let note1_key = ws.resolver.note_key_from_path(&note1_path, note1_content);
     let note1_id = ws.identity.get_or_create(&note1_key);
 
-    let parse_result = parse_markdown(note1_content, crate::syntax::WikiLinkFormat::AliasFirst);
+    let parse_result = parse_markdown(note1_content, crate::semantic::WikiLinkFormat::AliasFirst);
     let note = NoteAssembler::new(&*ws.resolver, &mut ws.identity).assemble(
         parse_result,
         &note1_path,

@@ -1,6 +1,6 @@
 use super::line_map::LineMap;
 use crate::model::{Block, Heading, LinkKind, Point, TextRange};
-use crate::syntax::WikiLinkFormat;
+use crate::semantic::WikiLinkFormat;
 use pulldown_cmark::{Event, LinkType, MetadataBlockKind, Options, Parser, Tag, TagEnd};
 
 pub(crate) struct DocLink {
@@ -21,6 +21,9 @@ pub(crate) struct ParseResult {
     pub digest: String,
 }
 
+/// TODO: To be fully SemanticModel agnostic, this function should eventually accept
+/// `&dyn SemanticModel` (or `ParserHints`) instead of just `WikiLinkFormat`.
+/// This would allow dynamic configuration of block ID syntax, frontmatter style, etc.
 pub(crate) fn parse_markdown(text: &str, wikilink_format: WikiLinkFormat) -> ParseResult {
     let mut options = Options::empty();
     options.insert(Options::ENABLE_TABLES);

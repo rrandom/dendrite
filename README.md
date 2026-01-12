@@ -1,8 +1,20 @@
 # Dendrite
 
-Dendrite is a Markdown Based Personal Knowledge Server.
+Dendrite is a Markdown-based multi-model semantic engine for Personal Knowledge Management (PKM).
 
-> **Note**: Dendrite is inspired by [Dendron](https://www.dendron.so/), but designed as an editor-agnostic semantic engine that can be used by multiple clients (VS Code, CLI, Web, Desktop, etc.).
+> [!NOTE]
+> While inspired by **Dendron**, Dendrite is built on a generalized **`SemanticModel`** abstraction. This allows it to support various ecosystems (Obsidian, Logseq, Dendron, etc.) through a single, editor-agnostic engine.
+
+## Core Philosophy: The Semantic Model
+
+Unlike traditional Markdown tools that are hardcoded to a specific file structure, Dendrite uses a **pluggable Semantic Model**. 
+
+Each knowledge ecosystem (Obsidian, Dendron, Logseq) has its own "logic" for:
+- **Identity**: How a file maps to a Note Key.
+- **Hierarchy**: How parent-child relationships are formed (folders vs. naming conventions).
+- **References**: How links are resolved and formatted.
+
+Dendrite abstracts these behaviors, allowing the same core engine to power different workflows seamlessly.
 
 ## Prerequisites
 

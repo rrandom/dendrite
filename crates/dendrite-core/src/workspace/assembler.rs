@@ -1,18 +1,18 @@
-use crate::syntax::SyntaxStrategy;
 use crate::identity::IdentityRegistry;
 use crate::model::{Link, Note, NoteId};
 use crate::parser::ParseResult;
+use crate::semantic::SemanticModel;
 use std::path::PathBuf;
 
 /// Assembler responsible for converting a raw ParseResult into a semantically enriched Note.
 /// It uses a SyntaxStrategy to resolve link targets and an IdentityRegistry to manage IDs.
 pub struct NoteAssembler<'a> {
-    strategy: &'a dyn SyntaxStrategy,
+    strategy: &'a dyn SemanticModel,
     identity: &'a mut IdentityRegistry,
 }
 
 impl<'a> NoteAssembler<'a> {
-    pub fn new(strategy: &'a dyn SyntaxStrategy, identity: &'a mut IdentityRegistry) -> Self {
+    pub fn new(strategy: &'a dyn SemanticModel, identity: &'a mut IdentityRegistry) -> Self {
         Self { strategy, identity }
     }
 

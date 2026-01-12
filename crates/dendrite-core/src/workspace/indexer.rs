@@ -19,7 +19,12 @@ impl<'a> Indexer<'a> {
 
     /// Performs a full index of the workspace.
     pub fn full_index(&mut self, root: PathBuf) -> Vec<PathBuf> {
-        let files = self.fs.list_files(&root, "md");
+        let extensions = self.workspace.resolver.supported_extensions();
+        let mut files = Vec::new();
+
+        for ext in extensions {
+            files.extend(self.fs.list_files(&root, ext));
+        }
 
         for path in &files {
             self.index_file(path.clone());
