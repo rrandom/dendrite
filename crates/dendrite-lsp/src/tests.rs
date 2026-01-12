@@ -7,6 +7,7 @@ mod tests {
     use std::sync::Arc;
     use tempfile::TempDir;
     use tower_lsp::lsp_types::*;
+    use tower_lsp::LanguageServer;
     use tower_lsp::LspService;
 
     async fn setup_test_context() -> (Backend, TempDir) {
@@ -622,6 +623,134 @@ mod tests {
             assert!(a_edit_found, "Note A should be updated");
         } else {
             panic!("Expected DocumentChanges::Operations with edits");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_lsp_code_action_split() {
+        let (backend, temp_dir) = setup_test_context().await;
+        let client = &backend.client;
+        let state = &backend.state;
+
+        let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+        let params = create_initialize_params(root_uri.clone());
+        handlers::handle_initialize(client, state, params)
+            .await
+            .unwrap();
+
+        let note_path = temp_dir.path().join("source.md");
+        fs::write(&note_path, "Text to extract").unwrap();
+        let note_uri = Url::from_file_path(&note_path).unwrap();
+
+        handlers::handle_did_open(
+            state,
+            DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: note_uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 0,
+                    text: "Text to extract".to_string(),
+                },
+            },
+        )
+        .await;
+
+        let params = CodeActionParams {
+            text_document: TextDocumentIdentifier {
+                uri: note_uri.clone(),
+            },
+            range: Range {
+                start: Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: Position {
+                    line: 0,
+                    character: 4,
+                },
+            },
+            context: CodeActionContext::default(),
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+        };
+
+        let result = backend.code_action(params).await.unwrap();
+        assert!(result.is_some());
+        let actions = result.unwrap();
+        assert!(!actions.is_empty());
+
+        // Find Refactor Code Action
+        let split_action = actions.iter().find(|a| match a {
+            CodeActionOrCommand::CodeAction(ca) => ca.title == "Refactor: Extract to New Note",
+            _ => false,
+        });
+
+        assert!(
+            split_action.is_some(),
+            "Should offer Split Note code action"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_lsp_workspace_audit_command() {
+        let (backend, temp_dir) = setup_test_context().await;
+        let client = &backend.client;
+        let state = &backend.state;
+
+        let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+        let params = create_initialize_params(root_uri.clone());
+        handlers::handle_initialize(client, state, params)
+            .await
+            .unwrap();
+
+        // Create a note with a broken link
+        let note_path = temp_dir.path().join("broken.md");
+        fs::write(&note_path, "Link to [[missing]]").unwrap();
+        let note_uri = Url::from_file_path(&note_path).unwrap();
+
+        handlers::handle_did_open(
+            state,
+            DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: note_uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 0,
+                    text: "Link to [[missing]]".to_string(),
+                },
+            },
+        )
+        .await;
+
+        // Trigger Audit
+        let params = ExecuteCommandParams {
+            command: "dendrite/workspaceAudit".to_string(),
+            arguments: vec![],
+            ..Default::default()
+        };
+
+        let result = backend.handle_execute_command(params).await.unwrap();
+
+        // It should return the EditPlan as JSON
+        assert!(result.is_some());
+        let json = result.unwrap();
+
+        // Structure should have "diagnostics"
+        let diagnostics = json.get("diagnostics");
+        assert!(
+            diagnostics.is_some(),
+            "Result should contain diagnostics field"
+        );
+
+        if let Some(arr) = diagnostics.and_then(|v| v.as_array()) {
+            // We expect at least one error for broken link
+            assert!(arr.len() > 0, "Should report broken link");
+            let msg = arr[0].get("message").and_then(|v| v.as_str()).unwrap();
+            assert!(
+                msg.contains("Broken link"),
+                "Diagnostic should be about broken link"
+            );
+        } else {
+            panic!("diagnostics should be an array");
         }
     }
 }

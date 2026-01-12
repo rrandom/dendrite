@@ -89,6 +89,16 @@ impl Backend {
                 handlers::handle_undo_refactor(&self.client, &self.state).await?;
                 Ok(None)
             }
+            "dendrite/splitNote" => {
+                handlers::handle_split_note_command(&self.client, &self.state, params).await
+            }
+            "dendrite/reorganizeHierarchy" => {
+                handlers::handle_reorganize_hierarchy_command(&self.client, &self.state, params)
+                    .await
+            }
+            "dendrite/workspaceAudit" => {
+                handlers::handle_workspace_audit_command(&self.client, &self.state, params).await
+            }
             _ => Err(Error {
                 code: ErrorCode::MethodNotFound,
                 message: format!("Unknown command: {}", params.command).into(),
@@ -169,6 +179,13 @@ impl tower_lsp::LanguageServer for Backend {
         params: RenameParams,
     ) -> tower_lsp::jsonrpc::Result<Option<WorkspaceEdit>> {
         handlers::rename::handle_rename(&self.client, &self.state, params).await
+    }
+
+    async fn code_action(
+        &self,
+        params: CodeActionParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<Vec<CodeActionOrCommand>>> {
+        handlers::handle_code_action(&self.client, &self.state, params).await
     }
 
     async fn execute_command(

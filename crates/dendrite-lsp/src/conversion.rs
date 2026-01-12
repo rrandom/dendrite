@@ -51,7 +51,7 @@ pub fn edit_plan_to_workspace_edit(plan: EditPlan) -> WorkspaceEdit {
         let uri = match Url::parse(&group.uri) {
             Ok(u) if u.scheme() == "file" => u,
             _ => {
-                // Try as file path (handles "C:\..." which parse as scheme "c")
+                // Try as file path
                 let path = PathBuf::from(&group.uri);
                 match Url::from_file_path(path) {
                     Ok(u) => u,
@@ -84,7 +84,7 @@ pub fn edit_plan_to_workspace_edit(plan: EditPlan) -> WorkspaceEdit {
                     });
                 }
                 Change::ResourceOp(op) => {
-                    // 1. Emit pending text edits
+                    // 1. Flush pending text edits
                     if !current_text_edits.is_empty() {
                         document_changes.push(DocumentChangeOperation::Edit(TextDocumentEdit {
                             text_document: OptionalVersionedTextDocumentIdentifier {
@@ -96,11 +96,11 @@ pub fn edit_plan_to_workspace_edit(plan: EditPlan) -> WorkspaceEdit {
                                 .map(|e| OneOf::Left(e))
                                 .collect(),
                         }));
-                        current_text_edits = Vec::new(); // reset
+                        current_text_edits = Vec::new();
                     }
 
                     // 2. Emit Resource Op
-                    let resource_op = match op {
+                    match op {
                         ResourceOperation::RenameFile { new_uri, overwrite } => {
                             let new_url = Url::parse(&new_uri)
                                 .ok()
@@ -108,7 +108,7 @@ pub fn edit_plan_to_workspace_edit(plan: EditPlan) -> WorkspaceEdit {
                                 .or_else(|| Url::from_file_path(PathBuf::from(&new_uri)).ok());
 
                             if let Some(new_url) = new_url {
-                                ResourceOp::Rename(RenameFile {
+                                let op = ResourceOp::Rename(RenameFile {
                                     old_uri: uri.clone(),
                                     new_uri: new_url,
                                     options: Some(RenameFileOptions {
@@ -116,35 +116,59 @@ pub fn edit_plan_to_workspace_edit(plan: EditPlan) -> WorkspaceEdit {
                                         ignore_if_exists: None,
                                     }),
                                     annotation_id: None,
-                                })
-                            } else {
-                                continue;
+                                });
+                                document_changes.push(DocumentChangeOperation::Op(op));
                             }
                         }
-                        ResourceOperation::CreateFile { .. } => {
-                            // CreateFile doesn't support content initialization in LSP standard
-                            // We just create the file. Content must be added via TextEdit later.
-                            ResourceOp::Create(CreateFile {
+                        ResourceOperation::CreateFile { content } => {
+                            let create_op = ResourceOp::Create(CreateFile {
                                 uri: uri.clone(),
                                 options: Some(CreateFileOptions {
                                     overwrite: Some(false),
                                     ignore_if_exists: Some(true),
                                 }),
                                 annotation_id: None,
-                            })
+                            });
+                            document_changes.push(DocumentChangeOperation::Op(create_op));
+
+                            if let Some(text) = content {
+                                document_changes.push(DocumentChangeOperation::Edit(
+                                    TextDocumentEdit {
+                                        text_document: OptionalVersionedTextDocumentIdentifier {
+                                            uri: uri.clone(),
+                                            version: None,
+                                        },
+                                        edits: vec![OneOf::Left(TextEdit {
+                                            range: Range {
+                                                start: Position {
+                                                    line: 0,
+                                                    character: 0,
+                                                },
+                                                end: Position {
+                                                    line: 0,
+                                                    character: 0,
+                                                },
+                                            },
+                                            new_text: text,
+                                        })],
+                                    },
+                                ));
+                            }
                         }
                         ResourceOperation::DeleteFile {
                             ignore_if_not_exists,
-                        } => ResourceOp::Delete(DeleteFile {
-                            uri: uri.clone(),
-                            options: Some(DeleteFileOptions {
-                                recursive: None,
-                                ignore_if_not_exists: Some(ignore_if_not_exists),
-                                annotation_id: None,
-                            }),
-                        }),
-                    };
-                    document_changes.push(DocumentChangeOperation::Op(resource_op));
+                        } => {
+                            let op = ResourceOp::Delete(DeleteFile {
+                                uri: uri.clone(),
+                                options: Some(DeleteFileOptions {
+                                    recursive: None,
+                                    ignore_if_not_exists: Some(ignore_if_not_exists),
+                                    annotation_id: None,
+                                }),
+                            });
+                            document_changes.push(DocumentChangeOperation::Op(op));
+                        }
+                    }
                 }
             }
         }
@@ -165,7 +189,7 @@ pub fn edit_plan_to_workspace_edit(plan: EditPlan) -> WorkspaceEdit {
     }
 
     WorkspaceEdit {
-        changes: None, // We use document_changes for complex edits
+        changes: None,
         document_changes: Some(tower_lsp::lsp_types::DocumentChanges::Operations(
             document_changes,
         )),
