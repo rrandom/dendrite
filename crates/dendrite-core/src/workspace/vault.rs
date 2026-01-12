@@ -40,6 +40,14 @@ impl Vault {
     ) -> Option<crate::refactor::model::EditPlan> {
         self.workspace.rename_note(self, old_key, new_key)
     }
+
+    pub fn move_note(
+        &self,
+        old_path: &std::path::Path,
+        new_path: std::path::PathBuf,
+    ) -> Option<crate::refactor::model::EditPlan> {
+        self.workspace.move_note(self, old_path, new_path)
+    }
 }
 
 impl crate::refactor::model::ContentProvider for Vault {

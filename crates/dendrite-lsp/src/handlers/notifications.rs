@@ -1,4 +1,5 @@
 use crate::state::GlobalState;
+use tower_lsp::Client;
 use tower_lsp::lsp_types::*;
 
 /// Handle "textDocument/didOpen" notification
@@ -81,7 +82,11 @@ pub async fn handle_did_change_watched_files(
 }
 
 /// Handle "workspace/didRenameFiles" notification
-pub async fn handle_did_rename_files(state: &GlobalState, params: RenameFilesParams) {
+pub async fn handle_did_rename_files(
+    client: &Client,
+    state: &GlobalState,
+    params: RenameFilesParams,
+) {
     let mut vault_lock = state.vault.write().await;
     if let Some(v) = &mut *vault_lock {
         for file_rename in params.files {
@@ -101,8 +106,28 @@ pub async fn handle_did_rename_files(state: &GlobalState, params: RenameFilesPar
                             cache.remove(&old_url);
                         }
 
-                        // Call the specialized rename_file method in core
-                        v.rename_file(old_path, new_path, &content);
+                        // 1. Update internal index
+                        v.rename_file(old_path.clone(), new_path.clone(), &content);
+
+                        // 2. Generate refactor plan for the move
+                        if let Some(mut plan) = v.move_note(&old_path, new_path) {
+                            // 3. Filter out the RenameFile operation (it's already done by the user in the IDE)
+                            plan.edits.retain(|group| {
+                                group.changes.iter().all(|change| {
+                                    !matches!(change, dendrite_core::refactor::model::Change::ResourceOp(_))
+                                })
+                            });
+
+                            if !plan.edits.is_empty() {
+                                // 4. Convert and apply edits
+                                let workspace_edit = crate::conversion::edit_plan_to_workspace_edit(plan.clone());
+                                let _ = client.apply_edit(workspace_edit).await;
+                                
+                                // Store in history for undo
+                                let mut history = state.refactor_history.write().await;
+                                history.push_back(plan);
+                            }
+                        }
                     }
                 }
             }

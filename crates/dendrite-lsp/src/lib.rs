@@ -129,7 +129,7 @@ impl tower_lsp::LanguageServer for Backend {
     }
 
     async fn did_rename_files(&self, params: RenameFilesParams) {
-        handlers::handle_did_rename_files(&self.state, params).await;
+        handlers::handle_did_rename_files(&self.client, &self.state, params).await;
     }
 
     async fn goto_definition(

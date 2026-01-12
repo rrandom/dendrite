@@ -62,13 +62,39 @@ impl Workspace {
         let new_path = self.resolver.path_from_note_key(&new_key.to_string());
 
         // 3. Delegate to Core Refactor Engine
-        crate::refactor::rename::calculate_rename_edits(
+        crate::refactor::structural::calculate_structural_edits(
             &self.store,
+            &self.identity,
             content_provider,
             self.resolver.as_ref(),
             &note_id,
             new_path,
             new_key,
+        )
+    }
+
+    /// Initiate a Move Refactoring from old_path to new_path.
+    pub fn move_note(
+        &self,
+        content_provider: &dyn crate::refactor::model::ContentProvider,
+        old_path: &std::path::Path,
+        new_path: std::path::PathBuf,
+    ) -> Option<crate::refactor::model::EditPlan> {
+        // 1. Resolve ID from Old Path
+        let note_id = self.store.note_id_by_path(&old_path.to_path_buf())?.clone();
+
+        // 2. Resolve target Key from Target Path
+        let new_key = self.resolver.note_key_from_path(&new_path, "");
+
+        // 3. Delegate to Core Refactor Engine
+        crate::refactor::structural::calculate_structural_edits(
+            &self.store,
+            &self.identity,
+            content_provider,
+            self.resolver.as_ref(),
+            &note_id,
+            new_path,
+            &new_key,
         )
     }
 }
