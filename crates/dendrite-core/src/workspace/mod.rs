@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::RwLock;
 
-use crate::hierarchy::SyntaxStrategy;
+use crate::syntax::SyntaxStrategy;
 use crate::identity::IdentityRegistry;
 use crate::store::Store;
 pub mod vfs;
@@ -65,6 +65,7 @@ impl Workspace {
         crate::refactor::rename::calculate_rename_edits(
             &self.store,
             content_provider,
+            self.resolver.as_ref(),
             &note_id,
             new_path,
             new_key,

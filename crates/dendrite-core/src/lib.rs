@@ -5,7 +5,7 @@
 //!
 
 mod config;
-pub mod hierarchy;
+pub mod syntax;
 pub mod identity;
 mod line_map;
 pub mod model;
@@ -25,6 +25,6 @@ pub fn normalize_path_to_id(path: &Path) -> String {
     s
 }
 
-pub use hierarchy::{DendronStrategy, SyntaxStrategy};
+pub use syntax::{DendronStrategy, SyntaxStrategy, WikiLinkFormat};
 pub use identity::IdentityRegistry;
 pub use workspace::{Vault, Workspace};

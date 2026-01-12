@@ -1,5 +1,6 @@
 use super::line_map::LineMap;
 use crate::model::{Block, Heading, LinkKind, Point, TextRange};
+use crate::syntax::WikiLinkFormat;
 use pulldown_cmark::{Event, LinkType, MetadataBlockKind, Options, Parser, Tag, TagEnd};
 
 pub(crate) struct DocLink {
@@ -20,7 +21,7 @@ pub(crate) struct ParseResult {
     pub digest: String,
 }
 
-pub(crate) fn parse_markdown(text: &str) -> ParseResult {
+pub(crate) fn parse_markdown(text: &str, wikilink_format: WikiLinkFormat) -> ParseResult {
     let mut options = Options::empty();
     options.insert(Options::ENABLE_TABLES);
     options.insert(Options::ENABLE_FOOTNOTES);
@@ -177,17 +178,24 @@ pub(crate) fn parse_markdown(text: &str) -> ParseResult {
                     let left = raw_left.trim();
                     let right = raw_right.trim();
 
-                    // Logic update: User requested [[Alias | Target]] format.
-                    // Standard parser yields Left=Dest (Part 1), Right=Text (Part 2).
-                    // So Left="Alias", Right="Target".
-
-                    let (mut final_target, alias) = if left == right || right.is_empty() {
-                        // Case [[Target]] (where left==right) or [[Target|]] (where right is empty?? no, then right is "")
-                        // Actually if [[Target]], left="Target", right="Target".
-                        (left.to_string(), None)
-                    } else {
-                        // Case [[Alias | Target]]
-                        (right.to_string(), Some(left.to_string()))
+                    // Use wikilink_format to determine parsing order
+                    let (mut final_target, alias) = match wikilink_format {
+                        WikiLinkFormat::AliasFirst => {
+                            // Dendron: [[alias|target]]
+                            if left == right || right.is_empty() {
+                                (left.to_string(), None)
+                            } else {
+                                (right.to_string(), Some(left.to_string()))
+                            }
+                        }
+                        WikiLinkFormat::TargetFirst => {
+                            // Obsidian: [[target|alias]]
+                            if left == right || right.is_empty() {
+                                (left.to_string(), None)
+                            } else {
+                                (left.to_string(), Some(right.to_string()))
+                            }
+                        }
                     };
 
                     let mut anchor = None;
@@ -261,7 +269,7 @@ mod tests {
     #[test]
     fn test_parse_frontmatter() {
         let content = "---\ntitle: My Note\nid: 123\n---\n# Content";
-        let result = parse_markdown(content);
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
 
         assert_eq!(result.title, Some("My Note".to_string()));
         assert!(result.frontmatter.is_some());
@@ -276,9 +284,9 @@ mod tests {
         let content2 = "Content A";
         let content3 = "Content B";
 
-        let result1 = parse_markdown(content1);
-        let result2 = parse_markdown(content2);
-        let result3 = parse_markdown(content3);
+        let result1 = parse_markdown(content1, WikiLinkFormat::AliasFirst);
+        let result2 = parse_markdown(content2, WikiLinkFormat::AliasFirst);
+        let result3 = parse_markdown(content3, WikiLinkFormat::AliasFirst);
 
         assert_eq!(result1.digest, result2.digest);
         assert_ne!(result1.digest, result3.digest);
@@ -288,7 +296,7 @@ mod tests {
     #[test]
     fn test_parse_wiki_link() {
         let content = "# Note 1\n\n[[note2]]";
-        let result = parse_markdown(content);
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
 
         assert_eq!(result.links.len(), 1, "Should parse one wiki link");
         assert_eq!(
@@ -305,7 +313,7 @@ mod tests {
     #[test]
     fn test_parse_multiple_links() {
         let content = "# Note 1\n\n[[note2]] and [[note3]]";
-        let result = parse_markdown(content);
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
 
         assert_eq!(result.links.len(), 2, "Should parse two wiki links");
         assert_eq!(result.links[0].target, "note2");
@@ -315,7 +323,7 @@ mod tests {
     #[test]
     fn test_parse_wiki_link_with_alias() {
         let content = "[[My Alias | note2]]";
-        let result = parse_markdown(content);
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
 
         assert_eq!(result.links.len(), 1);
         assert_eq!(result.links[0].target, "note2");
@@ -325,7 +333,7 @@ mod tests {
     #[test]
     fn test_parse_wiki_link_with_anchor() {
         let content = "[[note2#section-1]]";
-        let result = parse_markdown(content);
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
 
         assert_eq!(result.links.len(), 1);
         assert_eq!(result.links[0].target, "note2");
@@ -336,7 +344,7 @@ mod tests {
     #[test]
     fn test_parse_embedded_wiki_link() {
         let content = "![[image.png]]";
-        let result = parse_markdown(content);
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
 
         assert_eq!(result.links.len(), 1);
         assert_eq!(result.links[0].target, "image.png");
@@ -346,7 +354,7 @@ mod tests {
     #[test]
     fn test_parse_embedded_wiki_link_with_alias_and_anchor() {
         let content = "![[alias | a.link.to.note#with-anchor]]";
-        let result = parse_markdown(content);
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
 
         assert_eq!(result.links.len(), 1);
         assert_eq!(result.links[0].target, "a.link.to.note");
@@ -360,7 +368,7 @@ mod tests {
         let content = "[[alias | target]]";
         //             012345678901234567
         //             Start: 0, End: 18 (inclusive? range is usually half-open or end points to next char)
-        let result = parse_markdown(content);
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
 
         assert_eq!(result.links.len(), 1);
         assert_eq!(result.links[0].target, "target");
@@ -376,7 +384,7 @@ mod tests {
     fn test_parse_embedded_wiki_link_range() {
         let content = "![[image.png]]";
         //             01234567890123
-        let result = parse_markdown(content);
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
 
         assert_eq!(result.links.len(), 1);
         assert_eq!(result.links[0].range.start.col, 0);
@@ -386,7 +394,7 @@ mod tests {
     #[test]
     fn test_parse_wiki_link_with_alias_and_anchor() {
         let content = "[[My Alias|note2#section-1]]";
-        let result = parse_markdown(content);
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
 
         assert_eq!(result.links.len(), 1);
         assert_eq!(result.links[0].target, "note2");
@@ -397,7 +405,7 @@ mod tests {
     #[test]
     fn test_parse_headings() {
         let content = "# Title\n\n## Section";
-        let result = parse_markdown(content);
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
 
         assert_eq!(result.headings[1].text, "Section");
         assert_eq!(result.title, Some("Title".to_string()));
@@ -406,7 +414,7 @@ mod tests {
     #[test]
     fn test_issue_6_alias_and_trailing_text() {
         let content = "  - 和[[Alias|a.b.c]]类似。";
-        let result = parse_markdown(content);
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
         assert_eq!(result.links.len(), 1);
         let link = &result.links[0];
         assert_eq!(link.alias, Some("Alias".to_string()));
@@ -424,7 +432,7 @@ mod tests {
     #[test]
     fn test_issue_5_embedded_image_link() {
         let content = "同时参考，![[a.b.c.d.e]]";
-        let result = parse_markdown(content);
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
         assert_eq!(result.links.len(), 1);
         let link = &result.links[0];
         assert_eq!(link.kind, LinkKind::EmbeddedWikiLink);
@@ -441,7 +449,7 @@ mod tests {
     fn test_parse_wiki_link_with_anchor_range() {
         let content = "Check [[target#section-1]] highlight";
         //             01234567890123456789012345
-        let result = parse_markdown(content);
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
         assert_eq!(result.links.len(), 1);
         let link = &result.links[0];
         assert_eq!(link.target, "target");
@@ -455,7 +463,7 @@ mod tests {
     fn test_parse_wiki_link_with_block_id_range() {
         let content = "See [[target#^block-id]] for details";
         //             0123456789012345678901234
-        let result = parse_markdown(content);
+        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
         assert_eq!(result.links.len(), 1);
         let link = &result.links[0];
         assert_eq!(link.target, "target");
@@ -469,14 +477,14 @@ mod tests {
     fn test_content_offset_calculation() {
         // Case 1: With frontmatter
         let content_with_fm = "---\ntitle: Hello\n---\nActual content starts here.";
-        let result_fm = parse_markdown(content_with_fm);
+        let result_fm = parse_markdown(content_with_fm, WikiLinkFormat::AliasFirst);
         // "---\ntitle: Hello\n---" -> 3 + 1 + 12 + 1 + 3 = 20 chars
         // The offset should be exactly at the end of the block
         assert_eq!(result_fm.content_start_offset, 20);
 
         // Case 2: No frontmatter
         let content_no_fm = "No frontmatter here.";
-        let result_no_fm = parse_markdown(content_no_fm);
+        let result_no_fm = parse_markdown(content_no_fm, WikiLinkFormat::AliasFirst);
         assert_eq!(result_no_fm.content_start_offset, 0);
     }
 }

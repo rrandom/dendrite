@@ -1,4 +1,4 @@
-use crate::hierarchy::SyntaxStrategy;
+use crate::syntax::SyntaxStrategy;
 use crate::identity::IdentityRegistry;
 use crate::model::{Link, Note, NoteId};
 use crate::parser::ParseResult;

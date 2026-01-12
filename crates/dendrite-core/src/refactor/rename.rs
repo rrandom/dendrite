@@ -5,6 +5,7 @@ use crate::refactor::model::{
     TextEdit,
 };
 use crate::store::Store;
+use crate::syntax::SyntaxStrategy;
 
 /// Calculate the plan for renaming a note.
 ///
@@ -19,6 +20,7 @@ use crate::store::Store;
 pub(crate) fn calculate_rename_edits(
     store: &Store,
     content_provider: &dyn ContentProvider,
+    strategy: &dyn SyntaxStrategy,
     note_id: &NoteId,
     new_path: std::path::PathBuf,
     new_key: &str,
@@ -62,22 +64,13 @@ pub(crate) fn calculate_rename_edits(
                 if link.target == *note_id {
                     let new_text = match link.kind {
                         LinkKind::WikiLink | LinkKind::EmbeddedWikiLink => {
-                            // Reconstruct [[alias|name#anchor]]
-                            let mut text = String::from("[[");
-                            if link.kind == LinkKind::EmbeddedWikiLink {
-                                text = String::from("![[");
-                            }
-                            if let Some(alias) = &link.alias {
-                                text.push_str(alias);
-                                text.push('|');
-                            }
-                            text.push_str(new_key);
-                            if let Some(anchor) = &link.anchor {
-                                text.push('#');
-                                text.push_str(anchor);
-                            }
-                            text.push_str("]]");
-                            text
+                            // Use strategy to format WikiLink
+                            strategy.format_wikilink(
+                                new_key,
+                                link.alias.as_deref(),
+                                link.anchor.as_deref(),
+                                link.kind == LinkKind::EmbeddedWikiLink,
+                            )
                         }
                         LinkKind::MarkdownLink => {
                             // [alias](path)
@@ -191,8 +184,9 @@ mod tests {
         // Perform rename: B -> C
         let new_key = "C";
         let new_path = PathBuf::from("C.md");
+        let strategy = crate::syntax::DendronStrategy::new(PathBuf::from("/test"));
         let plan =
-            calculate_rename_edits(&store, &MockContentProvider, &note_b.id, new_path, new_key)
+            calculate_rename_edits(&store, &MockContentProvider, &strategy, &note_b.id, new_path, new_key)
                 .expect("Plan generated");
 
         assert!(matches!(plan.refactor_kind, RefactorKind::RenameNote));
@@ -275,7 +269,8 @@ mod tests {
         let new_key = "New Name";
         let new_path = PathBuf::from("folder/New Name.md");
 
-        let plan = calculate_rename_edits(&store, &MockContentProvider, &note_id, new_path, new_key)
+        let strategy = crate::syntax::DendronStrategy::new(PathBuf::from("/test"));
+        let plan = calculate_rename_edits(&store, &MockContentProvider, &strategy, &note_id, new_path, new_key)
             .expect("Should generate plan");
 
         // VERIFICATION 1: Identity Stability
@@ -350,7 +345,8 @@ mod tests {
         store.upsert_note(ref_note.clone());
         store.set_outgoing_links(&ref_note.id, vec![note_id.clone()]);
 
-        let plan = calculate_rename_edits(&store, &MockContentProvider, &note_id, new_path, new_name)
+        let strategy = crate::syntax::DendronStrategy::new(PathBuf::from("/test"));
+        let plan = calculate_rename_edits(&store, &MockContentProvider, &strategy, &note_id, new_path, new_name)
             .expect("Plan generation failed");
 
         // Verify link update
@@ -405,9 +401,11 @@ mod tests {
         store.upsert_note(ref_note.clone());
         store.set_outgoing_links(&ref_note.id, vec![note_id.clone()]);
 
+        let strategy = crate::syntax::DendronStrategy::new(PathBuf::from("/test"));
         let plan = calculate_rename_edits(
             &store,
             &MockWithContent,
+            &strategy,
             &note_id,
             PathBuf::from("New Note.md"),
             "New Note",

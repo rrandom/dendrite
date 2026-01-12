@@ -70,7 +70,7 @@ impl<'a> Indexer<'a> {
             };
 
         // Parse always to get the new digest
-        let parse_result = parse_markdown(content);
+        let parse_result = parse_markdown(content, self.workspace.resolver.wikilink_format());
 
         if let Some(old) = old_digest {
             if old == parse_result.digest {
@@ -117,7 +117,7 @@ impl<'a> Indexer<'a> {
             let _ = self.workspace.identity.rebind(&old_key, &new_key);
         }
 
-        let parse_result = parse_markdown(content);
+        let parse_result = parse_markdown(content, self.workspace.resolver.wikilink_format());
         let note = NoteAssembler::new(&*self.workspace.resolver, &mut self.workspace.identity)
             .assemble(parse_result, &new_path, &old_id);
 
