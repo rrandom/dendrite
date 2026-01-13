@@ -148,7 +148,86 @@ export function activate(context: ExtensionContext) {
             }
         });
 
-        context.subscriptions.push(treeView, refreshCommand, renameCommand, undoCommand, changeSelection, changeVisibility);
+        const splitNoteCommand = commands.registerCommand('dendrite.splitNote', async (...args: any[]) => {
+            try {
+                let uri: any;
+                let range: any;
+                let newNoteName: string | undefined;
+
+                if (args.length >= 2) {
+                    // Triggered by Code Action
+                    uri = args[0];
+                    range = args[1];
+                } else {
+                    // Triggered by Command Palette
+                    const editor = window.activeTextEditor;
+                    if (!editor) {
+                        return;
+                    }
+                    if (editor.selection.isEmpty) {
+                        window.showWarningMessage('Please select text to extract.');
+                        return;
+                    }
+                    uri = editor.document.uri;
+                    range = editor.selection;
+                }
+
+                // Ask for new note name
+                newNoteName = await window.showInputBox({
+                    prompt: 'Enter the name of the new note',
+                    placeHolder: 'e.g. new_note'
+                });
+
+                if (!newNoteName) {
+                    return;
+                }
+
+                await client.sendRequest('workspace/executeCommand', {
+                    command: 'dendrite/splitNote',
+                    arguments: [uri, range, newNoteName]
+                });
+            } catch (error) {
+                window.showErrorMessage(`Split Note failed: ${error}`);
+            }
+        });
+
+        const reorganizeHierarchyCommand = commands.registerCommand('dendrite.reorganizeHierarchy', async () => {
+            try {
+                const oldKey = await window.showInputBox({
+                    prompt: 'Enter the old hierarchy prefix to rename',
+                    placeHolder: 'e.g. projects.inactive'
+                });
+                if (!oldKey) { return; }
+
+                const newKey = await window.showInputBox({
+                    prompt: 'Enter the new hierarchy prefix',
+                    placeHolder: 'e.g. archive.projects'
+                });
+                if (!newKey) { return; }
+
+                await client.sendRequest('workspace/executeCommand', {
+                    command: 'dendrite/reorganizeHierarchy',
+                    arguments: [oldKey, newKey]
+                });
+            } catch (error) {
+                window.showErrorMessage(`Reorganize Hierarchy failed: ${error}`);
+            }
+        });
+
+        const auditCommand = commands.registerCommand('dendrite.workspaceAudit', async () => {
+            try {
+                await client.sendRequest('workspace/executeCommand', {
+                    command: 'dendrite/workspaceAudit',
+                    arguments: []
+                });
+                // Server sends a window/showMessage notification on completion
+                // We could also inspect the return value if specialized UI was needed
+            } catch (error) {
+                window.showErrorMessage(`Audit failed: ${error}`);
+            }
+        });
+
+        context.subscriptions.push(treeView, refreshCommand, renameCommand, undoCommand, splitNoteCommand, reorganizeHierarchyCommand, auditCommand, changeSelection, changeVisibility);
     }).catch((error) => {
         window.showErrorMessage(`Failed to start Dendrite server: ${error}`);
     });

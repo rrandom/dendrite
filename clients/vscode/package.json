@@ -49,6 +49,21 @@
         "command": "dendrite.undoRefactor",
         "title": "Undo Last Refactor",
         "category": "Dendrite"
+      },
+      {
+        "command": "dendrite.splitNote",
+        "title": "Refactor: Extract to New Note",
+        "category": "Dendrite"
+      },
+      {
+        "command": "dendrite.reorganizeHierarchy",
+        "title": "Refactor: Reorganize Hierarchy",
+        "category": "Dendrite"
+      },
+      {
+        "command": "dendrite.workspaceAudit",
+        "title": "Run Workspace Audit",
+        "category": "Dendrite"
       }
     ],
     "menus": {
