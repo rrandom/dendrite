@@ -201,19 +201,50 @@ pub async fn handle_workspace_audit_command(
     _params: ExecuteCommandParams,
 ) -> Result<Option<serde_json::Value>> {
     let vault_guard = state.vault.read().await;
-    let vault = vault_guard
-        .as_ref()
-        .ok_or_else(|| Error::internal_error())?;
-
+    let vault = vault_guard.as_ref().ok_or_else(|| Error::internal_error())?;
+    
     let report = vault.workspace.audit();
+    
+    // Group diagnostics by URI
+    let mut diagnostics_map: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
+    
+    // Get root path from resolver
+    let root_path = Some(vault.workspace.root());
 
+    // DEBUG: Write to log file
+    if let Some(root) = root_path {
+        let log_path = root.join("dendrite_server_debug.log");
+        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(log_path) {
+            use std::io::Write;
+            writeln!(file, "--- Audit Start (Canonicalization Active) ---").ok();
+            writeln!(file, "Root: {:?}", root).ok();
+            
+            for diag in &report.diagnostics {
+                let convert_res = crate::conversion::core_diagnostic_to_lsp_diagnostic(diag.clone(), Some(root));
+                if let Some((u, _)) = &convert_res {
+                     writeln!(file, "Original: {:?}\nComputed URL: {}\nJSON-ified: {:?}", diag.uri, u, serde_json::to_string(&u)).ok();
+                } else {
+                     writeln!(file, "Failed to convert: {:?}", diag.uri).ok();
+                }
+            }
+        }
+    }
+
+    for diag in &report.diagnostics {
+        if let Some((url, lsp_diag)) = crate::conversion::core_diagnostic_to_lsp_diagnostic(diag.clone(), root_path) {
+            diagnostics_map.entry(url).or_default().push(lsp_diag);
+        }
+    }
+
+    // Publish diagnostics
+    for (uri, diags) in diagnostics_map {
+        client.publish_diagnostics(uri, diags, None).await;
+    }
+    
     let diagnostic_count = report.diagnostics.len();
-    let msg = format!(
-        "Workspace Audit complete. Found {} issues.",
-        diagnostic_count
-    );
+    let msg = format!("Workspace Audit complete. Found {} issues.", diagnostic_count);
     client.show_message(MessageType::INFO, msg).await;
-
+    
     Ok(Some(serde_json::to_value(report).unwrap()))
 }
 

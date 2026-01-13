@@ -48,6 +48,11 @@ impl Workspace {
         Some(key)
     }
 
+    /// Get the root path of the workspace
+    pub fn root(&self) -> &std::path::Path {
+        self.resolver.root()
+    }
+
     /// Initiate a standard Rename Refactoring from old_key to new_key.
     /// This ONLY renames the specific note, not its children.
     pub fn rename_note(

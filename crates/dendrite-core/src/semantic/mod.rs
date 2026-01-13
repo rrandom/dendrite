@@ -10,6 +10,9 @@ pub use dendron::DendronModel;
 pub trait SemanticModel: Send + Sync {
     fn id(&self) -> ResolverId;
 
+    /// Get the root path of the workspace
+    fn root(&self) -> &Path;
+
     // --- Identity & Resolution ---
 
     fn note_key_from_path(&self, path: &Path, content: &str) -> NoteKey;

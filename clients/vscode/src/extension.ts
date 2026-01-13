@@ -45,7 +45,13 @@ export function activate(context: ExtensionContext) {
         synchronize: {
             fileEvents: workspace.createFileSystemWatcher('**/.clientrc')
         },
-        outputChannelName: 'Dendrite Server'
+        outputChannelName: 'Dendrite Server',
+        middleware: {
+            handleDiagnostics: (uri, diagnostics, next) => {
+                console.log(`[Dendrite Client] Raw Diagnostics for ${uri.toString()}:`, JSON.stringify(diagnostics, null, 2));
+                next(uri, diagnostics);
+            }
+        }
     };
 
     client = new LanguageClient(

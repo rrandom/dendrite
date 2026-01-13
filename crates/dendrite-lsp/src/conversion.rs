@@ -11,6 +11,64 @@ use tower_lsp::lsp_types::{
     OptionalVersionedTextDocumentIdentifier, Position, Range, RenameFile, RenameFileOptions,
     ResourceOp, TextDocumentEdit, TextEdit, Url, WorkspaceEdit,
 };
+use dendrite_core::refactor::model::{Diagnostic as CoreDiagnostic, DiagnosticSeverity as CoreSeverity};
+use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity};
+
+/// Convert Core Diagnostic to LSP Diagnostic
+pub fn core_diagnostic_to_lsp_diagnostic(
+    diag: CoreDiagnostic,
+    root_path: Option<&std::path::Path>,
+) -> Option<(Url, Diagnostic)> {
+    let uri_str = diag.uri?;
+    let url = match Url::parse(&uri_str) {
+        Ok(u) if u.scheme() == "file" => u,
+        _ => {
+            // If it fails to parse as URL, try as file path
+            let path = PathBuf::from(&uri_str);
+            if path.is_absolute() {
+                Url::from_file_path(path).ok()?
+            } else if let Some(root) = root_path {
+                // Ensure we append to root, even if path starts with separator
+                let relative_str = uri_str.trim_start_matches(|c| c == '/' || c == '\\');
+                let absolute = root.join(relative_str);
+                
+                // Try to canonicalize to resolve symlinks and ensure proper drive letter casing
+                let final_path = if let Ok(canon) = std::fs::canonicalize(&absolute) {
+                    canon
+                } else {
+                    absolute
+                };
+                
+                Url::from_file_path(final_path).ok()?
+            } else {
+                return None;
+            }
+        }
+    };
+
+    let range = diag.range.map(text_range_to_lsp_range).unwrap_or_default();
+
+    let severity = match diag.severity {
+        CoreSeverity::Error => DiagnosticSeverity::ERROR,
+        CoreSeverity::Warning => DiagnosticSeverity::WARNING,
+        CoreSeverity::Info => DiagnosticSeverity::INFORMATION,
+    };
+
+    Some((
+        url,
+        Diagnostic {
+            range,
+            severity: Some(severity),
+            code: None,
+            code_description: None,
+            source: Some("dendrite".to_string()),
+            message: diag.message,
+            related_information: None,
+            tags: None,
+            data: None,
+        },
+    ))
+}
 
 /// Convert LSP Position to Core Point
 /// LSP uses 0-based line and character (UTF-16 code units)

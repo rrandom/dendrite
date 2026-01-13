@@ -20,6 +20,13 @@ impl SemanticModel for DendronModel {
         ResolverId("Dendron")
     }
 
+    /// Get the root path of the workspace.
+    /// This is stored in the specific implementation (e.g. DendronModel)
+    /// and is used for resolving absolute paths for diagnostics and FS operations.
+    fn root(&self) -> &Path {
+        &self.root
+    }
+
     fn note_key_from_path(&self, path: &Path, _: &str) -> NoteKey {
         // Dendron note key is just the filename without .md extension
         // e.g., "foo.bar.md" -> "foo.bar"
