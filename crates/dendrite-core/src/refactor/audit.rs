@@ -15,13 +15,15 @@ pub fn calculate_audit_diagnostics(
     use crate::refactor::model::{Diagnostic, DiagnosticSeverity};
     let mut diagnostics = Vec::new();
 
+    let audited_kinds = strategy.audited_link_kinds();
+
     for note in store.all_notes() {
         // ... (existing read content code)
         let uri = note.path.as_ref().map(|p| p.to_string_lossy().to_string());
 
         for link in &note.links {
-            // Check if strategy supports this link kind
-            if !strategy.supported_link_kinds().contains(&link.kind) {
+            // Check if strategy wants to audit this link kind
+            if !audited_kinds.contains(&link.kind) {
                 continue;
             }
             let lower_target = link.raw_target.to_lowercase();

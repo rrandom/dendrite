@@ -42,9 +42,15 @@ pub trait SemanticModel: Send + Sync {
         is_embed: bool,
     ) -> String;
 
-    /// Supported link kinds for this strategy
+    /// Supported link kinds for this strategy (for parsing)
     fn supported_link_kinds(&self) -> Vec<crate::model::LinkKind> {
         vec![]
+    }
+
+    /// Link kinds that should be audited for health (broken links)
+    /// Defaults to all supported link kinds.
+    fn audited_link_kinds(&self) -> Vec<crate::model::LinkKind> {
+        self.supported_link_kinds()
     }
 
     // --- Extension Points ---
