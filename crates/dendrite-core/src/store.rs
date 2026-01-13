@@ -101,7 +101,9 @@ impl Store {
                             start: Point { line: 0, col: 0 },
                             end: Point { line: 0, col: 0 },
                         },
-                        kind: LinkKind::WikiLink,
+                        kind: LinkKind::WikiLink {
+                            format: crate::model::WikiLinkFormat::AliasFirst,
+                        },
                     })
                     .collect();
             }

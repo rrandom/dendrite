@@ -32,7 +32,7 @@ fn test_parse_note_resolves_links_correctly() {
     let note1_key = ws.resolver.note_key_from_path(&note1_path, note1_content);
     let note1_id = ws.identity.get_or_create(&note1_key);
 
-    let parse_result = parse_markdown(note1_content, crate::semantic::WikiLinkFormat::AliasFirst);
+    let parse_result = parse_markdown(note1_content, &ws.resolver.supported_link_kinds());
     let note = NoteAssembler::new(&*ws.resolver, &mut ws.identity).assemble(
         parse_result,
         &note1_path,
@@ -953,7 +953,9 @@ fn test_resolve_link_blocks() {
         alias: None,
         anchor: Some("^block-123".to_string()),
         range: Default::default(),
-        kind: LinkKind::WikiLink,
+        kind: LinkKind::WikiLink {
+            format: crate::model::WikiLinkFormat::AliasFirst,
+        },
     };
 
     let range = ws.resolve_link_anchor(&link).expect("Should resolve block");

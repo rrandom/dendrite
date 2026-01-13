@@ -80,14 +80,14 @@ pub(crate) fn calculate_structural_edits(
                     let mut new_text = String::new();
 
                     match link.kind {
-                        LinkKind::WikiLink | LinkKind::EmbeddedWikiLink => {
+                        LinkKind::WikiLink { .. } | LinkKind::EmbeddedWikiLink { .. } => {
                             if is_rename {
                                 needs_update = true;
                                 new_text = strategy.format_wikilink(
                                     new_key,
                                     link.alias.as_deref(),
                                     link.anchor.as_deref(),
-                                    link.kind == LinkKind::EmbeddedWikiLink,
+                                    matches!(link.kind, LinkKind::EmbeddedWikiLink { .. }),
                                 );
                             }
                         }
@@ -120,6 +120,7 @@ pub(crate) fn calculate_structural_edits(
                                 new_text = text;
                             }
                         }
+                        _ => {}
                     }
 
                     if needs_update {
@@ -249,7 +250,9 @@ mod tests {
             alias: None,
             anchor: None,
             range: TextRange::default(),
-            kind: LinkKind::WikiLink,
+            kind: LinkKind::WikiLink {
+                format: crate::model::WikiLinkFormat::AliasFirst,
+            },
         });
 
         store.upsert_note(note_a.clone());
@@ -356,7 +359,9 @@ mod tests {
             alias: None,
             anchor: Some("^block-id".to_string()),
             range: TextRange::default(),
-            kind: LinkKind::WikiLink,
+            kind: LinkKind::WikiLink {
+                format: crate::model::WikiLinkFormat::AliasFirst,
+            },
         });
 
         store.upsert_note(note_old);

@@ -5,13 +5,15 @@
 
 use dendrite_core::model::{Point, TextRange};
 use dendrite_core::refactor::model::{Change, EditPlan, ResourceOperation};
+use dendrite_core::refactor::model::{
+    Diagnostic as CoreDiagnostic, DiagnosticSeverity as CoreSeverity,
+};
 use std::path::PathBuf;
 use tower_lsp::lsp_types::{
     CreateFile, CreateFileOptions, DeleteFile, DeleteFileOptions, DocumentChangeOperation, OneOf,
     OptionalVersionedTextDocumentIdentifier, Position, Range, RenameFile, RenameFileOptions,
     ResourceOp, TextDocumentEdit, TextEdit, Url, WorkspaceEdit,
 };
-use dendrite_core::refactor::model::{Diagnostic as CoreDiagnostic, DiagnosticSeverity as CoreSeverity};
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity};
 
 /// Convert Core Diagnostic to LSP Diagnostic
@@ -31,14 +33,14 @@ pub fn core_diagnostic_to_lsp_diagnostic(
                 // Ensure we append to root, even if path starts with separator
                 let relative_str = uri_str.trim_start_matches(|c| c == '/' || c == '\\');
                 let absolute = root.join(relative_str);
-                
+
                 // Try to canonicalize to resolve symlinks and ensure proper drive letter casing
                 let final_path = if let Ok(canon) = std::fs::canonicalize(&absolute) {
                     canon
                 } else {
                     absolute
                 };
-                
+
                 Url::from_file_path(final_path).ok()?
             } else {
                 return None;

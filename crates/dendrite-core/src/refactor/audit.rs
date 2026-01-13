@@ -8,18 +8,34 @@ use crate::store::Store;
 /// 1. Broken links (missing .md files)
 /// 2. Invalid anchors (missing headings/blocks)
 /// 3. Model-strict syntax violations (e.g. [[#abc]] in Dendron)
-pub fn calculate_audit_diagnostics(store: &Store, strategy: &dyn SemanticModel) -> EditPlan {
+pub fn calculate_audit_diagnostics(
+    store: &Store,
+    strategy: &dyn SemanticModel,
+) -> crate::refactor::model::EditPlan {
     use crate::refactor::model::{Diagnostic, DiagnosticSeverity};
     let mut diagnostics = Vec::new();
 
     for note in store.all_notes() {
+        // ... (existing read content code)
         let uri = note.path.as_ref().map(|p| p.to_string_lossy().to_string());
 
         for link in &note.links {
+            // Check if strategy supports this link kind
+            if !strategy.supported_link_kinds().contains(&link.kind) {
+                continue;
+            }
+            let lower_target = link.raw_target.to_lowercase();
+            if lower_target.starts_with("http://")
+                || lower_target.starts_with("https://")
+                || lower_target.starts_with("mailto:")
+            {
+                continue;
+            }
+
             let mut is_broken = false;
 
-            // 1. Broken Link Check
             let target_note = store.get_note(&link.target);
+
             if target_note.is_none() {
                 diagnostics.push(Diagnostic {
                     severity: DiagnosticSeverity::Error,
@@ -112,7 +128,9 @@ mod tests {
             alias: None,
             anchor: None,
             range: TextRange::default(),
-            kind: LinkKind::WikiLink,
+            kind: LinkKind::WikiLink {
+                format: crate::model::WikiLinkFormat::AliasFirst,
+            },
         });
 
         store.upsert_note(note_a);
@@ -155,7 +173,9 @@ mod tests {
             alias: None,
             anchor: Some("NonExistent".to_string()),
             range: TextRange::default(),
-            kind: LinkKind::WikiLink,
+            kind: LinkKind::WikiLink {
+                format: crate::model::WikiLinkFormat::AliasFirst,
+            },
         });
 
         store.upsert_note(note_target);
@@ -187,7 +207,9 @@ mod tests {
             alias: None,
             anchor: Some("forbidden".to_string()),
             range: TextRange::default(),
-            kind: LinkKind::WikiLink,
+            kind: LinkKind::WikiLink {
+                format: crate::model::WikiLinkFormat::AliasFirst,
+            },
         });
 
         store.upsert_note(note_a);

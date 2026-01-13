@@ -1,6 +1,5 @@
 use super::line_map::LineMap;
-use crate::model::{Block, Heading, LinkKind, Point, TextRange};
-use crate::semantic::WikiLinkFormat;
+use crate::model::{Block, Heading, LinkKind, Point, TextRange, WikiLinkFormat};
 use pulldown_cmark::{Event, LinkType, MetadataBlockKind, Options, Parser, Tag, TagEnd};
 
 pub(crate) struct DocLink {
@@ -22,17 +21,35 @@ pub(crate) struct ParseResult {
     pub digest: String,
 }
 
-/// TODO: To be fully SemanticModel agnostic, this function should eventually accept
-/// `&dyn SemanticModel` (or `ParserHints`) instead of just `WikiLinkFormat`.
-/// This would allow dynamic configuration of block ID syntax, frontmatter style, etc.
-pub(crate) fn parse_markdown(text: &str, wikilink_format: WikiLinkFormat) -> ParseResult {
+/// Parse markdown content into structured data
+pub(crate) fn parse_markdown(text: &str, supported_kinds: &[LinkKind]) -> ParseResult {
     let mut options = Options::empty();
     options.insert(Options::ENABLE_TABLES);
     options.insert(Options::ENABLE_FOOTNOTES);
     options.insert(Options::ENABLE_STRIKETHROUGH);
     options.insert(Options::ENABLE_TASKLISTS);
-    options.insert(Options::ENABLE_WIKILINKS);
     options.insert(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
+
+    // Dynamic configuration based on supported kinds
+    let mut enable_wikilinks = false;
+    let mut wikilink_format = WikiLinkFormat::AliasFirst; // Default
+
+    for kind in supported_kinds {
+        match kind {
+            LinkKind::WikiLink { format } | LinkKind::EmbeddedWikiLink { format } => {
+                enable_wikilinks = true;
+                wikilink_format = *format;
+            }
+            _ => {}
+        }
+    }
+
+    if enable_wikilinks {
+        options.insert(Options::ENABLE_WIKILINKS);
+    }
+    // Pulldown doesn't have a separate flag for autolinks in new versions,
+    // it's often enabled by default or via linkify. But check options if needed.
+    // For now we just use standard parser behavior for autolinks if they appear.
 
     let parser = Parser::new_ext(text, options);
     let line_map = LineMap::new(text);
@@ -137,23 +154,45 @@ pub(crate) fn parse_markdown(text: &str, wikilink_format: WikiLinkFormat) -> Par
                 dest_url,
                 ..
             }) => {
-                let start = line_map.offset_to_point(text, range.start);
-                let is_wikilink = matches!(link_type, LinkType::WikiLink { .. });
-                pending_link = Some(PendingLink {
-                    raw_left: dest_url.to_string(),
-                    start_point: start,
-                    is_embedded: false,
-                    is_wikilink,
-                    collector: String::new(),
-                });
+                if matches!(link_type, LinkType::Autolink | LinkType::Email) {
+                    let start = line_map.offset_to_point(text, range.start);
+                    let end = line_map.offset_to_point(text, range.end);
+                    links.push(DocLink {
+                        target: dest_url.to_string(),
+                        raw_target: dest_url.to_string(),
+                        alias: None,
+                        anchor: None,
+                        range: TextRange { start, end },
+                        kind: LinkKind::AutoLink,
+                    });
+                } else {
+                    let is_wikilink = matches!(link_type, LinkType::WikiLink { .. });
+                    if is_wikilink && !enable_wikilinks {
+                        continue;
+                    }
+
+                    let start = line_map.offset_to_point(text, range.start);
+
+                    pending_link = Some(PendingLink {
+                        raw_left: dest_url.to_string(),
+                        start_point: start,
+                        is_embedded: false,
+                        is_wikilink,
+                        collector: String::new(),
+                    });
+                }
             }
             Event::Start(Tag::Image {
                 link_type,
                 dest_url,
                 ..
             }) => {
-                let start = line_map.offset_to_point(text, range.start);
                 let is_wikilink = matches!(link_type, LinkType::WikiLink { .. });
+                if is_wikilink && !enable_wikilinks {
+                    continue;
+                }
+
+                let start = line_map.offset_to_point(text, range.start);
                 pending_link = Some(PendingLink {
                     raw_left: dest_url.to_string(),
                     start_point: start,
@@ -194,14 +233,23 @@ pub(crate) fn parse_markdown(text: &str, wikilink_format: WikiLinkFormat) -> Par
                             }
                         };
                         let kind = if pending.is_embedded {
-                            LinkKind::EmbeddedWikiLink
+                            LinkKind::EmbeddedWikiLink {
+                                format: wikilink_format,
+                            }
                         } else {
-                            LinkKind::WikiLink
+                            LinkKind::WikiLink {
+                                format: wikilink_format,
+                            }
                         };
                         (target, alias, kind)
                     } else {
-                        // Standard Markdown link: [alias](target)
-                        // Dest is left, alias text is right.
+                        // Standard Markdown link or Image: [alias](target) or ![alt](target)
+                        let kind = if pending.is_embedded {
+                            LinkKind::MarkdownImage
+                        } else {
+                            LinkKind::MarkdownLink
+                        };
+
                         (
                             left.to_string(),
                             if right.is_empty() {
@@ -209,32 +257,37 @@ pub(crate) fn parse_markdown(text: &str, wikilink_format: WikiLinkFormat) -> Par
                             } else {
                                 Some(right.to_string())
                             },
-                            LinkKind::MarkdownLink,
+                            kind,
                         )
                     };
 
-                    let mut anchor = None;
-                    if let Some(pos) = final_target.find('#') {
-                        anchor = Some(final_target[pos + 1..].to_string());
-                        final_target.truncate(pos);
-                    }
+                    // Final Filter: Check if this resolved Kind is in our supported list
+                    // (For equality check with payload, we can use contains if payloads are equal)
+                    if supported_kinds.contains(&kind) {
+                        let mut anchor = None;
+                        if let Some(pos) = final_target.find('#') {
+                            anchor = Some(final_target[pos + 1..].to_string());
+                            final_target.truncate(pos);
+                        }
 
-                    links.push(DocLink {
-                        target: final_target,
-                        raw_target: left.to_string(), // Preserve the original text
-                        alias,
-                        anchor,
-                        range: TextRange {
-                            start: pending.start_point,
-                            end: end_point,
-                        },
-                        kind,
-                    });
+                        links.push(DocLink {
+                            target: final_target,
+                            raw_target: left.to_string(), // Preserve the original text
+                            alias,
+                            anchor,
+                            range: TextRange {
+                                start: pending.start_point,
+                                end: end_point,
+                            },
+                            kind,
+                        });
+                    }
                 }
             }
 
             Event::Text(cow_str) => {
                 let text = cow_str.as_ref();
+                // BlockRef removed for now as unconfigured
 
                 if in_frontmatter {
                     frontmatter_content.push_str(text);
@@ -253,6 +306,7 @@ pub(crate) fn parse_markdown(text: &str, wikilink_format: WikiLinkFormat) -> Par
                     current_block_text.push_str(text);
                 }
             }
+            // AutoLink handling
             _ => {}
         }
     }
@@ -276,11 +330,25 @@ pub(crate) fn parse_markdown(text: &str, wikilink_format: WikiLinkFormat) -> Par
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::WikiLinkFormat;
+
+    fn default_kinds() -> Vec<LinkKind> {
+        vec![
+            LinkKind::WikiLink {
+                format: WikiLinkFormat::AliasFirst,
+            },
+            LinkKind::EmbeddedWikiLink {
+                format: WikiLinkFormat::AliasFirst,
+            },
+            LinkKind::MarkdownLink,
+            // AutoLink not enabled by default for these tests unless specified
+        ]
+    }
 
     #[test]
     fn test_parse_frontmatter() {
         let content = "---\ntitle: My Note\nid: 123\n---\n# Content";
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        let result = parse_markdown(content, &default_kinds());
 
         assert_eq!(result.title, Some("My Note".to_string()));
         assert!(result.frontmatter.is_some());
@@ -295,9 +363,9 @@ mod tests {
         let content2 = "Content A";
         let content3 = "Content B";
 
-        let result1 = parse_markdown(content1, WikiLinkFormat::AliasFirst);
-        let result2 = parse_markdown(content2, WikiLinkFormat::AliasFirst);
-        let result3 = parse_markdown(content3, WikiLinkFormat::AliasFirst);
+        let result1 = parse_markdown(content1, &default_kinds());
+        let result2 = parse_markdown(content2, &default_kinds());
+        let result3 = parse_markdown(content3, &default_kinds());
 
         assert_eq!(result1.digest, result2.digest);
         assert_ne!(result1.digest, result3.digest);
@@ -307,24 +375,20 @@ mod tests {
     #[test]
     fn test_parse_wiki_link() {
         let content = "# Note 1\n\n[[note2]]";
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        let result = parse_markdown(content, &default_kinds());
 
         assert_eq!(result.links.len(), 1, "Should parse one wiki link");
         assert_eq!(
             result.links[0].target, "note2",
             "Link target should be 'note2'"
         );
-        assert_eq!(
-            result.links[0].kind,
-            LinkKind::WikiLink,
-            "Link should be WikiLink"
-        );
+        assert!(matches!(result.links[0].kind, LinkKind::WikiLink { .. }));
     }
 
     #[test]
     fn test_parse_multiple_links() {
         let content = "# Note 1\n\n[[note2]] and [[note3]]";
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        let result = parse_markdown(content, &default_kinds());
 
         assert_eq!(result.links.len(), 2, "Should parse two wiki links");
         assert_eq!(result.links[0].target, "note2");
@@ -334,7 +398,7 @@ mod tests {
     #[test]
     fn test_parse_wiki_link_with_alias() {
         let content = "[[My Alias | note2]]";
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        let result = parse_markdown(content, &default_kinds());
 
         assert_eq!(result.links.len(), 1);
         assert_eq!(result.links[0].target, "note2");
@@ -344,7 +408,7 @@ mod tests {
     #[test]
     fn test_parse_wiki_link_with_anchor() {
         let content = "[[note2#section-1]]";
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        let result = parse_markdown(content, &default_kinds());
 
         assert_eq!(result.links.len(), 1);
         assert_eq!(result.links[0].target, "note2");
@@ -355,47 +419,47 @@ mod tests {
     #[test]
     fn test_parse_embedded_wiki_link() {
         let content = "![[image.png]]";
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        let result = parse_markdown(content, &default_kinds());
 
         assert_eq!(result.links.len(), 1);
         assert_eq!(result.links[0].target, "image.png");
-        assert_eq!(result.links[0].kind, LinkKind::EmbeddedWikiLink);
+        assert!(matches!(
+            result.links[0].kind,
+            LinkKind::EmbeddedWikiLink { .. }
+        ));
     }
 
     #[test]
     fn test_parse_embedded_wiki_link_with_alias_and_anchor() {
         let content = "![[alias | a.link.to.note#with-anchor]]";
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        let result = parse_markdown(content, &default_kinds());
 
         assert_eq!(result.links.len(), 1);
         assert_eq!(result.links[0].target, "a.link.to.note");
         assert_eq!(result.links[0].anchor, Some("with-anchor".to_string()));
         assert_eq!(result.links[0].alias, Some("alias".to_string()));
-        assert_eq!(result.links[0].kind, LinkKind::EmbeddedWikiLink);
+        assert!(matches!(
+            result.links[0].kind,
+            LinkKind::EmbeddedWikiLink { .. }
+        ));
     }
 
     #[test]
     fn test_parse_wiki_link_with_spaces_and_range() {
         let content = "[[alias | target]]";
-        //             012345678901234567
-        //             Start: 0, End: 18 (inclusive? range is usually half-open or end points to next char)
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        let result = parse_markdown(content, &default_kinds());
 
         assert_eq!(result.links.len(), 1);
         assert_eq!(result.links[0].target, "target");
         assert_eq!(result.links[0].alias, Some("alias".to_string()));
-
-        // Check range
         assert_eq!(result.links[0].range.start.col, 0);
-        // "[[alias | target]]" length is 18 chars.
         assert_eq!(result.links[0].range.end.col, 18);
     }
 
     #[test]
     fn test_parse_embedded_wiki_link_range() {
         let content = "![[image.png]]";
-        //             01234567890123
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        let result = parse_markdown(content, &default_kinds());
 
         assert_eq!(result.links.len(), 1);
         assert_eq!(result.links[0].range.start.col, 0);
@@ -405,7 +469,7 @@ mod tests {
     #[test]
     fn test_parse_wiki_link_with_alias_and_anchor() {
         let content = "[[My Alias|note2#section-1]]";
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        let result = parse_markdown(content, &default_kinds());
 
         assert_eq!(result.links.len(), 1);
         assert_eq!(result.links[0].target, "note2");
@@ -416,7 +480,7 @@ mod tests {
     #[test]
     fn test_parse_headings() {
         let content = "# Title\n\n## Section";
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        let result = parse_markdown(content, &default_kinds());
 
         assert_eq!(result.headings[1].text, "Section");
         assert_eq!(result.title, Some("Title".to_string()));
@@ -425,17 +489,11 @@ mod tests {
     #[test]
     fn test_issue_6_alias_and_trailing_text() {
         let content = "  - 和[[Alias|a.b.c]]类似。";
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        let result = parse_markdown(content, &default_kinds());
         assert_eq!(result.links.len(), 1);
         let link = &result.links[0];
         assert_eq!(link.alias, Some("Alias".to_string()));
         assert_eq!(link.target, "a.b.c");
-
-        // Verify range (UTF-16 code units)
-        // "  - 和" -> 5 characters.
-        // Link starts at character 5.
-        // "[[Alias|a.b.c]]" -> 2 + 5 + 1 + 5 + 2 = 15 characters.
-        // End character should be 5 + 15 = 20.
         assert_eq!(link.range.start.col, 5);
         assert_eq!(link.range.end.col, 20);
     }
@@ -443,15 +501,11 @@ mod tests {
     #[test]
     fn test_issue_5_embedded_image_link() {
         let content = "同时参考，![[a.b.c.d.e]]";
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        let result = parse_markdown(content, &default_kinds());
         assert_eq!(result.links.len(), 1);
         let link = &result.links[0];
-        assert_eq!(link.kind, LinkKind::EmbeddedWikiLink);
+        assert!(matches!(link.kind, LinkKind::EmbeddedWikiLink { .. }));
         assert_eq!(link.target, "a.b.c.d.e");
-
-        // Start character: 5.
-        // "![[a.b.c.d.e]]" -> 1 + 2 + 9 + 2 = 14 characters.
-        // End character should be 5 + 14 = 19.
         assert_eq!(link.range.start.col, 5);
         assert_eq!(link.range.end.col, 19);
     }
@@ -459,13 +513,11 @@ mod tests {
     #[test]
     fn test_parse_wiki_link_with_anchor_range() {
         let content = "Check [[target#section-1]] highlight";
-        //             01234567890123456789012345
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        let result = parse_markdown(content, &default_kinds());
         assert_eq!(result.links.len(), 1);
         let link = &result.links[0];
         assert_eq!(link.target, "target");
         assert_eq!(link.anchor, Some("section-1".to_string()));
-
         assert_eq!(link.range.start.col, 6);
         assert_eq!(link.range.end.col, 26);
     }
@@ -473,46 +525,37 @@ mod tests {
     #[test]
     fn test_parse_wiki_link_with_block_id_range() {
         let content = "See [[target#^block-id]] for details";
-        //             0123456789012345678901234
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        let result = parse_markdown(content, &default_kinds());
         assert_eq!(result.links.len(), 1);
         let link = &result.links[0];
         assert_eq!(link.target, "target");
         assert_eq!(link.anchor, Some("^block-id".to_string()));
-
         assert_eq!(link.range.start.col, 4);
         assert_eq!(link.range.end.col, 24);
     }
 
     #[test]
     fn test_content_offset_calculation() {
-        // Case 1: With frontmatter
         let content_with_fm = "---\ntitle: Hello\n---\nActual content starts here.";
-        let result_fm = parse_markdown(content_with_fm, WikiLinkFormat::AliasFirst);
-        // "---\ntitle: Hello\n---" -> 3 + 1 + 12 + 1 + 3 = 20 chars
-        // The offset should be exactly at the end of the block
+        let result_fm = parse_markdown(content_with_fm, &default_kinds());
         assert_eq!(result_fm.content_start_offset, 20);
 
-        // Case 2: No frontmatter
         let content_no_fm = "No frontmatter here.";
-        let result_no_fm = parse_markdown(content_no_fm, WikiLinkFormat::AliasFirst);
+        let result_no_fm = parse_markdown(content_no_fm, &default_kinds());
         assert_eq!(result_no_fm.content_start_offset, 0);
     }
 
     #[test]
     fn test_parse_markdown_link() {
         let content = "Check [My Alias](note2.md) link";
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        let result = parse_markdown(content, &default_kinds());
 
         assert_eq!(result.links.len(), 1);
         let link = &result.links[0];
         assert_eq!(link.target, "note2.md");
         assert_eq!(link.alias, Some("My Alias".to_string()));
-        assert_eq!(link.kind, LinkKind::MarkdownLink);
+        assert!(matches!(link.kind, LinkKind::MarkdownLink));
 
-        // Range verification
-        // "Check " -> 6 chars
-        // "[My Alias](note2.md)" -> 1 + 8 + 1 + 1 + 8 + 1 = 20 chars
         assert_eq!(link.range.start.col, 6);
         assert_eq!(link.range.end.col, 26);
     }
@@ -520,7 +563,7 @@ mod tests {
     #[test]
     fn test_parse_markdown_link_with_anchor() {
         let content = "[Target](note.md#section-1)";
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        let result = parse_markdown(content, &default_kinds());
 
         assert_eq!(result.links.len(), 1);
         let link = &result.links[0];
@@ -531,12 +574,18 @@ mod tests {
     #[test]
     fn test_parse_markdown_image() {
         let content = "![Alt Text](image.png)";
-        let result = parse_markdown(content, WikiLinkFormat::AliasFirst);
+        // To test image, we need to enable MarkdownImage or allow fallback.
+        // Current logic maps standard image to MarkdownImage if enabled, or MarkdownLink if not?
+        // Let's enable MarkdownImage in custom config.
+        let mut kinds = default_kinds();
+        kinds.push(LinkKind::MarkdownImage);
+
+        let result = parse_markdown(content, &kinds);
 
         assert_eq!(result.links.len(), 1);
         let link = &result.links[0];
         assert_eq!(link.target, "image.png");
-        assert_eq!(link.kind, LinkKind::MarkdownLink); // Images are also MarkdownLinks for now
+        assert!(matches!(link.kind, LinkKind::MarkdownImage));
         assert_eq!(link.alias, Some("Alt Text".to_string()));
     }
 }

@@ -33,9 +33,6 @@ pub trait SemanticModel: Send + Sync {
 
     fn resolve_display_name(&self, note: &Note) -> String;
 
-    /// WikiLink format used by this model
-    fn wikilink_format(&self) -> WikiLinkFormat;
-
     /// Generate WikiLink text for refactoring
     fn format_wikilink(
         &self,
@@ -44,6 +41,19 @@ pub trait SemanticModel: Send + Sync {
         anchor: Option<&str>,
         is_embed: bool,
     ) -> String;
+
+    /// Supported link kinds for this strategy
+    fn supported_link_kinds(&self) -> Vec<crate::model::LinkKind> {
+        vec![
+            crate::model::LinkKind::WikiLink {
+                format: crate::model::WikiLinkFormat::AliasFirst,
+            },
+            crate::model::LinkKind::EmbeddedWikiLink {
+                format: crate::model::WikiLinkFormat::AliasFirst,
+            },
+            crate::model::LinkKind::MarkdownLink,
+        ]
+    }
 
     // --- Extension Points ---
 
@@ -59,13 +69,4 @@ pub trait SemanticModel: Send + Sync {
     fn parsing_hints(&self) -> Option<()> {
         None
     }
-}
-
-/// WikiLink format used by different syntax strategies
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum WikiLinkFormat {
-    /// Dendron: [[alias|target#anchor]]
-    AliasFirst,
-    /// Obsidian: [[target#anchor|alias]]
-    TargetFirst,
 }

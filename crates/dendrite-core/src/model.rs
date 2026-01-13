@@ -79,12 +79,28 @@ pub struct Link {
     pub kind: LinkKind,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub enum LinkKind {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum WikiLinkFormat {
     #[default]
-    WikiLink, // [[target]]
-    EmbeddedWikiLink, // ![[target]]
-    MarkdownLink,     // [label](target)
+    AliasFirst, // [[alias|target]]
+    TargetFirst, // [[target|alias]]
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum LinkKind {
+    WikiLink { format: WikiLinkFormat },
+    EmbeddedWikiLink { format: WikiLinkFormat },
+    MarkdownLink,  // [label](target)
+    MarkdownImage, // ![alt](target)
+    AutoLink,      // <http://example.com>
+}
+
+impl Default for LinkKind {
+    fn default() -> Self {
+        Self::WikiLink {
+            format: WikiLinkFormat::default(),
+        }
+    }
 }
 
 /// Reference to a note for tree view

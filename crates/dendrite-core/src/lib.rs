@@ -6,7 +6,7 @@
 
 mod config;
 pub mod identity;
-mod line_map;
+pub mod line_map;
 pub mod model;
 pub mod parser;
 pub mod refactor;
@@ -26,5 +26,5 @@ pub fn normalize_path_to_id(path: &Path) -> String {
 }
 
 pub use identity::IdentityRegistry;
-pub use semantic::{DendronModel, SemanticModel, WikiLinkFormat};
+pub use semantic::{DendronModel, SemanticModel};
 pub use workspace::{Vault, Workspace};

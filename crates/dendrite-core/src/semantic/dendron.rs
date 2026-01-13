@@ -92,10 +92,6 @@ impl SemanticModel for DendronModel {
         self.root.join(format!("{}.md", key))
     }
 
-    fn wikilink_format(&self) -> super::WikiLinkFormat {
-        super::WikiLinkFormat::AliasFirst
-    }
-
     fn format_wikilink(
         &self,
         target: &str,
@@ -103,18 +99,37 @@ impl SemanticModel for DendronModel {
         anchor: Option<&str>,
         is_embed: bool,
     ) -> String {
-        let mut text = if is_embed { "![[" } else { "[[" }.to_string();
+        let mut out = String::from(if is_embed { "![[" } else { "[[" });
+
+        // Dendron: [[alias|target#anchor]]
         if let Some(a) = alias {
-            text.push_str(a);
-            text.push('|');
+            out.push_str(a);
+            out.push('|');
         }
-        text.push_str(target);
+
+        out.push_str(target);
+
         if let Some(anc) = anchor {
-            text.push('#');
-            text.push_str(anc);
+            if !anc.starts_with('#') {
+                out.push('#');
+            }
+            out.push_str(anc);
         }
-        text.push_str("]]");
-        text
+
+        out.push_str("]]");
+        out
+    }
+
+    fn supported_link_kinds(&self) -> Vec<crate::model::LinkKind> {
+        vec![
+            crate::model::LinkKind::WikiLink {
+                format: crate::model::WikiLinkFormat::AliasFirst,
+            },
+            crate::model::LinkKind::EmbeddedWikiLink {
+                format: crate::model::WikiLinkFormat::AliasFirst,
+            },
+            crate::model::LinkKind::MarkdownLink,
+        ]
     }
 
     fn supported_extensions(&self) -> &[&str] {
