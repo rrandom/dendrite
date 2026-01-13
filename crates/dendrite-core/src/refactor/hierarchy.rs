@@ -9,7 +9,7 @@ pub fn calculate_hierarchy_edits(
     store: &Store,
     identity: &IdentityRegistry,
     content_provider: &dyn ContentProvider,
-    strategy: &dyn SemanticModel,
+    model: &dyn SemanticModel,
     old_prefix: &str,
     new_prefix: &str,
 ) -> Option<EditPlan> {
@@ -18,12 +18,12 @@ pub fn calculate_hierarchy_edits(
 
     // 1. Rename the Root Note (if it exists)
     if let Some(root_id) = identity.lookup(&old_prefix.to_string()) {
-        let new_path = strategy.path_from_note_key(&new_prefix.to_string());
+        let new_path = model.path_from_note_key(&new_prefix.to_string());
         if let Some(plan) = calculate_structural_edits(
             store,
             identity,
             content_provider,
-            strategy,
+            model,
             &root_id,
             new_path,
             new_prefix,
@@ -41,19 +41,19 @@ pub fn calculate_hierarchy_edits(
     for note_id in note_ids {
         let note = store.get_note(&note_id)?;
         if let Some(path) = &note.path {
-            let key = strategy.note_key_from_path(path, "");
+            let key = model.note_key_from_path(path, "");
 
-            if strategy.is_descendant(&key, &old_prefix.to_string()) {
+            if model.is_descendant(&key, &old_prefix.to_string()) {
                 // Calculate new key: "old.child" -> "new.child"
                 let new_key =
-                    strategy.reparent_key(&key, &old_prefix.to_string(), &new_prefix.to_string());
-                let new_path = strategy.path_from_note_key(&new_key);
+                    model.reparent_key(&key, &old_prefix.to_string(), &new_prefix.to_string());
+                let new_path = model.path_from_note_key(&new_key);
 
                 if let Some(plan) = calculate_structural_edits(
                     store,
                     identity,
                     content_provider,
-                    strategy,
+                    model,
                     &note_id,
                     new_path,
                     &new_key,
@@ -103,7 +103,7 @@ mod tests {
     fn test_hierarchy_rename() {
         let mut store = Store::new();
         let mut identity = IdentityRegistry::new();
-        let strategy = DendronModel::new(PathBuf::from(".")); // Use relative root
+        let model = DendronModel::new(PathBuf::from(".")); // Use relative root
 
         // Setup Content
         let mut files = HashMap::new();
@@ -170,7 +170,7 @@ mod tests {
         // 2. "a.b.md" -> "x.b.md"
         // 3. "c.md" links updated: "a" -> "x", "a.b" -> "x.b"
 
-        let plan = calculate_hierarchy_edits(&store, &identity, &provider, &strategy, "a", "x")
+        let plan = calculate_hierarchy_edits(&store, &identity, &provider, &model, "a", "x")
             .expect("Plan generated");
 
         println!("Debug: Plan Edits contains URIs:");

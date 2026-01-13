@@ -1,4 +1,4 @@
-use crate::model::{NoteId, NoteKey, ResolverId};
+use crate::model::{ModelId, NoteId, NoteKey};
 use std::collections::HashMap;
 
 /// NoteKey <=> NoteId
@@ -42,11 +42,11 @@ impl IdentityRegistry {
     }
 
     #[allow(private_interfaces)]
-    pub fn key_of(&self, id: &NoteId) -> Option<(ResolverId, NoteKey)> {
+    pub fn key_of(&self, id: &NoteId) -> Option<(ModelId, NoteKey)> {
         self.id_to_key
             .get(id)
             .cloned()
-            .map(|key| (ResolverId("Dendrite"), key))
+            .map(|key| (ModelId("Dendrite"), key))
     }
 }
 

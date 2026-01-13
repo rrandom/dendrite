@@ -1,6 +1,6 @@
 use super::SemanticModel;
 use crate::{
-    model::{LinkKind, NoteKey, ResolverId, WikiLinkFormat},
+    model::{LinkKind, ModelId, NoteKey, WikiLinkFormat},
     normalize_path_to_id,
 };
 use std::path::{Path, PathBuf};
@@ -16,8 +16,8 @@ impl DendronModel {
 }
 
 impl SemanticModel for DendronModel {
-    fn id(&self) -> ResolverId {
-        ResolverId("Dendron")
+    fn id(&self) -> ModelId {
+        ModelId("Dendron")
     }
 
     /// Get the root path of the workspace.

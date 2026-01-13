@@ -10,19 +10,19 @@ use crate::store::Store;
 /// 3. Model-strict syntax violations (e.g. [[#abc]] in Dendron)
 pub fn calculate_audit_diagnostics(
     store: &Store,
-    strategy: &dyn SemanticModel,
+    model: &dyn SemanticModel,
 ) -> crate::refactor::model::EditPlan {
     use crate::refactor::model::{Diagnostic, DiagnosticSeverity};
     let mut diagnostics = Vec::new();
 
-    let audited_kinds = strategy.audited_link_kinds();
+    let audited_kinds = model.audited_link_kinds();
 
     for note in store.all_notes() {
         // ... (existing read content code)
         let uri = note.path.as_ref().map(|p| p.to_string_lossy().to_string());
 
         for link in &note.links {
-            // Check if strategy wants to audit this link kind
+            // Check if model wants to audit this link kind
             if !audited_kinds.contains(&link.kind) {
                 continue;
             }
@@ -81,7 +81,7 @@ pub fn calculate_audit_diagnostics(
             }
 
             // 3. Model-strict syntax validation (e.g. Dendron bare anchors)
-            if strategy.id().0 == "Dendron" && link.raw_target.starts_with('#') {
+            if model.id().0 == "Dendron" && link.raw_target.starts_with('#') {
                 diagnostics.push(Diagnostic {
                     severity: DiagnosticSeverity::Error,
                     message: format!("Dendron strictly forbids bare anchor links like '{}'. Use '[[note#anchor]]'.", link.raw_target),
@@ -135,8 +135,8 @@ mod tests {
 
         store.upsert_note(note_a);
 
-        let strategy = DendronModel::new(PathBuf::from("/test"));
-        let plan = calculate_audit_diagnostics(&store, &strategy);
+        let model = DendronModel::new(PathBuf::from("/test"));
+        let plan = calculate_audit_diagnostics(&store, &model);
 
         assert_eq!(plan.diagnostics.len(), 1);
         assert!(plan.diagnostics[0].message.contains("Broken link"));
@@ -179,8 +179,8 @@ mod tests {
         store.upsert_note(note_target);
         store.upsert_note(note_a);
 
-        let strategy = DendronModel::new(PathBuf::from("/test"));
-        let plan = calculate_audit_diagnostics(&store, &strategy);
+        let model = DendronModel::new(PathBuf::from("/test"));
+        let plan = calculate_audit_diagnostics(&store, &model);
 
         assert_eq!(plan.diagnostics.len(), 1);
         assert!(plan.diagnostics[0].message.contains("Invalid anchor"));
@@ -210,8 +210,8 @@ mod tests {
 
         store.upsert_note(note_a);
 
-        let strategy = DendronModel::new(PathBuf::from("/test"));
-        let plan = calculate_audit_diagnostics(&store, &strategy);
+        let model = DendronModel::new(PathBuf::from("/test"));
+        let plan = calculate_audit_diagnostics(&store, &model);
 
         // It might have 2 diagnostics: "Invalid anchor" AND "Bare anchor error"
         assert!(plan.diagnostics.len() >= 1);

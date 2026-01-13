@@ -16,7 +16,7 @@ pub(crate) fn calculate_split_edits(
     store: &Store,
     _identity: &IdentityRegistry,
     content_provider: &dyn ContentProvider,
-    strategy: &dyn SemanticModel,
+    model: &dyn SemanticModel,
     source_id: &NoteId,
     selection: TextRange,
     new_note_title: &str,
@@ -33,10 +33,10 @@ pub(crate) fn calculate_split_edits(
     let extracted_text = extract_text(&source_content, selection)?;
 
     // 4. Calculate New Path from Title (Model-Driven)
-    let new_path = strategy.path_from_note_key(&new_note_title.to_string());
+    let new_path = model.path_from_note_key(&new_note_title.to_string());
 
     // 5. Generate Link Text
-    let link_text = strategy.format_wikilink(new_note_title, None, None, false);
+    let link_text = model.format_wikilink(new_note_title, None, None, false);
 
     // 6. Prepare Edits
     let mut edits = Vec::new();
@@ -147,7 +147,7 @@ mod tests {
         let content = "Line 1\nTarget Text\nLine 3".to_string();
         let provider = MockProvider { content };
 
-        let strategy = crate::semantic::DendronModel::new(PathBuf::from("/"));
+        let model = crate::semantic::DendronModel::new(PathBuf::from("/"));
 
         // Selection: "Target Text" (Line 1, Col 0 to Line 1, Col 11)
         let selection = TextRange {
@@ -156,7 +156,7 @@ mod tests {
         };
 
         let plan = calculate_split_edits(
-            &store, &identity, &provider, &strategy, &id_a, selection, "target",
+            &store, &identity, &provider, &model, &id_a, selection, "target",
         )
         .expect("Plan generated");
 

@@ -19,7 +19,7 @@ impl<'a> Indexer<'a> {
 
     /// Performs a full index of the workspace.
     pub fn full_index(&mut self, root: PathBuf) -> Vec<PathBuf> {
-        let extensions = self.workspace.resolver.supported_extensions();
+        let extensions = self.workspace.model.supported_extensions();
         let mut files = Vec::new();
 
         for ext in extensions {
@@ -49,7 +49,7 @@ impl<'a> Indexer<'a> {
 
     /// Updates or creates a note from provided content.
     pub fn update_content(&mut self, path: PathBuf, content: &str) {
-        let new_key = self.workspace.resolver.note_key_from_path(&path, content);
+        let new_key = self.workspace.model.note_key_from_path(&path, content);
 
         let (note_id, old_digest) =
             if let Some(existing_id) = self.workspace.store.note_id_by_path(&path) {
@@ -75,7 +75,7 @@ impl<'a> Indexer<'a> {
             };
 
         // Parse always to get the new digest
-        let parse_result = parse_markdown(content, &self.workspace.resolver.supported_link_kinds());
+        let parse_result = parse_markdown(content, &self.workspace.model.supported_link_kinds());
 
         if let Some(old) = old_digest {
             if old == parse_result.digest {
@@ -84,7 +84,7 @@ impl<'a> Indexer<'a> {
             }
         }
 
-        let note = NoteAssembler::new(&*self.workspace.resolver, &mut self.workspace.identity)
+        let note = NoteAssembler::new(&*self.workspace.model, &mut self.workspace.identity)
             .assemble(parse_result, &path, &note_id);
 
         let targets: Vec<NoteId> = note.links.iter().map(|link| link.target.clone()).collect();
@@ -107,23 +107,16 @@ impl<'a> Indexer<'a> {
             .identity
             .key_of(&old_id)
             .map(|(_, key)| key)
-            .unwrap_or_else(|| {
-                self.workspace
-                    .resolver
-                    .note_key_from_path(&old_path, content)
-            });
+            .unwrap_or_else(|| self.workspace.model.note_key_from_path(&old_path, content));
 
-        let new_key = self
-            .workspace
-            .resolver
-            .note_key_from_path(&new_path, content);
+        let new_key = self.workspace.model.note_key_from_path(&new_path, content);
 
         if old_key != new_key {
             let _ = self.workspace.identity.rebind(&old_key, &new_key);
         }
 
-        let parse_result = parse_markdown(content, &self.workspace.resolver.supported_link_kinds());
-        let note = NoteAssembler::new(&*self.workspace.resolver, &mut self.workspace.identity)
+        let parse_result = parse_markdown(content, &self.workspace.model.supported_link_kinds());
+        let note = NoteAssembler::new(&*self.workspace.model, &mut self.workspace.identity)
             .assemble(parse_result, &new_path, &old_id);
 
         let targets: Vec<NoteId> = note.links.iter().map(|link| link.target.clone()).collect();

@@ -11,8 +11,8 @@ use crate::workspace::Indexer;
 
 fn create_test_workspace() -> (Workspace, TempDir) {
     let temp_dir = TempDir::new().unwrap();
-    let resolver = Box::new(DendronModel::new(temp_dir.path().to_path_buf()));
-    let workspace = Workspace::new(resolver);
+    let model = Box::new(DendronModel::new(temp_dir.path().to_path_buf()));
+    let workspace = Workspace::new(model);
     (workspace, temp_dir)
 }
 
@@ -29,11 +29,11 @@ fn test_parse_note_resolves_links_correctly() {
 
     let note1_path = temp_dir.path().join("note1.md");
     let note1_content = "# Note 1\n\n[[note2]]";
-    let note1_key = ws.resolver.note_key_from_path(&note1_path, note1_content);
+    let note1_key = ws.model.note_key_from_path(&note1_path, note1_content);
     let note1_id = ws.identity.get_or_create(&note1_key);
 
-    let parse_result = parse_markdown(note1_content, &ws.resolver.supported_link_kinds());
-    let note = NoteAssembler::new(&*ws.resolver, &mut ws.identity).assemble(
+    let parse_result = parse_markdown(note1_content, &ws.model.supported_link_kinds());
+    let note = NoteAssembler::new(&*ws.model, &mut ws.identity).assemble(
         parse_result,
         &note1_path,
         &note1_id,
@@ -41,7 +41,7 @@ fn test_parse_note_resolves_links_correctly() {
 
     assert_eq!(note.links.len(), 1, "Should have one link");
 
-    let link_target_key = ws.resolver.note_key_from_link(&note1_key, "note2");
+    let link_target_key = ws.model.note_key_from_link(&note1_key, "note2");
     let note2_key = ws.identity.key_of(&note2_id).map(|(_, k)| k);
 
     assert_eq!(
@@ -227,7 +227,7 @@ fn test_semantic_rename_preserves_note_id() {
     let initial_id = ws.store.note_id_by_path(&old_path).unwrap().clone();
 
     // Semantic rename
-    let old_key = ws.resolver.note_key_from_path(&old_path, "# Old Name");
+    let old_key = ws.model.note_key_from_path(&old_path, "# Old Name");
     let new_key = "new_name".to_string();
     ws.identity.rebind(&old_key, &new_key);
 

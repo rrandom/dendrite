@@ -23,7 +23,7 @@ pub(crate) fn calculate_structural_edits(
     store: &Store,
     identity: &IdentityRegistry,
     content_provider: &dyn ContentProvider,
-    strategy: &dyn SemanticModel,
+    model: &dyn SemanticModel,
     note_id: &NoteId,
     new_path: std::path::PathBuf,
     new_key: &str,
@@ -83,7 +83,7 @@ pub(crate) fn calculate_structural_edits(
                         LinkKind::WikiLink { .. } | LinkKind::EmbeddedWikiLink { .. } => {
                             if is_rename {
                                 needs_update = true;
-                                new_text = strategy.format_wikilink(
+                                new_text = model.format_wikilink(
                                     new_key,
                                     link.alias.as_deref(),
                                     link.anchor.as_deref(),
@@ -109,8 +109,7 @@ pub(crate) fn calculate_structural_edits(
                                     text.push_str(&rel_str);
                                 } else {
                                     // Fallback to simple key-based path
-                                    let ext =
-                                        strategy.supported_extensions().first().unwrap_or(&"md");
+                                    let ext = model.supported_extensions().first().unwrap_or(&"md");
                                     text.push_str(new_key);
                                     text.push('.');
                                     text.push_str(ext);
@@ -259,12 +258,12 @@ mod tests {
 
         let new_key = "C";
         let new_path = PathBuf::from("C.md");
-        let strategy = crate::semantic::DendronModel::new(PathBuf::from("/test"));
+        let model = crate::semantic::DendronModel::new(PathBuf::from("/test"));
         let plan = calculate_structural_edits(
             &store,
             &identity,
             &MockContentProvider,
-            &strategy,
+            &model,
             &id_b,
             new_path,
             new_key,
@@ -313,13 +312,13 @@ mod tests {
 
         let new_key = "A";
         let new_path = PathBuf::from("sub/A.md");
-        let strategy = crate::semantic::DendronModel::new(PathBuf::from("/test"));
+        let model = crate::semantic::DendronModel::new(PathBuf::from("/test"));
 
         let plan = calculate_structural_edits(
             &store,
             &identity,
             &MockContentProvider,
-            &strategy,
+            &model,
             &id_a,
             new_path,
             new_key,
@@ -364,12 +363,12 @@ mod tests {
         store.upsert_note(note_ref.clone());
         store.set_outgoing_links(&id_ref, vec![id_old.clone()]);
 
-        let strategy = crate::semantic::DendronModel::new(PathBuf::from("/test"));
+        let model = crate::semantic::DendronModel::new(PathBuf::from("/test"));
         let plan = calculate_structural_edits(
             &store,
             &identity,
             &MockContentProvider,
-            &strategy,
+            &model,
             &id_old,
             PathBuf::from("New Note.md"),
             "New Note",
@@ -421,12 +420,12 @@ mod tests {
         let new_path = PathBuf::from("archive/Target.md");
         let new_key = "Target";
 
-        let strategy = crate::semantic::DendronModel::new(PathBuf::from("/test"));
+        let model = crate::semantic::DendronModel::new(PathBuf::from("/test"));
         let plan = calculate_structural_edits(
             &store,
             &identity,
             &MockContentProvider,
-            &strategy,
+            &model,
             &id_target,
             new_path,
             new_key,
@@ -481,7 +480,7 @@ mod tests {
         let new_path = PathBuf::from("sub/Target.md");
         let new_key = "Target";
 
-        let strategy = crate::semantic::DendronModel::new(PathBuf::from("/test"));
+        let model = crate::semantic::DendronModel::new(PathBuf::from("/test"));
 
         struct MockProvider;
         impl ContentProvider for MockProvider {
@@ -498,7 +497,7 @@ mod tests {
             &store,
             &identity,
             &MockProvider,
-            &strategy,
+            &model,
             &id_target,
             new_path.clone(),
             new_key,

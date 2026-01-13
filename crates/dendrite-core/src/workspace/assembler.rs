@@ -5,15 +5,15 @@ use crate::semantic::SemanticModel;
 use std::path::PathBuf;
 
 /// Assembler responsible for converting a raw ParseResult into a semantically enriched Note.
-/// It uses a SyntaxStrategy to resolve link targets and an IdentityRegistry to manage IDs.
+/// It uses a SemanticModel to resolve link targets and an IdentityRegistry to manage IDs.
 pub struct NoteAssembler<'a> {
-    strategy: &'a dyn SemanticModel,
+    model: &'a dyn SemanticModel,
     identity: &'a mut IdentityRegistry,
 }
 
 impl<'a> NoteAssembler<'a> {
-    pub fn new(strategy: &'a dyn SemanticModel, identity: &'a mut IdentityRegistry) -> Self {
-        Self { strategy, identity }
+    pub fn new(model: &'a dyn SemanticModel, identity: &'a mut IdentityRegistry) -> Self {
+        Self { model, identity }
     }
 
     /// Assembles a Note from a ParseResult.
@@ -28,7 +28,7 @@ impl<'a> NoteAssembler<'a> {
         path: &PathBuf,
         note_id: &NoteId,
     ) -> Note {
-        let source_key = self.strategy.note_key_from_path(path, "");
+        let source_key = self.model.note_key_from_path(path, "");
 
         Note {
             id: note_id.clone(),
@@ -40,7 +40,7 @@ impl<'a> NoteAssembler<'a> {
                 .links
                 .iter()
                 .map(|link| {
-                    let link_key = self.strategy.note_key_from_link(&source_key, &link.target);
+                    let link_key = self.model.note_key_from_link(&source_key, &link.target);
                     Link {
                         target: self.identity.get_or_create(&link_key),
                         raw_target: link.raw_target.clone(),

@@ -25,7 +25,7 @@ impl Default for NoteId {
 pub type NoteKey = String;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ResolverId(pub &'static str);
+pub struct ModelId(pub &'static str);
 
 /// Core internal coordinate system (0-based)
 /// Does not directly use LSP Position to avoid coupling

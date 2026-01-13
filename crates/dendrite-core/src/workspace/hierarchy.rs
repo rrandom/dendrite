@@ -33,7 +33,7 @@ impl Workspace {
                 .or_else(|| {
                     note.path.as_ref().and_then(|path| {
                         // Try to get key from path (for notes that haven't been indexed yet)
-                        Some(self.resolver.note_key_from_path(path, ""))
+                        Some(self.model.note_key_from_path(path, ""))
                     })
                 });
 
@@ -43,7 +43,7 @@ impl Workspace {
             };
 
             // Get parent key
-            let parent_key = self.resolver.resolve_parent(&note_key);
+            let parent_key = self.model.resolve_parent(&note_key);
 
             if let Some(parent_key) = parent_key {
                 // Try to find parent NoteId
@@ -120,7 +120,7 @@ impl Workspace {
             .or_else(|| {
                 note.path
                     .as_ref()
-                    .map(|path| self.resolver.note_key_from_path(path, ""))
+                    .map(|path| self.model.note_key_from_path(path, ""))
             });
 
         // Get path as URI string
@@ -183,7 +183,7 @@ impl Workspace {
         for note_key in &real_note_keys {
             // recursively find all missing parent nodes
             let mut current_key = note_key.clone();
-            while let Some(parent_key) = self.resolver.resolve_parent(&current_key) {
+            while let Some(parent_key) = self.model.resolve_parent(&current_key) {
                 // if parent node does not exist (neither in real notes, nor in collected virtual keys)
                 if !real_note_keys.contains(&parent_key) && !virtual_keys.contains(&parent_key) {
                     virtual_keys.insert(parent_key.clone());

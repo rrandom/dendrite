@@ -1,4 +1,4 @@
-use crate::model::{Note, NoteKey, ResolverId};
+use crate::model::{ModelId, Note, NoteKey};
 use std::path::{Path, PathBuf};
 
 mod dendron;
@@ -8,7 +8,7 @@ pub use dendron::DendronModel;
 /// Semantic Model: The brain of the vault
 /// Defines how raw files are interpreted as structured knowledge
 pub trait SemanticModel: Send + Sync {
-    fn id(&self) -> ResolverId;
+    fn id(&self) -> ModelId;
 
     /// Get the root path of the workspace
     fn root(&self) -> &Path;

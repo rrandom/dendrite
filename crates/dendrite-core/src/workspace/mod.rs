@@ -21,16 +21,16 @@ pub use vault::Vault;
 pub use vfs::FileSystem;
 
 pub struct Workspace {
-    pub(crate) resolver: Box<dyn SemanticModel>,
+    pub(crate) model: Box<dyn SemanticModel>,
     pub(crate) identity: IdentityRegistry,
     pub(crate) store: Store,
     pub(crate) tree_cache: RwLock<Option<NoteTree>>,
 }
 
 impl Workspace {
-    pub fn new(resolver: Box<dyn SemanticModel>) -> Self {
+    pub fn new(model: Box<dyn SemanticModel>) -> Self {
         Self {
-            resolver,
+            model,
             identity: IdentityRegistry::new(),
             store: Store::new(),
             tree_cache: RwLock::new(None),
@@ -44,13 +44,13 @@ impl Workspace {
 
     /// Resolve the Note Identifier (Key) for a given path.
     pub fn resolve_note_key(&self, path: &std::path::Path) -> Option<String> {
-        let key = self.resolver.note_key_from_path(path, "");
+        let key = self.model.note_key_from_path(path, "");
         Some(key)
     }
 
     /// Get the root path of the workspace
     pub fn root(&self) -> &std::path::Path {
-        self.resolver.root()
+        self.model.root()
     }
 
     /// Initiate a standard Rename Refactoring from old_key to new_key.
@@ -64,15 +64,15 @@ impl Workspace {
         // 1. Lookup ID from Key
         let note_id = self.identity.lookup(&old_key.to_string())?;
 
-        // 2. Calculate New Path (Forward Calculation using SyntaxStrategy)
-        let new_path = self.resolver.path_from_note_key(&new_key.to_string());
+        // 2. Calculate New Path (Forward Calculation using SemanticModel)
+        let new_path = self.model.path_from_note_key(&new_key.to_string());
 
         // 3. Delegate to Core Refactor Engine (Structural only)
         crate::refactor::structural::calculate_structural_edits(
             &self.store,
             &self.identity,
             content_provider,
-            self.resolver.as_ref(),
+            self.model.as_ref(),
             &note_id,
             new_path,
             new_key,
@@ -91,7 +91,7 @@ impl Workspace {
             &self.store,
             &self.identity,
             content_provider,
-            self.resolver.as_ref(),
+            self.model.as_ref(),
             old_key,
             new_key,
         )
@@ -108,14 +108,14 @@ impl Workspace {
         let note_id = self.store.note_id_by_path(&old_path.to_path_buf())?.clone();
 
         // 2. Resolve target Key from Target Path
-        let new_key = self.resolver.note_key_from_path(&new_path, "");
+        let new_key = self.model.note_key_from_path(&new_path, "");
 
         // 3. Delegate to Core Refactor Engine
         crate::refactor::structural::calculate_structural_edits(
             &self.store,
             &self.identity,
             content_provider,
-            self.resolver.as_ref(),
+            self.model.as_ref(),
             &note_id,
             new_path,
             &new_key,
@@ -124,7 +124,7 @@ impl Workspace {
 
     /// Audit the entire workspace for reference graph health.
     pub fn audit(&self) -> crate::refactor::model::EditPlan {
-        crate::refactor::audit::calculate_audit_diagnostics(&self.store, self.resolver.as_ref())
+        crate::refactor::audit::calculate_audit_diagnostics(&self.store, self.model.as_ref())
     }
 
     /// Extract a selection into a new note (Split Note).
@@ -144,7 +144,7 @@ impl Workspace {
             &self.store,
             &self.identity,
             content_provider,
-            self.resolver.as_ref(),
+            self.model.as_ref(),
             &source_id,
             selection,
             new_note_title,
