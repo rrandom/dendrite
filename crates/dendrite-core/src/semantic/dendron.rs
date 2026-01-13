@@ -128,6 +128,13 @@ impl SemanticModel for DendronModel {
         ]
     }
 
+    fn audited_link_kinds(&self) -> Vec<LinkKind> {
+        vec![
+            LinkKind::WikiLink(WikiLinkFormat::AliasFirst),
+            LinkKind::EmbeddedWikiLink(WikiLinkFormat::AliasFirst),
+        ]
+    }
+
     fn supported_extensions(&self) -> &[&str] {
         &["md"]
     }
