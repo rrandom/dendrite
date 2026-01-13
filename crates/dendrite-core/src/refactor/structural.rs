@@ -250,9 +250,7 @@ mod tests {
             alias: None,
             anchor: None,
             range: TextRange::default(),
-            kind: LinkKind::WikiLink {
-                format: crate::model::WikiLinkFormat::AliasFirst,
-            },
+            kind: LinkKind::WikiLink(crate::model::WikiLinkFormat::AliasFirst),
         });
 
         store.upsert_note(note_a.clone());
@@ -359,9 +357,7 @@ mod tests {
             alias: None,
             anchor: Some("^block-id".to_string()),
             range: TextRange::default(),
-            kind: LinkKind::WikiLink {
-                format: crate::model::WikiLinkFormat::AliasFirst,
-            },
+            kind: LinkKind::WikiLink(crate::model::WikiLinkFormat::AliasFirst),
         });
 
         store.upsert_note(note_old);

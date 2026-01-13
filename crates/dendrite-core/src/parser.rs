@@ -36,7 +36,7 @@ pub(crate) fn parse_markdown(text: &str, supported_kinds: &[LinkKind]) -> ParseR
 
     for kind in supported_kinds {
         match kind {
-            LinkKind::WikiLink { format } | LinkKind::EmbeddedWikiLink { format } => {
+            LinkKind::WikiLink(format) | LinkKind::EmbeddedWikiLink(format) => {
                 enable_wikilinks = true;
                 wikilink_format = *format;
             }
@@ -233,13 +233,9 @@ pub(crate) fn parse_markdown(text: &str, supported_kinds: &[LinkKind]) -> ParseR
                             }
                         };
                         let kind = if pending.is_embedded {
-                            LinkKind::EmbeddedWikiLink {
-                                format: wikilink_format,
-                            }
+                            LinkKind::EmbeddedWikiLink(wikilink_format)
                         } else {
-                            LinkKind::WikiLink {
-                                format: wikilink_format,
-                            }
+                            LinkKind::WikiLink(wikilink_format)
                         };
                         (target, alias, kind)
                     } else {
@@ -334,12 +330,8 @@ mod tests {
 
     fn default_kinds() -> Vec<LinkKind> {
         vec![
-            LinkKind::WikiLink {
-                format: WikiLinkFormat::AliasFirst,
-            },
-            LinkKind::EmbeddedWikiLink {
-                format: WikiLinkFormat::AliasFirst,
-            },
+            LinkKind::WikiLink(WikiLinkFormat::AliasFirst),
+            LinkKind::EmbeddedWikiLink(WikiLinkFormat::AliasFirst),
             LinkKind::MarkdownLink,
             // AutoLink not enabled by default for these tests unless specified
         ]

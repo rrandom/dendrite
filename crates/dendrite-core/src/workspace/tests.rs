@@ -953,9 +953,7 @@ fn test_resolve_link_blocks() {
         alias: None,
         anchor: Some("^block-123".to_string()),
         range: Default::default(),
-        kind: LinkKind::WikiLink {
-            format: crate::model::WikiLinkFormat::AliasFirst,
-        },
+        kind: LinkKind::WikiLink(crate::model::WikiLinkFormat::AliasFirst),
     };
 
     let range = ws.resolve_link_anchor(&link).expect("Should resolve block");

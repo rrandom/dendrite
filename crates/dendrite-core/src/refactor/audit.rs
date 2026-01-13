@@ -128,9 +128,7 @@ mod tests {
             alias: None,
             anchor: None,
             range: TextRange::default(),
-            kind: LinkKind::WikiLink {
-                format: crate::model::WikiLinkFormat::AliasFirst,
-            },
+            kind: LinkKind::WikiLink(crate::model::WikiLinkFormat::AliasFirst),
         });
 
         store.upsert_note(note_a);
@@ -173,9 +171,7 @@ mod tests {
             alias: None,
             anchor: Some("NonExistent".to_string()),
             range: TextRange::default(),
-            kind: LinkKind::WikiLink {
-                format: crate::model::WikiLinkFormat::AliasFirst,
-            },
+            kind: LinkKind::WikiLink(crate::model::WikiLinkFormat::AliasFirst),
         });
 
         store.upsert_note(note_target);
@@ -207,9 +203,7 @@ mod tests {
             alias: None,
             anchor: Some("forbidden".to_string()),
             range: TextRange::default(),
-            kind: LinkKind::WikiLink {
-                format: crate::model::WikiLinkFormat::AliasFirst,
-            },
+            kind: LinkKind::WikiLink(crate::model::WikiLinkFormat::AliasFirst),
         });
 
         store.upsert_note(note_a);

@@ -88,8 +88,8 @@ pub enum WikiLinkFormat {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LinkKind {
-    WikiLink { format: WikiLinkFormat },
-    EmbeddedWikiLink { format: WikiLinkFormat },
+    WikiLink(WikiLinkFormat),
+    EmbeddedWikiLink(WikiLinkFormat),
     MarkdownLink,  // [label](target)
     MarkdownImage, // ![alt](target)
     AutoLink,      // <http://example.com>
@@ -97,9 +97,7 @@ pub enum LinkKind {
 
 impl Default for LinkKind {
     fn default() -> Self {
-        Self::WikiLink {
-            format: WikiLinkFormat::default(),
-        }
+        Self::WikiLink(WikiLinkFormat::default())
     }
 }
 

@@ -142,9 +142,7 @@ mod tests {
         note_c.links.push(Link {
             target: id_a.clone(),
             raw_target: "a".to_string(),
-            kind: LinkKind::WikiLink {
-                format: crate::model::WikiLinkFormat::AliasFirst,
-            },
+            kind: LinkKind::WikiLink(crate::model::WikiLinkFormat::AliasFirst),
             range: TextRange {
                 start: Point { line: 0, col: 7 },
                 end: Point { line: 0, col: 12 },
@@ -154,9 +152,7 @@ mod tests {
         note_c.links.push(Link {
             target: id_ab.clone(),
             raw_target: "a.b".to_string(),
-            kind: LinkKind::WikiLink {
-                format: crate::model::WikiLinkFormat::AliasFirst,
-            },
+            kind: LinkKind::WikiLink(crate::model::WikiLinkFormat::AliasFirst),
             range: TextRange {
                 start: Point { line: 0, col: 14 },
                 end: Point { line: 0, col: 21 },

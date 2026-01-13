@@ -44,15 +44,7 @@ pub trait SemanticModel: Send + Sync {
 
     /// Supported link kinds for this strategy
     fn supported_link_kinds(&self) -> Vec<crate::model::LinkKind> {
-        vec![
-            crate::model::LinkKind::WikiLink {
-                format: crate::model::WikiLinkFormat::AliasFirst,
-            },
-            crate::model::LinkKind::EmbeddedWikiLink {
-                format: crate::model::WikiLinkFormat::AliasFirst,
-            },
-            crate::model::LinkKind::MarkdownLink,
-        ]
+        vec![]
     }
 
     // --- Extension Points ---

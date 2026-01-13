@@ -1,6 +1,6 @@
 use super::SemanticModel;
 use crate::{
-    model::{NoteKey, ResolverId},
+    model::{LinkKind, NoteKey, ResolverId, WikiLinkFormat},
     normalize_path_to_id,
 };
 use std::path::{Path, PathBuf};
@@ -120,15 +120,11 @@ impl SemanticModel for DendronModel {
         out
     }
 
-    fn supported_link_kinds(&self) -> Vec<crate::model::LinkKind> {
+    fn supported_link_kinds(&self) -> Vec<LinkKind> {
         vec![
-            crate::model::LinkKind::WikiLink {
-                format: crate::model::WikiLinkFormat::AliasFirst,
-            },
-            crate::model::LinkKind::EmbeddedWikiLink {
-                format: crate::model::WikiLinkFormat::AliasFirst,
-            },
-            crate::model::LinkKind::MarkdownLink,
+            LinkKind::WikiLink(WikiLinkFormat::AliasFirst),
+            LinkKind::EmbeddedWikiLink(WikiLinkFormat::AliasFirst),
+            LinkKind::MarkdownLink,
         ]
     }
 
