@@ -40,7 +40,19 @@ impl<'a> NoteAssembler<'a> {
                 .links
                 .iter()
                 .map(|link| {
-                    let link_key = self.model.note_key_from_link(&source_key, &link.target);
+                    // Handle self-reference links: [[#anchor]]
+                    // When target is empty AND anchor is present, link to current note
+                    let link_key = if link.target.is_empty() && link.anchor.is_some() {
+                        // Self-reference: [[#anchor]]
+                        source_key.clone()
+                    } else if link.target.is_empty() {
+                        // Invalid: [[]] without anchor - fallback to source
+                        // TODO: Consider logging a warning
+                        source_key.clone()
+                    } else {
+                        self.model.note_key_from_link(&source_key, &link.target)
+                    };
+
                     Link {
                         target: self.identity.get_or_create(&link_key),
                         raw_target: link.raw_target.clone(),

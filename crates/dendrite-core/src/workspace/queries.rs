@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use crate::model::Point;
 use crate::model::{Link, Note, NoteKey, TextRange};
 
+use crate::slugify_heading;
+
 use super::Workspace;
 
 impl Workspace {
@@ -44,10 +46,10 @@ impl Workspace {
                 .find(|b| b.id == block_id)
                 .map(|b| b.range)
         } else {
-            // Heading anchor
+            // Heading anchor - use slugified comparison
             note.headings
                 .iter()
-                .find(|h| h.text == *anchor)
+                .find(|h| slugify_heading(&h.text) == *anchor)
                 .map(|h| h.range)
         }
     }

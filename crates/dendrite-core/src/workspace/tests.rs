@@ -899,16 +899,16 @@ fn test_resolve_link_anchor() {
 
     let target_id = ws.store.note_id_by_path(&target_path).unwrap().clone();
 
-    // Create source note with links to anchors
+    // Create source note with links to anchors (using slugified form)
     let source_path = temp_dir.path().join("source.md");
-    let source_content = "[[target#Heading 1]], [[target#^block-2]]";
+    let source_content = "[[target#heading-1]], [[target#^block-2]]";
     fs::write(&source_path, source_content).unwrap();
     Indexer::new(&mut ws, &fs_backend).update_content(source_path.clone(), source_content);
 
     let note = ws.note_by_path(&source_path).unwrap();
     assert_eq!(note.links.len(), 2);
 
-    // 1. Resolve Heading 1
+    // 1. Resolve Heading 1 (slugified: "heading-1")
     let range1 = ws.resolve_link_anchor(&note.links[0]).unwrap();
     assert_eq!(range1.start.line, 0);
     assert_eq!(range1.start.col, 0);

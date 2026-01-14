@@ -1,5 +1,6 @@
 use crate::refactor::model::{EditPlan, RefactorKind};
 use crate::semantic::SemanticModel;
+use crate::slugify_heading;
 use crate::store::Store;
 
 /// Audit the entire workspace for reference graph health.
@@ -60,8 +61,12 @@ pub fn calculate_audit_diagnostics(
                             found = true;
                         }
                     } else {
-                        // Heading or Section
-                        if target.headings.iter().any(|h| h.text == *anchor) {
+                        // Heading anchor - use slugified comparison
+                        if target
+                            .headings
+                            .iter()
+                            .any(|h| slugify_heading(&h.text) == *anchor)
+                        {
                             found = true;
                         }
                     }
@@ -81,10 +86,18 @@ pub fn calculate_audit_diagnostics(
             }
 
             // 3. Model-strict syntax validation (e.g. Dendron bare anchors)
-            if model.id().0 == "Dendron" && link.raw_target.starts_with('#') {
+            // Bare anchor: [[#foo]] is VALID as self-reference
+            // Invalid: bare anchor without target in non-self-reference context
+            if model.id().0 == "Dendron"
+                && link.raw_target.starts_with('#')
+                && link.target != note.id
+            {
                 diagnostics.push(Diagnostic {
                     severity: DiagnosticSeverity::Error,
-                    message: format!("Dendron strictly forbids bare anchor links like '{}'. Use '[[note#anchor]]'.", link.raw_target),
+                    message: format!(
+                        "Dendron strictly forbids bare anchor links like '{}'. Use '[[note#anchor]]'.",
+                        link.raw_target
+                    ),
                     uri: uri.clone(),
                     range: Some(link.range.clone()),
                 });
@@ -199,8 +212,10 @@ mod tests {
             ..Default::default()
         };
 
+        // Self-reference link: [[#forbidden]] is VALID in Dendron
+        // This should NOT trigger the bare anchor error
         note_a.links.push(Link {
-            target: id_a.clone(),
+            target: id_a.clone(), // Self-reference
             raw_target: "#forbidden".to_string(),
             alias: None,
             anchor: Some("forbidden".to_string()),
@@ -213,11 +228,11 @@ mod tests {
         let model = DendronModel::new(PathBuf::from("/test"));
         let plan = calculate_audit_diagnostics(&store, &model);
 
-        // It might have 2 diagnostics: "Invalid anchor" AND "Bare anchor error"
-        assert!(plan.diagnostics.len() >= 1);
+        // Self-reference should NOT trigger bare anchor error
+        // It may trigger "Invalid anchor" if 'forbidden' heading doesn't exist
         assert!(plan
             .diagnostics
             .iter()
-            .any(|d| d.message.contains("strictly forbids bare anchor")));
+            .all(|d| !d.message.contains("strictly forbids bare anchor")));
     }
 }
