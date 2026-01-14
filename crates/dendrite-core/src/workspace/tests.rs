@@ -904,7 +904,6 @@ fn test_resolve_link_anchor() {
     let source_content = "[[target#heading-1]], [[target#^block-2]]";
     fs::write(&source_path, source_content).unwrap();
     Indexer::new(&mut ws, &fs_backend).update_content(source_path.clone(), source_content);
-
     let note = ws.note_by_path(&source_path).unwrap();
     assert_eq!(note.links.len(), 2);
 
@@ -958,4 +957,48 @@ fn test_resolve_link_blocks() {
 
     let range = ws.resolve_link_anchor(&link).expect("Should resolve block");
     assert_eq!(range.start.line, 2);
+}
+
+#[test]
+fn test_resolve_reserved_anchors() {
+    let (mut ws, temp_dir) = create_test_workspace();
+    let fs = PhysicalFileSystem;
+
+    // Create target note with headings
+    let target_path = temp_dir.path().join("target.md");
+    let target_content = r#"This is the intro before any headings.
+
+# Heading 1
+Content under heading 1.
+
+## Heading 2
+Content under heading 2."#;
+    fs::write(&target_path, target_content).unwrap();
+    Indexer::new(&mut ws, &fs).update_content(target_path.clone(), target_content);
+
+    let target_id = ws.store.note_id_by_path(&target_path).unwrap().clone();
+
+    // Test ^begin anchor
+    let begin_link = Link {
+        target: target_id.clone(),
+        raw_target: "target".to_string(),
+        alias: None,
+        anchor: Some("^begin".to_string()),
+        range: Default::default(),
+        kind: LinkKind::WikiLink(crate::model::WikiLinkFormat::AliasFirst),
+    };
+    let begin_range = ws.resolve_link_anchor(&begin_link).unwrap();
+    assert_eq!(begin_range.start.line, 0);
+
+    // Test ^end anchor
+    let end_link = Link {
+        target: target_id,
+        raw_target: "target".to_string(),
+        alias: None,
+        anchor: Some("^end".to_string()),
+        range: Default::default(),
+        kind: LinkKind::WikiLink(crate::model::WikiLinkFormat::AliasFirst),
+    };
+    let end_range = ws.resolve_link_anchor(&end_link).unwrap();
+    assert!(end_range.start.line > 0);
 }

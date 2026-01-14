@@ -38,8 +38,45 @@ impl Workspace {
         let note = self.store.get_note(&link.target)?;
         let anchor = link.anchor.as_ref()?;
 
+        // Handle reserved anchors
+        match anchor.as_str() {
+            "^begin" => {
+                // Reference from document start to first heading
+                let end = note
+                    .headings
+                    .first()
+                    .map(|h| h.range.start)
+                    .unwrap_or(Point {
+                        line: 9999,
+                        col: 0,
+                    });
+                return Some(TextRange {
+                    start: Point { line: 0, col: 0 },
+                    end,
+                });
+            }
+            "^end" => {
+                // Reference from last element to document end
+                let start = note
+                    .headings
+                    .last()
+                    .map(|h| h.range.end)
+                    .or_else(|| note.blocks.last().map(|b| b.range.end))
+                    .unwrap_or(Point { line: 0, col: 0 });
+                return Some(TextRange {
+                    start,
+                    end: Point {
+                        line: 9999,
+                        col: 0,
+                    },
+                });
+            }
+            _ => {}
+        }
+
+        // Standard anchor resolution
         if anchor.starts_with('^') {
-            // Block anchor
+            // Block anchor - strip ^ prefix before comparing
             let block_id = &anchor[1..];
             note.blocks
                 .iter()

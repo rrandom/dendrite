@@ -54,10 +54,13 @@ pub fn calculate_audit_diagnostics(
                 if let (Some(target), Some(anchor)) = (target_note, &link.anchor) {
                     let mut found = false;
 
-                    // Check headings
-                    if anchor.starts_with('^') {
-                        // Block ID
-                        if target.blocks.iter().any(|b| b.id == *anchor) {
+                    // Reserved anchors (always valid)
+                    if anchor == "^begin" || anchor == "^end" {
+                        found = true;
+                    } else if anchor.starts_with('^') {
+                        // Block anchor - strip ^ prefix before comparing
+                        let block_id = &anchor[1..];
+                        if target.blocks.iter().any(|b| b.id == block_id) {
                             found = true;
                         }
                     } else {
