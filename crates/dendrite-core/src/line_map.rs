@@ -17,13 +17,19 @@ impl LineMap {
 
     pub fn offset_to_point(&self, text: &str, offset: usize) -> Point {
         match self.line_starts.binary_search(&offset) {
-            Ok(line) => Point { line: line as u32, col: 0 },
+            Ok(line) => Point {
+                line: line as u32,
+                col: 0,
+            },
             Err(next_line_idx) => {
                 let line = next_line_idx - 1;
                 let line_start = self.line_starts[line];
                 let line_text = &text[line_start..offset];
                 let col = line_text.encode_utf16().count();
-                Point { line: line as u32, col: col as u32 }
+                Point {
+                    line: line as u32,
+                    col: col as u32,
+                }
             }
         }
     }
