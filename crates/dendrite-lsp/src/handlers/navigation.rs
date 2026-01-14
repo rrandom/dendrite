@@ -129,21 +129,21 @@ pub async fn handle_hover(
                     range.start.line
                 } else {
                     // Find the line where note.content_offset falls
-                    let mut current_offset = 0;
-                    let mut found_line = 0;
+                    let mut current_offset = 0u32;
+                    let mut found_line = 0u32;
                     for (i, line) in lines.iter().enumerate() {
                         if current_offset >= note.content_offset {
-                            found_line = i;
+                            found_line = i as u32;
                             break;
                         }
-                        current_offset += line.len() + 1; // +1 for newline
+                        current_offset += (line.len() + 1) as u32; // +1 for newline
                     }
                     found_line
                 };
 
                 let preview: String = lines
                     .iter()
-                    .skip(start_line)
+                    .skip(start_line as usize)
                     .take(10)
                     .cloned()
                     .collect::<Vec<&str>>()

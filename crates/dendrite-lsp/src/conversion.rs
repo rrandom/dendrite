@@ -77,16 +77,16 @@ pub fn core_diagnostic_to_lsp_diagnostic(
 /// Core uses 0-based line and column (UTF-8 byte offsets)
 pub fn lsp_position_to_point(position: Position) -> Point {
     Point {
-        line: position.line as usize,
-        col: position.character as usize,
+        line: position.line,
+        col: position.character,
     }
 }
 
 /// Convert Core Point to LSP Position
 pub fn point_to_lsp_position(point: Point) -> Position {
     Position {
-        line: point.line as u32,
-        character: point.col as u32,
+        line: point.line,
+        character: point.col,
     }
 }
 

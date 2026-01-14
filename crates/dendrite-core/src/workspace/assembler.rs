@@ -35,7 +35,7 @@ impl<'a> NoteAssembler<'a> {
             path: Some(path.clone()),
             title: parse_result.title,
             frontmatter: parse_result.frontmatter,
-            content_offset: parse_result.content_start_offset,
+            content_offset: parse_result.content_start_offset as u32,
             links: parse_result
                 .links
                 .iter()

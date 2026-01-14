@@ -116,12 +116,12 @@ pub async fn handle_split_note_command(
     // Convert Range to TextRange
     let text_range = TextRange {
         start: dendrite_core::model::Point {
-            line: range.start.line as usize,
-            col: range.start.character as usize,
+            line: range.start.line,
+            col: range.start.character,
         },
         end: dendrite_core::model::Point {
-            line: range.end.line as usize,
-            col: range.end.character as usize,
+            line: range.end.line,
+            col: range.end.character,
         },
     };
 

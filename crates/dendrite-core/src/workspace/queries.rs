@@ -47,7 +47,7 @@ impl Workspace {
                     .first()
                     .map(|h| h.range.start)
                     .unwrap_or(Point {
-                        line: 9999,
+                        line: u32::MAX,
                         col: 0,
                     });
                 return Some(TextRange {
@@ -66,7 +66,7 @@ impl Workspace {
                 return Some(TextRange {
                     start,
                     end: Point {
-                        line: 9999,
+                        line: u32::MAX,
                         col: 0,
                     },
                 });

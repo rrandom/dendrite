@@ -28,11 +28,11 @@ pub type NoteKey = String;
 pub struct ModelId(pub &'static str);
 
 /// Core internal coordinate system (0-based)
-/// Does not directly use LSP Position to avoid coupling
+/// Uses u32 to match LSP Position type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Point {
-    pub line: usize,
-    pub col: usize,
+    pub line: u32,
+    pub col: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -61,7 +61,7 @@ pub struct Note {
     pub path: Option<PathBuf>,
     pub title: Option<String>,
     pub frontmatter: Option<serde_json::Value>,
-    pub content_offset: usize,
+    pub content_offset: u32,
     pub links: Vec<Link>,
     pub headings: Vec<Heading>,
     pub blocks: Vec<Block>,

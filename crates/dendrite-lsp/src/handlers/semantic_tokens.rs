@@ -51,8 +51,8 @@ pub async fn handle_semantic_tokens_full(
     });
 
     for link in links {
-        let line = link.range.start.line as u32;
-        let start = link.range.start.col as u32;
+        let line = link.range.start.line;
+        let start = link.range.start.col;
 
         // Calculate length in characters (this is rough for UTF-8 vs UTF-16,
         // but for wikilinks without complex unicode it should be okay)
