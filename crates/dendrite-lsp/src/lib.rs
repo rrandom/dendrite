@@ -93,11 +93,23 @@ impl Backend {
                 handlers::handle_split_note_command(&self.client, &self.state, params).await
             }
             "dendrite/reorganizeHierarchy" => {
-                handlers::handle_reorganize_hierarchy_command(&self.client, &self.state, params)
-                    .await
+                handlers::hierarchy::handle_reorganize_hierarchy_command(
+                    &self.client,
+                    &self.state,
+                    params,
+                )
+                .await
             }
             "dendrite/workspaceAudit" => {
                 handlers::handle_workspace_audit_command(&self.client, &self.state, params).await
+            }
+            "dendrite/resolveHierarchyEdits" => {
+                handlers::hierarchy::handle_resolve_hierarchy_edits(
+                    &self.client,
+                    &self.state,
+                    params,
+                )
+                .await
             }
             _ => Err(Error {
                 code: ErrorCode::MethodNotFound,

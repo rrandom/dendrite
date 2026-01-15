@@ -753,4 +753,58 @@ mod tests {
             panic!("diagnostics should be an array");
         }
     }
+
+    #[tokio::test]
+    async fn test_resolve_hierarchy_edits() {
+        let (backend, temp_dir) = setup_test_context().await;
+        let client = &backend.client;
+        let state = &backend.state;
+
+        let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+        let params = create_initialize_params(root_uri.clone());
+        handlers::handle_initialize(client, state, params)
+            .await
+            .unwrap();
+
+        // 1. Create hierarchy: projects.active.one
+        let note_path = temp_dir.path().join("projects.active.one.md");
+        fs::write(&note_path, "# One").unwrap();
+        let note_uri = Url::from_file_path(&note_path).unwrap();
+
+        handlers::handle_did_open(
+            state,
+            DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: note_uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 0,
+                    text: "# One".to_string(),
+                },
+            },
+        )
+        .await;
+
+        // 2. Call dendrite/resolveHierarchyEdits
+        // Old: projects.active -> New: archive.projects
+        let params = ExecuteCommandParams {
+            command: "dendrite/resolveHierarchyEdits".to_string(),
+            arguments: vec![
+                serde_json::to_value("projects.active").unwrap(),
+                serde_json::to_value("archive.projects").unwrap(),
+            ],
+            ..Default::default()
+        };
+
+        let result = backend.handle_execute_command(params).await.unwrap();
+        assert!(result.is_some());
+        
+        let moves: Vec<(String, String)> = serde_json::from_value(result.unwrap()).unwrap();
+
+        // Expect: projects.active.one -> archive.projects.one
+        assert!(!moves.is_empty(), "Should return at least one move");
+        
+        let (old_k, new_k) = &moves[0];
+        assert_eq!(old_k, "projects.active.one");
+        assert_eq!(new_k, "archive.projects.one");
+    }
 }

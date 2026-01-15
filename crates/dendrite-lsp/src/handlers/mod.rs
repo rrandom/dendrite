@@ -1,5 +1,5 @@
 mod completion;
-mod hierarchy;
+pub mod hierarchy;
 mod lifecycle;
 mod lookup;
 mod navigation;

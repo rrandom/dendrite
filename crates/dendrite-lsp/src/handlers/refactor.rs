@@ -97,36 +97,6 @@ pub async fn handle_split_note_command(
     }
 }
 
-pub async fn handle_reorganize_hierarchy_command(
-    client: &Client,
-    state: &GlobalState,
-    params: ExecuteCommandParams,
-) -> Result<Option<serde_json::Value>> {
-    // Arguments: [old_key, new_key]
-    if params.arguments.len() < 2 {
-        return Err(Error::invalid_params(
-            "Missing arguments: [old_key, new_key]",
-        ));
-    }
-
-    let old_key: String = serde_json::from_value(params.arguments[0].clone())
-        .map_err(|_| Error::invalid_params("Invalid old_key"))?;
-    let new_key: String = serde_json::from_value(params.arguments[1].clone())
-        .map_err(|_| Error::invalid_params("Invalid new_key"))?;
-
-    let vault_guard = state.vault.read().await;
-    let vault = vault_guard.as_ref().ok_or_else(Error::internal_error)?;
-
-    let plan = vault.rename_hierarchy(&old_key, &new_key);
-
-    if let Some(plan) = plan {
-        apply_edit_plan(client, plan).await?;
-        Ok(Some(serde_json::Value::Bool(true)))
-    } else {
-        Ok(Some(serde_json::Value::Bool(false)))
-    }
-}
-
 pub async fn handle_workspace_audit_command(
     client: &Client,
     state: &GlobalState,
@@ -167,7 +137,7 @@ pub async fn handle_workspace_audit_command(
 }
 
 /// Helper to apply EditPlan via WorkspaceEdit
-async fn apply_edit_plan(client: &Client, plan: EditPlan) -> Result<()> {
+pub(crate) async fn apply_edit_plan(client: &Client, plan: EditPlan) -> Result<()> {
     let workspace_edit = crate::conversion::edit_plan_to_workspace_edit(plan);
 
     client
