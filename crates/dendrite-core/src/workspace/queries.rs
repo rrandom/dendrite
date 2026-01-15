@@ -134,4 +134,11 @@ impl Workspace {
             })
             .collect()
     }
+
+    /// Lookup a note by its Note Key
+    pub fn lookup_note(&self, key: &str) -> Option<&Note> {
+        self.identity
+            .lookup(&key.to_string())
+            .and_then(|id| self.store.get_note(&id))
+    }
 }
