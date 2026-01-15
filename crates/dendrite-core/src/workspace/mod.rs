@@ -7,7 +7,7 @@ use crate::store::Store;
 pub mod vfs;
 
 mod assembler;
-mod hierarchy;
+mod note_tree;
 mod indexer;
 mod queries;
 mod vault;
@@ -15,7 +15,7 @@ mod vault;
 #[cfg(test)]
 mod tests;
 
-use hierarchy::NoteTree;
+use note_tree::NoteTree;
 pub use indexer::Indexer;
 pub use vault::Vault;
 pub use vfs::FileSystem;

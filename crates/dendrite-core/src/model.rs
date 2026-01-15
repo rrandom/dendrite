@@ -108,7 +108,7 @@ pub struct NoteRef {
     /// Note ID as string (UUID)
     pub id: String,
     /// Note key (e.g., "foo.bar")
-    pub key: Option<String>,
+    pub key: Option<NoteKey>,
     /// File path as URI string
     pub path: Option<String>,
     /// Note title
