@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { workspace, ExtensionContext, window } from 'vscode';
+import { workspace, ExtensionContext, window, ProgressLocation } from 'vscode';
 import {
     LanguageClient,
     LanguageClientOptions,
@@ -67,27 +67,40 @@ export function activate(context: ExtensionContext) {
     );
 
     // Start client and register TreeView and Commands after it's ready
-    client.start().then(() => {
-        // Register Tree View
-        const treeDataProvider = registerTreeView(context, client);
+    window.withProgress({
+        location: ProgressLocation.Notification,
+        title: "Dendrite",
+        cancellable: false
+    }, async (progress) => {
+        progress.report({ message: "Starting..." });
+        
+        try {
+            await client.start();
+            
+            // Register Tree View
+            const treeDataProvider = registerTreeView(context, client);
+    
+            // Listen for hierarchy changes from server (e.g. external edits via git)
+            client.onNotification('dendrite/hierarchyChanged', () => {
+                console.log('[Dendrite Client] Received hierarchyChanged notification. Refreshing tree.');
+                treeDataProvider.refresh();
+            });
+    
+            // Register Commands
+            context.subscriptions.push(
+                registerRenameNoteCommand(client),
+                registerUndoCommand(client),
+                registerSplitNoteCommand(client),
+                registerReorganizeHierarchyCommand(client),
+                registerAuditCommand(client)
+            );
 
-        // Listen for hierarchy changes from server (e.g. external edits via git)
-        client.onNotification('dendrite/hierarchyChanged', () => {
-            console.log('[Dendrite Client] Received hierarchyChanged notification. Refreshing tree.');
-            treeDataProvider.refresh();
-        });
-
-        // Register Commands
-        context.subscriptions.push(
-            registerRenameNoteCommand(client),
-            registerUndoCommand(client),
-            registerSplitNoteCommand(client),
-            registerReorganizeHierarchyCommand(client),
-            registerAuditCommand(client)
-        );
-
-    }).catch((error) => {
-        window.showErrorMessage(`Failed to start Dendrite server: ${error}`);
+            progress.report({ message: "Started" });
+            // Keep the "Started" message visible briefly
+            await new Promise(resolve => setTimeout(resolve, 1500));
+        } catch (error) {
+           window.showErrorMessage(`Failed to start Dendrite server: ${error}`);
+        }
     });
 }
 
