@@ -44,7 +44,7 @@ pub fn calculate_audit_diagnostics(
                     severity: DiagnosticSeverity::Error,
                     message: "Broken link: Target note not found.".to_string(),
                     uri: uri.clone(),
-                    range: Some(link.range.clone()),
+                    range: Some(link.range),
                 });
                 is_broken = true;
             }
@@ -82,7 +82,7 @@ pub fn calculate_audit_diagnostics(
                                 anchor
                             ),
                             uri: uri.clone(),
-                            range: Some(link.range.clone()),
+                            range: Some(link.range),
                         });
                     }
                 }
@@ -102,7 +102,7 @@ pub fn calculate_audit_diagnostics(
                         link.raw_target
                     ),
                     uri: uri.clone(),
-                    range: Some(link.range.clone()),
+                    range: Some(link.range),
                 });
             }
         }

@@ -140,7 +140,7 @@ pub(crate) fn calculate_structural_edits(
                         }
 
                         changes.push(Change::TextEdit(TextEdit {
-                            range: link.range.clone(),
+                            range: link.range,
                             new_text,
                             undo_text,
                         }));

@@ -3,6 +3,19 @@ use crate::vfs::FileSystem;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+/// The Vault acts as the high-level Facade for the Dendrite Core.
+///
+/// # Architecture Decision: Action vs Query Separation
+///
+/// *   **Actions (Write/Refactor)**: Unified in `Vault`.
+///     All operations that modify state (File Sync) or calculate changes (Refactoring)
+///     SHOULD happen through methods on `Vault`. This ensures a single entry point for
+///     business logic that may involve the FileSystem or Side Effects.
+///
+/// *   **Queries (Read)**: Access `vault.workspace` directly.
+///     Read-only operations (resolving keys, looking up notes, graph traversal) DO NOT
+///     need to be wrapped in `Vault`. Callers should access `vault.workspace` directly.
+///     This avoids boilerplate and keeps the API surface clean.
 pub struct Vault {
     pub workspace: Workspace,
     pub fs: Arc<dyn FileSystem>,
@@ -52,6 +65,28 @@ impl Vault {
         new_path: std::path::PathBuf,
     ) -> Option<crate::refactor::model::EditPlan> {
         self.workspace.move_note(self, old_path, new_path)
+    }
+
+    pub fn rename_hierarchy(
+        &self,
+        old_key: &str,
+        new_key: &str,
+    ) -> Option<crate::refactor::model::EditPlan> {
+        self.workspace.rename_hierarchy(self, old_key, new_key)
+    }
+
+    pub fn split_note(
+        &self,
+        source_path: &std::path::Path,
+        selection: crate::model::TextRange,
+        new_note_title: &str,
+    ) -> Option<crate::refactor::model::EditPlan> {
+        self.workspace
+            .split_note(self, source_path, selection, new_note_title)
+    }
+
+    pub fn audit(&self) -> crate::refactor::model::EditPlan {
+        self.workspace.audit()
     }
 }
 

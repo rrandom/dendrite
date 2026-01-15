@@ -1,42 +1,10 @@
 use crate::state::GlobalState;
 use dendrite_core::model::TextRange;
-use dendrite_core::refactor::model::{ContentProvider, EditPlan};
+use dendrite_core::refactor::model::EditPlan;
 use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
 use tower_lsp::jsonrpc::{Error, ErrorCode, Result};
 use tower_lsp::lsp_types::*;
 use tower_lsp::Client;
-
-/// Helper to provide content from LSP cache or FS
-struct LspContentProvider {
-    cache: HashMap<Url, String>,
-    fs: Arc<dyn dendrite_core::vfs::FileSystem>,
-    root_path: PathBuf,
-}
-
-impl ContentProvider for LspContentProvider {
-    fn get_content(&self, uri: &str) -> Option<String> {
-        // 1. Try to resolve URI to URL if possible, or check cache
-        // uri is likely a relative path string "foo.md" or absolute "c:/..."
-
-        // Try looking up in cache by constructing absolute path
-        let path = if std::path::Path::new(uri).is_absolute() {
-            PathBuf::from(uri)
-        } else {
-            self.root_path.join(uri)
-        };
-
-        if let Ok(url) = Url::from_file_path(&path) {
-            if let Some(content) = self.cache.get(&url) {
-                return Some(content.clone());
-            }
-        }
-
-        // 2. Fallback to FS
-        self.fs.read_to_string(&path).ok()
-    }
-}
 
 pub async fn handle_code_action(
     _client: &Client,
@@ -93,11 +61,7 @@ pub async fn handle_split_note_command(
     let vault_guard = state.vault.read().await;
     let vault = vault_guard
         .as_ref()
-        .ok_or_else(|| Error::internal_error())?;
-
-    // Core logic needs sync access. Snapshot content.
-    let cache_snapshot = state.document_cache.read().await.clone();
-    let fs = state.fs.clone();
+        .ok_or_else(Error::internal_error)?;
 
     let source_path = source_uri
         .to_file_path()
@@ -125,21 +89,7 @@ pub async fn handle_split_note_command(
         },
     };
 
-    let root_path_clone = if let Ok(path) = source_uri.to_file_path() {
-        path.parent().unwrap_or(&path).to_path_buf()
-    } else {
-        PathBuf::from("/")
-    };
-
-    let provider = LspContentProvider {
-        cache: cache_snapshot,
-        fs,
-        root_path: root_path_clone,
-    };
-
-    let plan = vault
-        .workspace
-        .split_note(&provider, &source_path, text_range, &new_note_name);
+    let plan = vault.split_note(&source_path, text_range, &new_note_name);
 
     if let Some(plan) = plan {
         apply_edit_plan(client, plan).await?;
@@ -169,23 +119,9 @@ pub async fn handle_reorganize_hierarchy_command(
     let vault_guard = state.vault.read().await;
     let vault = vault_guard
         .as_ref()
-        .ok_or_else(|| Error::internal_error())?;
+        .ok_or_else(Error::internal_error)?;
 
-    let cache_snapshot = state.document_cache.read().await.clone();
-    let fs = state.fs.clone();
-
-    // Hack: Use CWD for root
-    let root_path_clone = std::env::current_dir().unwrap_or(PathBuf::from("/"));
-
-    let provider = LspContentProvider {
-        cache: cache_snapshot,
-        fs,
-        root_path: root_path_clone,
-    };
-
-    let plan = vault
-        .workspace
-        .rename_hierarchy(&provider, &old_key, &new_key);
+    let plan = vault.rename_hierarchy(&old_key, &new_key);
 
     if let Some(plan) = plan {
         apply_edit_plan(client, plan).await?;
@@ -203,9 +139,9 @@ pub async fn handle_workspace_audit_command(
     let vault_guard = state.vault.read().await;
     let vault = vault_guard
         .as_ref()
-        .ok_or_else(|| Error::internal_error())?;
+        .ok_or_else(Error::internal_error)?;
 
-    let report = vault.workspace.audit();
+    let report = vault.audit();
 
     // Group diagnostics by URI
     let mut diagnostics_map: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
@@ -244,7 +180,7 @@ async fn apply_edit_plan(client: &Client, plan: EditPlan) -> Result<()> {
         .apply_edit(workspace_edit)
         .await?
         .applied
-        .then(|| ())
+        .then_some(())
         .ok_or_else(|| Error {
             code: ErrorCode::InternalError,
             message: "Client failed to apply workspace edit".into(),

@@ -103,12 +103,12 @@ impl Workspace {
     }
 
     pub fn backlinks_of(&self, path: &PathBuf) -> Vec<PathBuf> {
-        let Some(id) = self.store.note_id_by_path(&path) else {
+        let Some(id) = self.store.note_id_by_path(path) else {
             return vec![];
         };
 
         self.store
-            .backlinks_of(&id)
+            .backlinks_of(id)
             .iter()
             .filter_map(|backlink_id| {
                 self.store

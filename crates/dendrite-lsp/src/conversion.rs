@@ -31,7 +31,7 @@ pub fn core_diagnostic_to_lsp_diagnostic(
                 Url::from_file_path(path).ok()?
             } else if let Some(root) = root_path {
                 // Ensure we append to root, even if path starts with separator
-                let relative_str = uri_str.trim_start_matches(|c| c == '/' || c == '\\');
+                let relative_str = uri_str.trim_start_matches(['/', '\\']);
                 let absolute = root.join(relative_str);
 
                 // Try to canonicalize to resolve symlinks and ensure proper drive letter casing
@@ -153,7 +153,7 @@ pub fn edit_plan_to_workspace_edit(plan: EditPlan) -> WorkspaceEdit {
                             },
                             edits: current_text_edits
                                 .into_iter()
-                                .map(|e| OneOf::Left(e))
+                                .map(OneOf::Left)
                                 .collect(),
                         }));
                         current_text_edits = Vec::new();
@@ -242,7 +242,7 @@ pub fn edit_plan_to_workspace_edit(plan: EditPlan) -> WorkspaceEdit {
                 },
                 edits: current_text_edits
                     .into_iter()
-                    .map(|e| OneOf::Left(e))
+                    .map(OneOf::Left)
                     .collect(),
             }));
         }

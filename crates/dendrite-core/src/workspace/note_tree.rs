@@ -31,10 +31,7 @@ impl Workspace {
                 .key_of(note_id)
                 .map(|(_, key)| key)
                 .or_else(|| {
-                    note.path.as_ref().and_then(|path| {
-                        // Try to get key from path (for notes that haven't been indexed yet)
-                        Some(self.model.note_key_from_path(path, ""))
-                    })
+                    note.path.as_ref().map(|path| self.model.note_key_from_path(path, ""))
                 });
 
             let Some(note_key) = note_key else {
@@ -51,7 +48,7 @@ impl Workspace {
                     // Parent exists, establish relationship
                     children
                         .entry(parent_id.clone())
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push(note_id.clone());
                     parent.insert(note_id.clone(), parent_id);
                 } else {

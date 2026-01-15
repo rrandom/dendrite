@@ -77,7 +77,7 @@ impl Store {
             let backlinks = self
                 .backlinks
                 .entry(target.clone())
-                .or_insert_with(Vec::new);
+                .or_default();
             if !backlinks.contains(source) {
                 backlinks.push(source.clone());
             }

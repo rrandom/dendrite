@@ -58,7 +58,7 @@ pub async fn handle_semantic_tokens_full(
         // but for wikilinks without complex unicode it should be okay)
         // Ideally we need the byte length to character length conversion.
         let length = if link.range.end.line == link.range.start.line {
-            (link.range.end.col - link.range.start.col) as u32
+            (link.range.end.col - link.range.start.col)
         } else {
             // Multiline links are rare in wikilinks but possible.
             // For now, we only highlight the first line to be safe.
