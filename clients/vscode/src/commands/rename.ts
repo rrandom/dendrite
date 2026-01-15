@@ -1,5 +1,6 @@
 import { window, commands, workspace } from 'vscode';
 import { LanguageClient } from 'vscode-languageclient/node';
+import { applyRefactor } from '../utils';
 
 export function registerRenameNoteCommand(client: LanguageClient) {
     return commands.registerCommand('dendrite.renameNote', async () => {
@@ -41,14 +42,16 @@ export function registerRenameNoteCommand(client: LanguageClient) {
             if (newKey) {
                 // 3. Trigger standard LSP rename flow using the new key
                 // This will invoke standard `textDocument/rename` providing the new name
-                await commands.executeCommand('vscode.executeDocumentRenameProvider', uri, editor.selection.active, newKey)
-                    .then(async (edit) => {
-                        if (edit) {
-                            await workspace.applyEdit(edit as any); // Cast to any to avoid type issues with WorkspaceEdit
-                        } else {
-                            window.showErrorMessage('Rename provider failed to generate edits.');
-                        }
-                    });
+                await applyRefactor(async () => {
+                     await commands.executeCommand('vscode.executeDocumentRenameProvider', uri, editor.selection.active, newKey)
+                        .then(async (edit) => {
+                            if (edit) {
+                                await workspace.applyEdit(edit as any); 
+                            } else {
+                                throw new Error('Rename provider failed to generate edits.');
+                            }
+                        });
+                }, `Renamed to ${newKey}`);
             }
         } catch (error) {
             window.showErrorMessage(`Rename failed: ${error}`);

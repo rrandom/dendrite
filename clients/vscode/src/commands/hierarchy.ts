@@ -1,5 +1,6 @@
 import { window, commands } from 'vscode';
 import { LanguageClient } from 'vscode-languageclient/node';
+import { applyRefactor } from '../utils';
 
 export function registerReorganizeHierarchyCommand(client: LanguageClient) {
     return commands.registerCommand('dendrite.reorganizeHierarchy', async () => {
@@ -16,10 +17,12 @@ export function registerReorganizeHierarchyCommand(client: LanguageClient) {
             });
             if (!newKey) { return; }
 
-            await client.sendRequest('workspace/executeCommand', {
-                command: 'dendrite/reorganizeHierarchy',
-                arguments: [oldKey, newKey]
-            });
+            await applyRefactor(async () => {
+                await client.sendRequest('workspace/executeCommand', {
+                    command: 'dendrite/reorganizeHierarchy',
+                    arguments: [oldKey, newKey]
+                });
+            }, `Reorganized hierarchy from ${oldKey} to ${newKey}`);
         } catch (error) {
             window.showErrorMessage(`Reorganize Hierarchy failed: ${error}`);
         }
