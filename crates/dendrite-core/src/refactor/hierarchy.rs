@@ -65,6 +65,19 @@ pub fn calculate_hierarchy_edits(
         }
     }
 
+    // Sort edits to ensure TextEdits happen before Rename for the same file
+    // and group by URI for cleanliness.
+    all_edits.sort_by(|a, b| {
+        if a.uri != b.uri {
+            a.uri.cmp(&b.uri)
+        } else {
+            // Same URI: TextEdits (is_rename=false) before Rename (is_rename=true)
+            let a_is_rename = a.changes.iter().any(|c| matches!(c, crate::refactor::model::Change::ResourceOp(crate::refactor::model::ResourceOperation::RenameFile { .. })));
+            let b_is_rename = b.changes.iter().any(|c| matches!(c, crate::refactor::model::Change::ResourceOp(crate::refactor::model::ResourceOperation::RenameFile { .. })));
+            a_is_rename.cmp(&b_is_rename)
+        }
+    });
+
     if all_edits.is_empty() {
         return None;
     }

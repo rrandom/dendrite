@@ -147,7 +147,7 @@ impl tower_lsp::LanguageServer for Backend {
     }
 
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
-        handlers::handle_did_change_watched_files(&self.state, params).await;
+        handlers::handle_did_change_watched_files(&self.client, &self.state, params).await;
     }
 
     async fn did_rename_files(&self, params: RenameFilesParams) {

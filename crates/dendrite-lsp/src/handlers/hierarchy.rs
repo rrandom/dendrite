@@ -63,7 +63,17 @@ pub async fn handle_reorganize_hierarchy_command(
     let plan = vault.rename_hierarchy(&old_key, &new_key);
 
     if let Some(plan) = plan {
-        crate::handlers::refactor::apply_edit_plan(client, plan).await?;
+        crate::handlers::refactor::apply_edit_plan(client, plan.clone()).await?;
+
+        // Store in history for undo
+        if plan.reversible {
+            let mut history = state.refactor_history.write().await;
+            history.push_back(plan);
+            if history.len() > 5 {
+                history.pop_front();
+            }
+        }
+        
         Ok(Some(serde_json::Value::Bool(true)))
     } else {
         Ok(Some(serde_json::Value::Bool(false)))

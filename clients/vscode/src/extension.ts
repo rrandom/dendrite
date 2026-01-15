@@ -48,7 +48,7 @@ export function activate(context: ExtensionContext) {
     const clientOptions: LanguageClientOptions = {
         documentSelector: [{ scheme: 'file', language: 'markdown' }],
         synchronize: {
-            fileEvents: workspace.createFileSystemWatcher('**/.clientrc')
+            fileEvents: workspace.createFileSystemWatcher('**/*.md')
         },
         outputChannelName: 'Dendrite Server',
         middleware: {
@@ -69,7 +69,13 @@ export function activate(context: ExtensionContext) {
     // Start client and register TreeView and Commands after it's ready
     client.start().then(() => {
         // Register Tree View
-        registerTreeView(context, client);
+        const treeDataProvider = registerTreeView(context, client);
+
+        // Listen for hierarchy changes from server (e.g. external edits via git)
+        client.onNotification('dendrite/hierarchyChanged', () => {
+            console.log('[Dendrite Client] Received hierarchyChanged notification. Refreshing tree.');
+            treeDataProvider.refresh();
+        });
 
         // Register Commands
         context.subscriptions.push(

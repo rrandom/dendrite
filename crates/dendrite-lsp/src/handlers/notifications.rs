@@ -47,10 +47,13 @@ pub async fn handle_did_change(state: &GlobalState, params: DidChangeTextDocumen
 
 /// Handle "workspace/didChangeWatchedFiles" notification
 pub async fn handle_did_change_watched_files(
+    client: &Client,
     state: &GlobalState,
     params: DidChangeWatchedFilesParams,
 ) {
     let mut vault_lock = state.vault.write().await;
+    let mut changed = false;
+
     if let Some(v) = &mut *vault_lock {
         for change in params.changes {
             let uri = change.uri.clone();
@@ -64,6 +67,7 @@ pub async fn handle_did_change_watched_files(
                                 cache.insert(uri, content.clone());
                             }
                             v.update_content(path, &content);
+                            changed = true;
                         }
                     }
                     FileChangeType::DELETED => {
@@ -73,12 +77,26 @@ pub async fn handle_did_change_watched_files(
                             cache.remove(&uri);
                         }
                         v.delete_file(&path);
+                        changed = true;
                     }
                     _ => {}
                 }
             }
         }
     }
+
+    if changed {
+        client
+            .send_notification::<HierarchyChangedNotification>(serde_json::Value::Null)
+            .await;
+    }
+}
+
+struct HierarchyChangedNotification;
+
+impl tower_lsp::lsp_types::notification::Notification for HierarchyChangedNotification {
+    type Params = serde_json::Value;
+    const METHOD: &'static str = "dendrite/hierarchyChanged";
 }
 
 /// Handle "workspace/didRenameFiles" notification
