@@ -57,10 +57,9 @@ pub fn calculate_audit_diagnostics(
                     // Reserved anchors (always valid)
                     if anchor == "^begin" || anchor == "^end" {
                         found = true;
-                    } else if anchor.starts_with('^') {
+                    } else if let Some(stripped) = anchor.strip_prefix('^') {
                         // Block anchor - strip ^ prefix before comparing
-                        let block_id = &anchor[1..];
-                        if target.blocks.iter().any(|b| b.id == block_id) {
+                        if target.blocks.iter().any(|b| b.id == stripped) {
                             found = true;
                         }
                     } else {

@@ -86,9 +86,8 @@ impl Workspace {
         }
 
         // Standard anchor resolution
-        if anchor.starts_with('^') {
+        if let Some(block_id) = anchor.strip_prefix('^') {
             // Block anchor - strip ^ prefix before comparing
-            let block_id = &anchor[1..];
             note.blocks
                 .iter()
                 .find(|b| b.id == block_id)

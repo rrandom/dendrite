@@ -100,8 +100,8 @@ fn extract_text(content: &str, range: TextRange) -> Option<String> {
     }
 
     // Middle lines
-    for i in (start_line + 1)..end_line {
-        result.push_str(lines[i]);
+    for line in lines.iter().take(end_line).skip(start_line + 1) {
+        result.push_str(line);
         result.push('\n');
     }
 

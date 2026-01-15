@@ -31,7 +31,9 @@ impl Workspace {
                 .key_of(note_id)
                 .map(|(_, key)| key)
                 .or_else(|| {
-                    note.path.as_ref().map(|path| self.model.note_key_from_path(path, ""))
+                    note.path
+                        .as_ref()
+                        .map(|path| self.model.note_key_from_path(path, ""))
                 });
 
             let Some(note_key) = note_key else {

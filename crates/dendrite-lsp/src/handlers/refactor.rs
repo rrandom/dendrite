@@ -59,9 +59,7 @@ pub async fn handle_split_note_command(
         .map_err(|_| Error::invalid_params("Invalid new_note_name"))?;
 
     let vault_guard = state.vault.read().await;
-    let vault = vault_guard
-        .as_ref()
-        .ok_or_else(Error::internal_error)?;
+    let vault = vault_guard.as_ref().ok_or_else(Error::internal_error)?;
 
     let source_path = source_uri
         .to_file_path()
@@ -117,9 +115,7 @@ pub async fn handle_reorganize_hierarchy_command(
         .map_err(|_| Error::invalid_params("Invalid new_key"))?;
 
     let vault_guard = state.vault.read().await;
-    let vault = vault_guard
-        .as_ref()
-        .ok_or_else(Error::internal_error)?;
+    let vault = vault_guard.as_ref().ok_or_else(Error::internal_error)?;
 
     let plan = vault.rename_hierarchy(&old_key, &new_key);
 
@@ -137,9 +133,7 @@ pub async fn handle_workspace_audit_command(
     _params: ExecuteCommandParams,
 ) -> Result<Option<serde_json::Value>> {
     let vault_guard = state.vault.read().await;
-    let vault = vault_guard
-        .as_ref()
-        .ok_or_else(Error::internal_error)?;
+    let vault = vault_guard.as_ref().ok_or_else(Error::internal_error)?;
 
     let report = vault.audit();
 

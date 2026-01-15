@@ -74,10 +74,7 @@ impl Store {
         }
 
         for target in &targets {
-            let backlinks = self
-                .backlinks
-                .entry(target.clone())
-                .or_default();
+            let backlinks = self.backlinks.entry(target.clone()).or_default();
             if !backlinks.contains(source) {
                 backlinks.push(source.clone());
             }

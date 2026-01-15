@@ -2,7 +2,6 @@ use crate::identity::IdentityRegistry;
 use crate::model::{Link, Note, NoteId};
 use crate::parser::ParseResult;
 use crate::semantic::SemanticModel;
-use std::path::PathBuf;
 
 /// Assembler responsible for converting a raw ParseResult into a semantically enriched Note.
 /// It uses a SemanticModel to resolve link targets and an IdentityRegistry to manage IDs.
@@ -25,14 +24,14 @@ impl<'a> NoteAssembler<'a> {
     pub fn assemble(
         &mut self,
         parse_result: ParseResult,
-        path: &PathBuf,
+        path: &std::path::Path,
         note_id: &NoteId,
     ) -> Note {
         let source_key = self.model.note_key_from_path(path, "");
 
         Note {
             id: note_id.clone(),
-            path: Some(path.clone()),
+            path: Some(path.to_path_buf()),
             title: parse_result.title,
             frontmatter: parse_result.frontmatter,
             content_offset: parse_result.content_start_offset as u32,
