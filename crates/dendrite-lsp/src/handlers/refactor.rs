@@ -11,7 +11,7 @@ use tower_lsp::Client;
 /// Helper to provide content from LSP cache or FS
 struct LspContentProvider {
     cache: HashMap<Url, String>,
-    fs: Arc<dyn dendrite_core::workspace::vfs::FileSystem>,
+    fs: Arc<dyn dendrite_core::vfs::FileSystem>,
     root_path: PathBuf,
 }
 

@@ -4,21 +4,20 @@ use std::sync::RwLock;
 use crate::identity::IdentityRegistry;
 use crate::semantic::SemanticModel;
 use crate::store::Store;
-pub mod vfs;
 
 mod assembler;
-mod note_tree;
 mod indexer;
+mod note_tree;
 mod queries;
 mod vault;
 
 #[cfg(test)]
 mod tests;
 
-use note_tree::NoteTree;
+pub use crate::vfs::FileSystem;
 pub use indexer::Indexer;
+use note_tree::NoteTree;
 pub use vault::Vault;
-pub use vfs::FileSystem;
 
 pub struct Workspace {
     pub(crate) model: Box<dyn SemanticModel>,

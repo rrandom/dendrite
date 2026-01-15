@@ -7,7 +7,7 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LspService};
 
 use crate::protocol::{GetHierarchyParams, ListNotesParams};
-use dendrite_core::workspace::vfs::PhysicalFileSystem;
+use dendrite_core::vfs::PhysicalFileSystem;
 use state::GlobalState;
 use std::sync::Arc;
 

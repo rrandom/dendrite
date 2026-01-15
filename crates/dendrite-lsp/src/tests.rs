@@ -2,7 +2,7 @@
 mod tests {
     use crate::handlers;
     use crate::Backend;
-    use dendrite_core::workspace::vfs::PhysicalFileSystem;
+    use dendrite_core::vfs::PhysicalFileSystem;
     use std::fs;
     use std::sync::Arc;
     use tempfile::TempDir;

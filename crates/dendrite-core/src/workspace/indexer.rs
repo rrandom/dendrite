@@ -1,8 +1,8 @@
 use super::assembler::NoteAssembler;
-use super::vfs::FileSystem;
 use super::Workspace;
 use crate::model::NoteId;
 use crate::parser::parse_markdown;
+use crate::vfs::FileSystem;
 use std::path::PathBuf;
 
 /// Indexer responsible for orchestrating the indexing process.

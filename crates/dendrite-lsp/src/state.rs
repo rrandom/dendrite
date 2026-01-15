@@ -1,5 +1,5 @@
 use dendrite_core::refactor::model::EditPlan;
-use dendrite_core::workspace::vfs::FileSystem;
+use dendrite_core::vfs::FileSystem;
 use dendrite_core::workspace::Vault;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;

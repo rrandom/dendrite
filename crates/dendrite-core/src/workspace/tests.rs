@@ -6,7 +6,7 @@ use crate::semantic::DendronModel;
 use std::fs;
 use tempfile::TempDir;
 
-use crate::workspace::vfs::PhysicalFileSystem;
+use crate::vfs::PhysicalFileSystem;
 use crate::workspace::Indexer;
 
 fn create_test_workspace() -> (Workspace, TempDir) {

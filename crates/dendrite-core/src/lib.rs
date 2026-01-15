@@ -13,6 +13,7 @@ pub mod refactor;
 pub mod semantic;
 pub mod store;
 mod utils;
+pub mod vfs;
 pub mod workspace;
 
 pub use identity::IdentityRegistry;

@@ -1,5 +1,5 @@
-use super::vfs::FileSystem;
 use super::{Indexer, Workspace};
+use crate::vfs::FileSystem;
 use std::path::PathBuf;
 use std::sync::Arc;
 
