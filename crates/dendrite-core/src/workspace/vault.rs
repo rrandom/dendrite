@@ -1,4 +1,4 @@
-use super::{Indexer, Workspace};
+use super::Workspace;
 use crate::vfs::FileSystem;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -13,25 +13,30 @@ impl Vault {
         Self { workspace, fs }
     }
 
+    // ------------------------------------------------------------------------
+    // File System Sync (Changes coming FROM disk)
+    // ------------------------------------------------------------------------
+
     pub fn initialize(&mut self, root: PathBuf) -> Vec<PathBuf> {
-        let mut indexer = Indexer::new(&mut self.workspace, &*self.fs);
-        indexer.full_index(root)
+        self.workspace.initialize(root, &*self.fs)
     }
 
     pub fn update_content(&mut self, path: PathBuf, content: &str) {
-        let mut indexer = Indexer::new(&mut self.workspace, &*self.fs);
-        indexer.update_content(path, content);
+        self.workspace.update_file(path, content, &*self.fs);
     }
 
     pub fn delete_file(&mut self, path: &PathBuf) {
-        let mut indexer = Indexer::new(&mut self.workspace, &*self.fs);
-        indexer.delete_file(path);
+        self.workspace.delete_file(path, &*self.fs);
     }
 
     pub fn rename_file(&mut self, old_path: PathBuf, new_path: PathBuf, content: &str) {
-        let mut indexer = Indexer::new(&mut self.workspace, &*self.fs);
-        indexer.rename_file(old_path, new_path, content);
+        self.workspace
+            .rename_file(old_path, new_path, content, &*self.fs);
     }
+
+    // ------------------------------------------------------------------------
+    // Refactoring (Changes GOING TO disk)
+    // ------------------------------------------------------------------------
 
     pub fn rename_note(
         &self,

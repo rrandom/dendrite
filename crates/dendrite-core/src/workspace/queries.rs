@@ -8,6 +8,17 @@ use crate::slugify_heading;
 use super::Workspace;
 
 impl Workspace {
+    /// Resolve the Note Identifier (Key) for a given path.
+    pub fn resolve_note_key(&self, path: &std::path::Path) -> Option<String> {
+        let key = self.model.note_key_from_path(path, "");
+        Some(key)
+    }
+
+    /// Get the root path of the workspace
+    pub fn root(&self) -> &std::path::Path {
+        self.model.root()
+    }
+
     pub fn note_by_path(&self, path: &PathBuf) -> Option<&Note> {
         let id = self.store.note_id_by_path(path)?;
         self.store.get_note(id)
