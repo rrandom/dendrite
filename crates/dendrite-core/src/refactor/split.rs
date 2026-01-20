@@ -1,7 +1,7 @@
 use crate::identity::IdentityRegistry;
 use crate::model::{NoteId, TextRange};
 use crate::refactor::model::{
-    Change, ContentProvider, EditGroup, EditPlan, RefactorKind, ResourceOperation, TextEdit,
+    Change, ContentProvider, EditGroup, EditPlan, MutationKind, ResourceOperation, TextEdit,
 };
 use crate::semantic::SemanticModel;
 use crate::store::Store;
@@ -61,7 +61,7 @@ pub(crate) fn calculate_split_edits(
     });
 
     Some(EditPlan {
-        refactor_kind: RefactorKind::SplitNote,
+        mutation_kind: MutationKind::SplitNote,
         edits,
         preconditions: vec![],
         diagnostics: vec![],

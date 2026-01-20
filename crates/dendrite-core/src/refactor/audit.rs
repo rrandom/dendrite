@@ -1,4 +1,4 @@
-use crate::refactor::model::{EditPlan, RefactorKind};
+use crate::refactor::model::{EditPlan, MutationKind};
 use crate::semantic::SemanticModel;
 use crate::slugify_heading;
 use crate::store::Store;
@@ -108,7 +108,7 @@ pub fn calculate_audit_diagnostics(
     }
 
     EditPlan {
-        refactor_kind: RefactorKind::WorkspaceAudit,
+        mutation_kind: MutationKind::WorkspaceAudit,
         edits: vec![],
         preconditions: vec![],
         diagnostics,

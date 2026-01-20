@@ -1,5 +1,5 @@
 use crate::identity::IdentityRegistry;
-use crate::refactor::model::{ContentProvider, EditPlan, RefactorKind};
+use crate::refactor::model::{ContentProvider, EditPlan, MutationKind};
 use crate::refactor::structural::calculate_structural_edits;
 use crate::semantic::SemanticModel;
 use crate::store::Store;
@@ -97,7 +97,7 @@ pub fn calculate_hierarchy_edits(
     }
 
     Some(EditPlan {
-        refactor_kind: RefactorKind::HierarchyRefactor,
+        mutation_kind: MutationKind::HierarchyRefactor,
         edits: all_edits,
         preconditions: vec![],
         diagnostics: all_diagnostics,

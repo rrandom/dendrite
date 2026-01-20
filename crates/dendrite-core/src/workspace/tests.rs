@@ -579,11 +579,11 @@ fn test_virtual_notes_created_for_missing_parents() {
     // Check that virtual notes were created
     let all_notes: Vec<_> = ws.store.all_notes().collect();
 
-    // Should have 3 notes: "foo.bar.baz" (real) + "foo" (virtual) + "foo.bar" (virtual)
+    // Should have 4 notes: "foo.bar.baz" (real) + "foo" (virtual) + "foo.bar" (virtual) + "root" (virtual)
     assert_eq!(
         all_notes.len(),
-        3,
-        "Should have 3 notes (1 real + 2 virtual)"
+        4,
+        "Should have 4 notes (1 real + 2 virtual + 1 root)"
     );
 
     // Check that "foo" virtual note exists
@@ -653,12 +653,23 @@ fn test_tree_structure_built_correctly() {
     // Get tree structure
     let tree = ws.tree();
 
-    // "foo" should be a root node
+    // "root" should be the only root node
+    let root_id = ws.identity.lookup(&"root".to_string()).unwrap();
+    assert!(
+        tree.root_nodes.contains(&root_id),
+        "root should be a root node"
+    );
+    assert_eq!(tree.root_nodes.len(), 1, "Should only have one root node");
+
+    // "foo" should be a child of "root"
     let foo_key = "foo".to_string();
     let foo_id = ws.identity.lookup(&foo_key).unwrap();
     assert!(
-        tree.root_nodes.contains(&foo_id),
-        "foo should be a root node"
+        tree.children
+            .get(&root_id)
+            .map(|c| c.contains(&foo_id))
+            .unwrap_or(false),
+        "foo should be a child of root"
     );
 
     // "foo.bar" should be a child of "foo"
@@ -736,7 +747,8 @@ fn test_tree_invalidated_on_file_changes() {
 
     // Get initial tree
     let tree1 = ws.tree();
-    let initial_root_count = tree1.root_nodes.len();
+    let root_id = ws.identity.lookup(&"root".to_string()).unwrap();
+    let initial_child_count = tree1.children.get(&root_id).map(|c| c.len()).unwrap_or(0);
 
     // Add a new note (should invalidate tree)
     let note2_path = temp_dir.path().join("test2.md");
@@ -745,9 +757,10 @@ fn test_tree_invalidated_on_file_changes() {
 
     // Tree should be rebuilt with new note
     let tree2 = ws.tree();
+    let new_child_count = tree2.children.get(&root_id).map(|c| c.len()).unwrap_or(0);
     assert!(
-        tree2.root_nodes.len() > initial_root_count,
-        "Tree should be rebuilt with new note"
+        new_child_count > initial_child_count,
+        "Tree should be rebuilt with new note (child of root)"
     );
 
     // Delete a note (should invalidate tree)
@@ -755,8 +768,9 @@ fn test_tree_invalidated_on_file_changes() {
 
     // Tree should be rebuilt without deleted note
     let tree3 = ws.tree();
+    let final_child_count = tree3.children.get(&root_id).map(|c| c.len()).unwrap_or(0);
     assert!(
-        tree3.root_nodes.len() < tree2.root_nodes.len(),
+        final_child_count < new_child_count,
         "Tree should be rebuilt without deleted note"
     );
 }
@@ -784,14 +798,18 @@ fn test_get_tree_view() {
     // Get tree view
     let tree_view = ws.get_tree_view();
 
-    // Should have root nodes
-    assert!(!tree_view.is_empty(), "Tree view should have root nodes");
+    // Top level is now "root"
+    let root_node = tree_view
+        .iter()
+        .find(|node| node.note.key.as_ref() == Some(&"root".to_string()))
+        .expect("Should find 'root' node");
 
-    // Find "foo" node
-    let foo_node = tree_view
+    // "foo" should be a child of "root"
+    let foo_node = root_node
+        .children
         .iter()
         .find(|node| node.note.key.as_ref() == Some(&"foo".to_string()));
-    assert!(foo_node.is_some(), "Should find 'foo' node in tree view");
+    assert!(foo_node.is_some(), "Should find 'foo' node under 'root'");
     let foo_node = foo_node.unwrap();
 
     // Check that "foo" has children
@@ -838,11 +856,21 @@ fn test_virtual_notes_in_tree_view() {
     // Get tree view
     let tree_view = ws.get_tree_view();
 
-    // Find "foo" virtual node
-    let foo_node = tree_view
+    // Top level is "root"
+    let root_node = tree_view
+        .iter()
+        .find(|node| node.note.key.as_ref() == Some(&"root".to_string()))
+        .expect("Should find 'root' node");
+
+    // Find "foo" virtual node under "root"
+    let foo_node = root_node
+        .children
         .iter()
         .find(|node| node.note.key.as_ref() == Some(&"foo".to_string()));
-    assert!(foo_node.is_some(), "Should find 'foo' virtual node");
+    assert!(
+        foo_node.is_some(),
+        "Should find 'foo' virtual node under 'root'"
+    );
     let foo_node = foo_node.unwrap();
 
     // Virtual note should have no path

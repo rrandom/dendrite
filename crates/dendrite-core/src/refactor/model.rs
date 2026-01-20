@@ -6,9 +6,9 @@ pub trait ContentProvider {
     fn get_content(&self, uri: &str) -> Option<String>;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct EditPlan {
-    pub refactor_kind: RefactorKind,
+    pub mutation_kind: MutationKind,
     pub edits: Vec<EditGroup>,
     pub preconditions: Vec<Precondition>,
     pub diagnostics: Vec<Diagnostic>,
@@ -18,7 +18,7 @@ pub struct EditPlan {
 impl EditPlan {
     pub fn invert(self) -> Self {
         Self {
-            refactor_kind: self.refactor_kind,
+            mutation_kind: self.mutation_kind,
             edits: self.edits.into_iter().map(|e| e.invert()).collect(),
             // Preconditions are harder to invert cleanly without more context.
             // For now, we clear them or keep them as is?
@@ -30,16 +30,17 @@ impl EditPlan {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum RefactorKind {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum MutationKind {
     RenameNote,
     MoveNote,
     SplitNote,
     WorkspaceAudit,
     HierarchyRefactor,
+    CreateNote,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct EditGroup {
     pub uri: String,
     pub changes: Vec<Change>,
@@ -67,7 +68,7 @@ impl EditGroup {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Change {
     TextEdit(TextEdit),
     ResourceOp(ResourceOperation),
@@ -96,7 +97,7 @@ impl Change {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TextEdit {
     pub range: TextRange,
     pub new_text: String,
@@ -130,7 +131,7 @@ impl TextEdit {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ResourceOperation {
     CreateFile { content: Option<String> },
     DeleteFile { ignore_if_not_exists: bool },
@@ -149,7 +150,7 @@ impl ResourceOperation {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Precondition {
     #[allow(private_interfaces)]
     NoteExists(String),
@@ -157,7 +158,7 @@ pub enum Precondition {
     ContentUnchanged(PathBuf, String), // path, checksum
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Diagnostic {
     pub severity: DiagnosticSeverity,
     pub message: String,
@@ -165,7 +166,7 @@ pub struct Diagnostic {
     pub range: Option<TextRange>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum DiagnosticSeverity {
     Info,
     Warning,

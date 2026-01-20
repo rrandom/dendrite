@@ -148,4 +148,23 @@ impl SemanticModel for DendronModel {
     fn supported_extensions(&self) -> &[&str] {
         &["md"]
     }
+
+    fn generate_new_note_content(&self, key: &NoteKey) -> String {
+        let now = crate::utils::time::now();
+        let id = crate::utils::id::generate_id();
+        let title = key.split('.').last().unwrap_or(key);
+
+        format!(
+            r#"---
+id: {}
+title: {}
+desc: ''
+updated: {}
+created: {}
+---
+
+# {}"#,
+            id, title, now, now, title
+        )
+    }
 }

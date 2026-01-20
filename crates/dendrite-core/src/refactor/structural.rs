@@ -2,7 +2,7 @@ use crate::identity::IdentityRegistry;
 use crate::line_map::LineMap;
 use crate::model::{LinkKind, NoteId};
 use crate::refactor::model::{
-    Change, ContentProvider, EditGroup, EditPlan, Precondition, RefactorKind, ResourceOperation,
+    Change, ContentProvider, EditGroup, EditPlan, MutationKind, Precondition, ResourceOperation,
     TextEdit,
 };
 use crate::semantic::SemanticModel;
@@ -157,10 +157,10 @@ pub(crate) fn calculate_structural_edits(
     }
 
     Some(EditPlan {
-        refactor_kind: if is_rename {
-            RefactorKind::RenameNote
+        mutation_kind: if is_rename {
+            MutationKind::RenameNote
         } else {
-            RefactorKind::MoveNote
+            MutationKind::MoveNote
         },
         edits,
         preconditions,
@@ -270,7 +270,7 @@ mod tests {
         )
         .expect("Plan generated");
 
-        assert!(matches!(plan.refactor_kind, RefactorKind::RenameNote));
+        assert_eq!(plan.mutation_kind, MutationKind::RenameNote);
         assert_eq!(plan.edits.len(), 2);
 
         let rename_group = plan
@@ -325,7 +325,7 @@ mod tests {
         )
         .expect("Plan generated");
 
-        assert!(matches!(plan.refactor_kind, RefactorKind::MoveNote));
+        assert!(matches!(plan.mutation_kind, MutationKind::MoveNote));
         assert_eq!(plan.edits.len(), 1);
 
         let move_group = &plan.edits[0];
@@ -504,7 +504,7 @@ mod tests {
         )
         .expect("Plan generated");
 
-        assert!(matches!(plan.refactor_kind, RefactorKind::MoveNote));
+        assert!(matches!(plan.mutation_kind, MutationKind::MoveNote));
         let link_edit = plan
             .edits
             .iter()
