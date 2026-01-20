@@ -6,9 +6,9 @@ use crate::store::Store;
 
 mod assembler;
 mod indexer;
+mod mutations;
 mod note_tree;
 mod queries;
-mod mutation_api;
 mod sync_ops;
 mod vault;
 

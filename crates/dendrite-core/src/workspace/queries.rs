@@ -117,6 +117,18 @@ impl Workspace {
             .collect()
     }
 
+    pub fn backlinks_by_key(&self, key: &str) -> Vec<&Note> {
+        let Some(id) = self.identity.lookup(&key.to_string()) else {
+            return vec![];
+        };
+
+        self.store
+            .backlinks_of(&id)
+            .iter()
+            .filter_map(|backlink_id| self.store.get_note(backlink_id))
+            .collect()
+    }
+
     pub fn all_notes(&self) -> Vec<&Note> {
         self.store.all_notes().collect()
     }

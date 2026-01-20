@@ -75,7 +75,6 @@ impl Workspace {
         )
     }
 
-
     /// Extract a selection into a new note (Split Note).
     pub fn split_note(
         &self,
@@ -103,7 +102,7 @@ impl Workspace {
 
 // Edit Operations (Output)
 impl Workspace {
-    pub(crate) fn create_note(&self, note_key: &crate::model::NoteKey) -> Option<EditPlan> {
+    pub fn create_note(&self, note_key: &crate::model::NoteKey) -> Option<EditPlan> {
         let full_path = self.model.path_from_note_key(note_key);
         let uri = full_path.to_string_lossy().to_string();
 
@@ -118,6 +117,29 @@ impl Workspace {
 
         Some(EditPlan {
             mutation_kind: MutationKind::CreateNote,
+            edits: vec![edit_group],
+            preconditions: vec![],
+            diagnostics: vec![],
+            reversible: true,
+        })
+    }
+
+    /// Delete a note.
+    pub fn delete_note(&self, note_key: &str) -> Option<EditPlan> {
+        let note_id = self.identity.lookup(&note_key.to_string())?;
+        let note = self.store.get_note(&note_id)?;
+        let path = note.path.as_ref()?;
+        let uri = path.to_string_lossy().to_string();
+
+        let edit_group = EditGroup {
+            uri,
+            changes: vec![Change::ResourceOp(ResourceOperation::DeleteFile {
+                ignore_if_not_exists: false,
+            })],
+        };
+
+        Some(EditPlan {
+            mutation_kind: MutationKind::DeleteNote,
             edits: vec![edit_group],
             preconditions: vec![],
             diagnostics: vec![],

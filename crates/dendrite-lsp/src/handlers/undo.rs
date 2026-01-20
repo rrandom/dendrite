@@ -8,7 +8,12 @@ pub async fn handle_undo_mutation(client: &tower_lsp::Client, state: &GlobalStat
 
     if let Some(plan) = history.pop_back() {
         // 1. Invert the plan
-        let inverted_plan = plan.invert();
+        let vault_guard = state.vault.read().await;
+        // Map Vault (if present) to dyn ContentProvider
+        let cp = vault_guard
+            .as_ref()
+            .map(|v| v as &dyn dendrite_core::mutation::model::ContentProvider);
+        let inverted_plan = plan.invert(cp);
 
         // 2. Convert to WorkspaceEdit
         let edit = edit_plan_to_workspace_edit(inverted_plan);

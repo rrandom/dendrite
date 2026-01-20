@@ -106,6 +106,12 @@ impl Backend {
             "dendrite/createNote" => {
                 handlers::edit::handle_create_note(&self.client, &self.state, params).await
             }
+            "dendrite/deleteNote" => {
+                handlers::handle_delete_note_command(&self.client, &self.state, params).await
+            }
+            "dendrite/getBacklinks" => {
+                handlers::handle_get_backlinks_command(&self.state, params).await
+            }
             "dendrite/resolveHierarchyEdits" => {
                 handlers::hierarchy::handle_resolve_hierarchy_edits(
                     &self.client,

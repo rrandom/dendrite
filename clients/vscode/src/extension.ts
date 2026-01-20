@@ -14,6 +14,7 @@ import { registerSplitNoteCommand } from './commands/split';
 import { registerReorganizeHierarchyCommand } from './commands/hierarchy';
 import { registerAuditCommand } from './commands/audit';
 import { registerCreateNoteCommand } from './commands/createNote';
+import { registerDeleteNoteCommand } from './commands/deleteNote';
 
 
 let client: LanguageClient;
@@ -95,7 +96,8 @@ export function activate(context: ExtensionContext) {
                 registerSplitNoteCommand(client),
                 registerReorganizeHierarchyCommand(client),
                 registerAuditCommand(client),
-                registerCreateNoteCommand(client)
+                registerCreateNoteCommand(client),
+                registerDeleteNoteCommand(client)
             );
 
             progress.report({ message: "Started" });

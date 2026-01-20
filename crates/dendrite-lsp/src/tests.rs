@@ -296,8 +296,7 @@ async fn test_lsp_rename() {
                     DocumentChangeOperation::Op(ResourceOp::Rename(rename_file)) => {
                         if rename_file.old_uri == old_uri {
                             let expected_new_path = temp_dir.path().join("new_note.md");
-                            let expected_new_uri =
-                                Url::from_file_path(expected_new_path).unwrap();
+                            let expected_new_uri = Url::from_file_path(expected_new_path).unwrap();
                             let actual_new_uri = rename_file.new_uri;
 
                             assert_eq!(actual_new_uri.path(), expected_new_uri.path());
@@ -798,10 +797,136 @@ async fn test_resolve_hierarchy_edits() {
 
     let moves: Vec<(String, String)> = serde_json::from_value(result.unwrap()).unwrap();
 
-    // Expect: projects.active.one -> archive.projects.one
-    assert!(!moves.is_empty(), "Should return at least one move");
+    assert_eq!(moves.len(), 1);
+    assert_eq!(moves[0].0, "projects.active.one");
+    assert_eq!(moves[0].1, "archive.projects.one");
+}
 
-    let (old_k, new_k) = &moves[0];
-    assert_eq!(old_k, "projects.active.one");
-    assert_eq!(new_k, "archive.projects.one");
+#[tokio::test]
+async fn test_lsp_get_backlinks() {
+    let (backend, temp_dir) = setup_test_context().await;
+    let client = &backend.client;
+    let state = &backend.state;
+
+    let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+    let params = create_initialize_params(root_uri.clone());
+    handlers::handle_initialize(client, state, params)
+        .await
+        .unwrap();
+
+    // 1. Create target note
+    let target_path = temp_dir.path().join("target.md");
+    fs::write(&target_path, "# Target").unwrap();
+    let target_uri = Url::from_file_path(&target_path).unwrap();
+
+    // 2. Create source note
+    let source_path = temp_dir.path().join("source.md");
+    fs::write(&source_path, "Link to [[target]]").unwrap();
+    let source_uri = Url::from_file_path(&source_path).unwrap();
+
+    // Open to sync
+    handlers::handle_did_open(
+        state,
+        DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: target_uri.clone(),
+                language_id: "markdown".to_string(),
+                version: 0,
+                text: "# Target".to_string(),
+            },
+        },
+    )
+    .await;
+
+    handlers::handle_did_open(
+        state,
+        DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: source_uri.clone(),
+                language_id: "markdown".to_string(),
+                version: 0,
+                text: "Link to [[target]]".to_string(),
+            },
+        },
+    )
+    .await;
+
+    // 3. Call getBacklinks
+    let params = ExecuteCommandParams {
+        command: "dendrite/getBacklinks".to_string(),
+        arguments: vec![serde_json::to_value(crate::protocol::GetBacklinksParams {
+            note_key: "target".to_string(),
+        })
+        .unwrap()],
+        ..Default::default()
+    };
+
+    let result = backend.handle_execute_command(params).await.unwrap();
+    assert!(result.is_some());
+
+    let backlinks_result: crate::protocol::GetBacklinksResult =
+        serde_json::from_value(result.unwrap()).unwrap();
+
+    assert_eq!(backlinks_result.backlinks.len(), 1);
+    assert_eq!(backlinks_result.backlinks[0].key, "source");
+}
+
+#[tokio::test]
+async fn test_delete_note_plan() {
+    let (backend, temp_dir) = setup_test_context().await;
+    let client = &backend.client;
+    let state = &backend.state;
+
+    let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+    let params = create_initialize_params(root_uri.clone());
+    handlers::handle_initialize(client, state, params)
+        .await
+        .unwrap();
+
+    // 1. Create note
+    let note_path = temp_dir.path().join("todelete.md");
+    fs::write(&note_path, "# Delete Me").unwrap();
+    let note_uri = Url::from_file_path(&note_path).unwrap();
+
+    handlers::handle_did_open(
+        state,
+        DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: note_uri.clone(),
+                language_id: "markdown".to_string(),
+                version: 0,
+                text: "# Delete Me".to_string(),
+            },
+        },
+    )
+    .await;
+
+    // 2. Get Vault and call delete_note
+    {
+        let vault_guard = state.vault.read().await;
+        let vault = vault_guard.as_ref().unwrap();
+
+        let plan = vault
+            .delete_note("todelete")
+            .expect("Should generate delete plan");
+
+        assert_eq!(
+            plan.mutation_kind,
+            dendrite_core::mutation::model::MutationKind::DeleteNote
+        );
+        assert!(!plan.edits.is_empty());
+
+        let edit_group = &plan.edits[0];
+        // Check that the URI ends with the filename
+        assert!(edit_group.uri.ends_with("todelete.md"));
+
+        if let dendrite_core::mutation::model::Change::ResourceOp(
+            dendrite_core::mutation::model::ResourceOperation::DeleteFile { .. },
+        ) = &edit_group.changes[0]
+        {
+            // OK
+        } else {
+            panic!("Expected DeleteFile operation");
+        }
+    }
 }

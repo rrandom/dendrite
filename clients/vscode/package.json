@@ -69,6 +69,11 @@
         "command": "dendrite.createNote",
         "title": "Create New Note",
         "category": "Dendrite"
+      },
+      {
+        "command": "dendrite.deleteNote",
+        "title": "Delete Note",
+        "category": "Dendrite"
       }
     ],
     "menus": {

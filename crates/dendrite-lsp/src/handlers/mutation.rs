@@ -136,3 +136,30 @@ pub async fn handle_workspace_audit_command(
 
     Ok(Some(serde_json::to_value(report).unwrap()))
 }
+
+pub async fn handle_delete_note_command(
+    client: &Client,
+    state: &GlobalState,
+    params: ExecuteCommandParams,
+) -> Result<Option<serde_json::Value>> {
+    let params: crate::protocol::DeleteNoteParams =
+        if let Some(first_arg) = params.arguments.first() {
+            serde_json::from_value(first_arg.clone())
+                .map_err(|_| Error::invalid_params("Invalid params"))?
+        } else {
+            return Err(Error::invalid_params("Missing params"));
+        };
+    let note_key = params.note_key;
+
+    let vault_guard = state.vault.read().await;
+    let vault = vault_guard.as_ref().ok_or_else(Error::internal_error)?;
+
+    let plan = vault.delete_note(&note_key);
+
+    if let Some(plan) = plan {
+        apply_edit_plan(client, plan).await?;
+        Ok(Some(serde_json::Value::Bool(true)))
+    } else {
+        Ok(Some(serde_json::Value::Bool(false)))
+    }
+}

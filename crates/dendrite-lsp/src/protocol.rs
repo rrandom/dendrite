@@ -52,3 +52,18 @@ pub struct GetNoteKeyResult {
 pub struct CreateNoteParams {
     pub note_key: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DeleteNoteParams {
+    pub note_key: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GetBacklinksParams {
+    pub note_key: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GetBacklinksResult {
+    pub backlinks: Vec<NoteSummary>,
+}

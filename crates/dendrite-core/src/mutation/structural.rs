@@ -516,7 +516,7 @@ mod tests {
             "Forward link should be relative to sub/"
         );
 
-        let inverted = plan.invert();
+        let inverted = plan.invert(None);
 
         let rename_back = inverted
             .edits

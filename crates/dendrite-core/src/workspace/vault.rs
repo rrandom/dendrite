@@ -99,6 +99,10 @@ impl Vault {
     ) -> Option<crate::mutation::model::EditPlan> {
         self.workspace.create_note(note_key)
     }
+
+    pub fn delete_note(&self, note_key: &str) -> Option<crate::mutation::model::EditPlan> {
+        self.workspace.delete_note(note_key)
+    }
 }
 
 impl crate::mutation::model::ContentProvider for Vault {

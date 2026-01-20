@@ -90,6 +90,8 @@ pub async fn handle_initialize(
                     "dendrite/splitNote".to_string(),
                     "dendrite/reorganizeHierarchy".to_string(),
                     "dendrite/workspaceAudit".to_string(),
+                    "dendrite/deleteNote".to_string(),
+                    "dendrite/getBacklinks".to_string(),
                 ],
                 work_done_progress_options: Default::default(),
             }),

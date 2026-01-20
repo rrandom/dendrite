@@ -16,13 +16,14 @@ pub struct EditPlan {
 }
 
 impl EditPlan {
-    pub fn invert(self) -> Self {
+    pub fn invert(self, content_provider: Option<&dyn ContentProvider>) -> Self {
         Self {
             mutation_kind: self.mutation_kind,
-            edits: self.edits.into_iter().map(|e| e.invert()).collect(),
-            // Preconditions are harder to invert cleanly without more context.
-            // For now, we clear them or keep them as is?
-            // Actually, we should probably clear them as they relate to the original state.
+            edits: self
+                .edits
+                .into_iter()
+                .map(|e| e.invert(content_provider))
+                .collect(),
             preconditions: vec![],
             diagnostics: self.diagnostics,
             reversible: self.reversible,
@@ -38,6 +39,7 @@ pub enum MutationKind {
     WorkspaceAudit,
     HierarchyRefactor,
     CreateNote,
+    DeleteNote,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -47,7 +49,7 @@ pub struct EditGroup {
 }
 
 impl EditGroup {
-    pub fn invert(self) -> Self {
+    pub fn invert(self, content_provider: Option<&dyn ContentProvider>) -> Self {
         let mut target_uri = self.uri.clone();
 
         // If this group contains a rename, the inverse operation starts from the NEW uri
@@ -62,7 +64,7 @@ impl EditGroup {
             changes: self
                 .changes
                 .into_iter()
-                .map(|c| c.invert(&self.uri))
+                .map(|c| c.invert(&self.uri, content_provider))
                 .collect(),
         }
     }
@@ -75,10 +77,14 @@ pub enum Change {
 }
 
 impl Change {
-    pub fn invert(self, original_uri: &str) -> Self {
+    pub fn invert(
+        self,
+        original_uri: &str,
+        content_provider: Option<&dyn ContentProvider>,
+    ) -> Self {
         match self {
             Change::TextEdit(t) => Change::TextEdit(t.invert()),
-            Change::ResourceOp(r) => Change::ResourceOp(r.invert(original_uri)),
+            Change::ResourceOp(r) => Change::ResourceOp(r.invert(original_uri, content_provider)),
         }
     }
 
@@ -139,13 +145,22 @@ pub enum ResourceOperation {
 }
 
 impl ResourceOperation {
-    pub fn invert(self, original_uri: &str) -> Self {
+    pub fn invert(
+        self,
+        original_uri: &str,
+        content_provider: Option<&dyn ContentProvider>,
+    ) -> Self {
         match self {
             ResourceOperation::RenameFile { .. } => ResourceOperation::RenameFile {
                 new_uri: original_uri.to_string(),
                 overwrite: false,
             },
-            _ => self, // TODO: Support Create/Delete inversion
+            ResourceOperation::CreateFile { .. } => ResourceOperation::DeleteFile {
+                ignore_if_not_exists: true,
+            },
+            ResourceOperation::DeleteFile { .. } => ResourceOperation::CreateFile {
+                content: content_provider.and_then(|cp| cp.get_content(original_uri)),
+            },
         }
     }
 }
@@ -212,7 +227,7 @@ mod tests {
             overwrite: false,
         };
 
-        let inverted = op.invert("old.md");
+        let inverted = op.invert("old.md", None);
         if let ResourceOperation::RenameFile { new_uri, .. } = inverted {
             assert_eq!(new_uri, "old.md");
         } else {
@@ -230,7 +245,7 @@ mod tests {
             })],
         };
 
-        let inverted = group.invert();
+        let inverted = group.invert(None);
         assert_eq!(inverted.uri, "new.md");
         if let Change::ResourceOp(ResourceOperation::RenameFile { new_uri, .. }) =
             &inverted.changes[0]
