@@ -1,6 +1,6 @@
 use crate::identity::IdentityRegistry;
-use crate::refactor::model::{ContentProvider, EditPlan, MutationKind};
-use crate::refactor::structural::calculate_structural_edits;
+use crate::mutation::model::{ContentProvider, EditPlan, MutationKind};
+use crate::mutation::structural::calculate_structural_edits;
 use crate::semantic::SemanticModel;
 use crate::store::Store;
 
@@ -75,16 +75,16 @@ pub fn calculate_hierarchy_edits(
             let a_is_rename = a.changes.iter().any(|c| {
                 matches!(
                     c,
-                    crate::refactor::model::Change::ResourceOp(
-                        crate::refactor::model::ResourceOperation::RenameFile { .. }
+                    crate::mutation::model::Change::ResourceOp(
+                        crate::mutation::model::ResourceOperation::RenameFile { .. }
                     )
                 )
             });
             let b_is_rename = b.changes.iter().any(|c| {
                 matches!(
                     c,
-                    crate::refactor::model::Change::ResourceOp(
-                        crate::refactor::model::ResourceOperation::RenameFile { .. }
+                    crate::mutation::model::Change::ResourceOp(
+                        crate::mutation::model::ResourceOperation::RenameFile { .. }
                     )
                 )
             });

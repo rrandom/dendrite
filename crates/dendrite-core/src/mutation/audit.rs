@@ -1,4 +1,4 @@
-use crate::refactor::model::{EditPlan, MutationKind};
+use crate::mutation::model::{EditPlan, MutationKind};
 use crate::semantic::SemanticModel;
 use crate::slugify_heading;
 use crate::store::Store;
@@ -12,8 +12,8 @@ use crate::store::Store;
 pub fn calculate_audit_diagnostics(
     store: &Store,
     model: &dyn SemanticModel,
-) -> crate::refactor::model::EditPlan {
-    use crate::refactor::model::{Diagnostic, DiagnosticSeverity};
+) -> crate::mutation::model::EditPlan {
+    use crate::mutation::model::{Diagnostic, DiagnosticSeverity};
     let mut diagnostics = Vec::new();
 
     let audited_kinds = model.audited_link_kinds();

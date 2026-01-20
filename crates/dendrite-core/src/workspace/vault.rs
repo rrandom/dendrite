@@ -7,8 +7,8 @@ use std::sync::Arc;
 ///
 /// # Architecture Decision: Action vs Query Separation
 ///
-/// *   **Actions (Write/Refactor)**: Unified in `Vault`.
-///     All operations that modify state (File Sync) or calculate changes (Refactoring)
+/// *   **Actions (Write/Mutation)**: Unified in `Vault`.
+///     All operations that modify state (File Sync) or calculate changes (Mutation)
 ///     SHOULD happen through methods on `Vault`. This ensures a single entry point for
 ///     business logic that may involve the FileSystem or Side Effects.
 ///
@@ -48,14 +48,14 @@ impl Vault {
     }
 
     // ------------------------------------------------------------------------
-    // Refactoring (Changes GOING TO disk)
+    // Mutation (Changes GOING TO disk)
     // ------------------------------------------------------------------------
 
     pub fn rename_note(
         &self,
         old_key: &str,
         new_key: &str,
-    ) -> Option<crate::refactor::model::EditPlan> {
+    ) -> Option<crate::mutation::model::EditPlan> {
         self.workspace.rename_note(self, old_key, new_key)
     }
 
@@ -63,7 +63,7 @@ impl Vault {
         &self,
         old_path: &std::path::Path,
         new_path: std::path::PathBuf,
-    ) -> Option<crate::refactor::model::EditPlan> {
+    ) -> Option<crate::mutation::model::EditPlan> {
         self.workspace.move_note(self, old_path, new_path)
     }
 
@@ -71,7 +71,7 @@ impl Vault {
         &self,
         old_key: &str,
         new_key: &str,
-    ) -> Option<crate::refactor::model::EditPlan> {
+    ) -> Option<crate::mutation::model::EditPlan> {
         self.workspace.rename_hierarchy(self, old_key, new_key)
     }
 
@@ -80,12 +80,12 @@ impl Vault {
         source_path: &std::path::Path,
         selection: crate::model::TextRange,
         new_note_title: &str,
-    ) -> Option<crate::refactor::model::EditPlan> {
+    ) -> Option<crate::mutation::model::EditPlan> {
         self.workspace
             .split_note(self, source_path, selection, new_note_title)
     }
 
-    pub fn audit(&self) -> crate::refactor::model::EditPlan {
+    pub fn audit(&self) -> crate::mutation::model::EditPlan {
         self.workspace.audit()
     }
 
@@ -96,12 +96,12 @@ impl Vault {
     pub fn create_note(
         &self,
         note_key: &crate::model::NoteKey,
-    ) -> Option<crate::refactor::model::EditPlan> {
+    ) -> Option<crate::mutation::model::EditPlan> {
         self.workspace.create_note(note_key)
     }
 }
 
-impl crate::refactor::model::ContentProvider for Vault {
+impl crate::mutation::model::ContentProvider for Vault {
     fn get_content(&self, uri: &str) -> Option<String> {
         self.fs.read_to_string(&std::path::PathBuf::from(uri)).ok()
     }

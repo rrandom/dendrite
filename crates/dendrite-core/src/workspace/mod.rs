@@ -9,7 +9,7 @@ mod edit_api;
 mod indexer;
 mod note_tree;
 mod queries;
-mod refactor_api;
+mod mutation_api;
 mod sync_ops;
 mod vault;
 

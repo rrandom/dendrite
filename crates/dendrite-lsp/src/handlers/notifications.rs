@@ -127,14 +127,14 @@ pub async fn handle_did_rename_files(
                         // 1. Update internal index
                         v.rename_file(old_path.clone(), new_path.clone(), &content);
 
-                        // 2. Generate refactor plan for the move
+                        // 2. Generate mutation plan for the move
                         if let Some(mut plan) = v.move_note(&old_path, new_path) {
                             // 3. Filter out the RenameFile operation (it's already done by the user in the IDE)
                             plan.edits.retain(|group| {
                                 group.changes.iter().all(|change| {
                                     !matches!(
                                         change,
-                                        dendrite_core::refactor::model::Change::ResourceOp(_)
+                                        dendrite_core::mutation::model::Change::ResourceOp(_)
                                     )
                                 })
                             });
@@ -147,7 +147,7 @@ pub async fn handle_did_rename_files(
 
                                 // Store in history for undo
                                 if plan.reversible {
-                                    let mut history = state.refactor_history.write().await;
+                                    let mut history = state.mutation_history.write().await;
                                     history.push_back(plan);
                                     if history.len() > 5 {
                                         history.pop_front();

@@ -4,8 +4,8 @@
 //! (Point, TextRange) and LSP types (Position, Range) when needed.
 
 use dendrite_core::model::{Point, TextRange};
-use dendrite_core::refactor::model::{Change, EditPlan, ResourceOperation};
-use dendrite_core::refactor::model::{
+use dendrite_core::mutation::model::{Change, EditPlan, ResourceOperation};
+use dendrite_core::mutation::model::{
     Diagnostic as CoreDiagnostic, DiagnosticSeverity as CoreSeverity,
 };
 use std::path::PathBuf;

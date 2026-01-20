@@ -1,4 +1,4 @@
-use dendrite_core::refactor::model::EditPlan;
+use dendrite_core::mutation::model::EditPlan;
 use dendrite_core::vfs::FileSystem;
 use dendrite_core::workspace::Vault;
 use std::collections::{HashMap, VecDeque};
@@ -17,8 +17,8 @@ pub struct GlobalState {
     pub document_cache: Arc<RwLock<HashMap<Url, String>>>,
     /// Virtual File System backend
     pub fs: Arc<dyn FileSystem>,
-    /// History of applied refactors for multi-level undo
-    pub refactor_history: Arc<RwLock<VecDeque<EditPlan>>>,
+    /// History of applied mutations for multi-level undo
+    pub mutation_history: Arc<RwLock<VecDeque<EditPlan>>>,
 }
 
 impl GlobalState {
@@ -27,7 +27,7 @@ impl GlobalState {
             vault: Arc::new(RwLock::new(None)),
             document_cache: Arc::new(RwLock::new(HashMap::new())),
             fs,
-            refactor_history: Arc::new(RwLock::new(VecDeque::with_capacity(5))),
+            mutation_history: Arc::new(RwLock::new(VecDeque::with_capacity(5))),
         }
     }
 }

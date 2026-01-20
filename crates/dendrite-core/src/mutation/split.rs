@@ -1,6 +1,6 @@
 use crate::identity::IdentityRegistry;
 use crate::model::{NoteId, TextRange};
-use crate::refactor::model::{
+use crate::mutation::model::{
     Change, ContentProvider, EditGroup, EditPlan, MutationKind, ResourceOperation, TextEdit,
 };
 use crate::semantic::SemanticModel;

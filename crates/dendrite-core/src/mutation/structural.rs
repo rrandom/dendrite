@@ -1,7 +1,7 @@
 use crate::identity::IdentityRegistry;
 use crate::line_map::LineMap;
 use crate::model::{LinkKind, NoteId};
-use crate::refactor::model::{
+use crate::mutation::model::{
     Change, ContentProvider, EditGroup, EditPlan, MutationKind, Precondition, ResourceOperation,
     TextEdit,
 };

@@ -33,7 +33,7 @@ pub trait SemanticModel: Send + Sync {
 
     fn resolve_display_name(&self, note: &Note) -> String;
 
-    /// Generate WikiLink text for refactoring
+    /// Generate WikiLink text for mutation
     fn format_wikilink(
         &self,
         target: &str,

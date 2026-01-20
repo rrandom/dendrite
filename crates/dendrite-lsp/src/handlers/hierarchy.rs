@@ -86,7 +86,7 @@ pub async fn handle_reorganize_hierarchy_command(
 
         // Store in history for undo
         if plan.reversible {
-            let mut history = state.refactor_history.write().await;
+            let mut history = state.mutation_history.write().await;
             history.push_back(plan);
             if history.len() > 5 {
                 history.pop_front();
@@ -119,8 +119,8 @@ pub async fn handle_resolve_hierarchy_edits(
     if let Some(plan) = plan {
         for group in plan.edits {
             for change in group.changes {
-                if let dendrite_core::refactor::model::Change::ResourceOp(
-                    dendrite_core::refactor::model::ResourceOperation::RenameFile {
+                if let dendrite_core::mutation::model::Change::ResourceOp(
+                    dendrite_core::mutation::model::ResourceOperation::RenameFile {
                         new_uri, ..
                     },
                 ) = change

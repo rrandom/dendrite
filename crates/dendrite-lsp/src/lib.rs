@@ -85,8 +85,8 @@ impl Backend {
                     data: None,
                 })
             }
-            "dendrite/undoRefactor" => {
-                handlers::handle_undo_refactor(&self.client, &self.state).await?;
+            "dendrite/undoMutation" => {
+                handlers::handle_undo_mutation(&self.client, &self.state).await?;
                 Ok(None)
             }
             "dendrite/splitNote" => {

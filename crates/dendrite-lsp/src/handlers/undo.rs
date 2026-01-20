@@ -3,8 +3,8 @@ use crate::state::GlobalState;
 use tower_lsp::jsonrpc::{Error, ErrorCode, Result};
 use tower_lsp::lsp_types::MessageType;
 
-pub async fn handle_undo_refactor(client: &tower_lsp::Client, state: &GlobalState) -> Result<()> {
-    let mut history = state.refactor_history.write().await;
+pub async fn handle_undo_mutation(client: &tower_lsp::Client, state: &GlobalState) -> Result<()> {
+    let mut history = state.mutation_history.write().await;
 
     if let Some(plan) = history.pop_back() {
         // 1. Invert the plan
@@ -17,7 +17,7 @@ pub async fn handle_undo_refactor(client: &tower_lsp::Client, state: &GlobalStat
         match client.apply_edit(edit).await {
             Ok(response) if response.applied => {
                 client
-                    .show_message(MessageType::INFO, "Refactor undone successfully.")
+                    .show_message(MessageType::INFO, "Mutation undone successfully.")
                     .await;
                 Ok(())
             }
@@ -35,7 +35,7 @@ pub async fn handle_undo_refactor(client: &tower_lsp::Client, state: &GlobalStat
     } else {
         // No history to undo
         client
-            .show_message(MessageType::INFO, "No refactor history to undo.")
+            .show_message(MessageType::INFO, "No mutation history to undo.")
             .await;
         Ok(())
     }

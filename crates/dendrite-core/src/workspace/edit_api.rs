@@ -1,5 +1,5 @@
 use super::Workspace;
-use crate::refactor::model::{Change, EditGroup, EditPlan, MutationKind, ResourceOperation};
+use crate::mutation::model::{Change, EditGroup, EditPlan, MutationKind, ResourceOperation};
 
 impl Workspace {
     pub(crate) fn create_note(&self, note_key: &crate::model::NoteKey) -> Option<EditPlan> {

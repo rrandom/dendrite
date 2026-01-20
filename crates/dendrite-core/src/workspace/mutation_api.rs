@@ -9,10 +9,10 @@ impl Workspace {
     /// This ONLY renames the specific note, not its children.
     pub fn rename_note(
         &self,
-        content_provider: &dyn crate::refactor::model::ContentProvider,
+        content_provider: &dyn crate::mutation::model::ContentProvider,
         old_key: &str,
         new_key: &str,
-    ) -> Option<crate::refactor::model::EditPlan> {
+    ) -> Option<crate::mutation::model::EditPlan> {
         // 1. Lookup ID from Key
         let note_id = self.identity.lookup(&old_key.to_string())?;
 
@@ -20,7 +20,7 @@ impl Workspace {
         let new_path = self.model.path_from_note_key(&new_key.to_string());
 
         // 3. Delegate to Core Refactor Engine (Structural only)
-        crate::refactor::structural::calculate_structural_edits(
+        crate::mutation::structural::calculate_structural_edits(
             &self.store,
             &self.identity,
             content_provider,
@@ -35,11 +35,11 @@ impl Workspace {
     /// This renames the note AND all its descendants (e.g. `foo`->`bar` moves `foo.child`->`bar.child`).
     pub fn rename_hierarchy(
         &self,
-        content_provider: &dyn crate::refactor::model::ContentProvider,
+        content_provider: &dyn crate::mutation::model::ContentProvider,
         old_key: &str,
         new_key: &str,
-    ) -> Option<crate::refactor::model::EditPlan> {
-        crate::refactor::hierarchy::calculate_hierarchy_edits(
+    ) -> Option<crate::mutation::model::EditPlan> {
+        crate::mutation::hierarchy::calculate_hierarchy_edits(
             &self.store,
             &self.identity,
             content_provider,
@@ -52,10 +52,10 @@ impl Workspace {
     /// Initiate a Move Refactoring from old_path to new_path.
     pub fn move_note(
         &self,
-        content_provider: &dyn crate::refactor::model::ContentProvider,
+        content_provider: &dyn crate::mutation::model::ContentProvider,
         old_path: &std::path::Path,
         new_path: std::path::PathBuf,
-    ) -> Option<crate::refactor::model::EditPlan> {
+    ) -> Option<crate::mutation::model::EditPlan> {
         // 1. Resolve ID from Old Path
         let note_id = self.store.note_id_by_path(&old_path.to_path_buf())?.clone();
 
@@ -63,7 +63,7 @@ impl Workspace {
         let new_key = self.model.note_key_from_path(&new_path, "");
 
         // 3. Delegate to Core Refactor Engine
-        crate::refactor::structural::calculate_structural_edits(
+        crate::mutation::structural::calculate_structural_edits(
             &self.store,
             &self.identity,
             content_provider,
@@ -75,24 +75,24 @@ impl Workspace {
     }
 
     /// Audit the entire workspace for reference graph health.
-    pub fn audit(&self) -> crate::refactor::model::EditPlan {
-        crate::refactor::audit::calculate_audit_diagnostics(&self.store, self.model.as_ref())
+    pub fn audit(&self) -> crate::mutation::model::EditPlan {
+        crate::mutation::audit::calculate_audit_diagnostics(&self.store, self.model.as_ref())
     }
 
     /// Extract a selection into a new note (Split Note).
     pub fn split_note(
         &self,
-        content_provider: &dyn crate::refactor::model::ContentProvider,
+        content_provider: &dyn crate::mutation::model::ContentProvider,
         source_path: &std::path::Path,
         selection: crate::model::TextRange,
         new_note_title: &str,
-    ) -> Option<crate::refactor::model::EditPlan> {
+    ) -> Option<crate::mutation::model::EditPlan> {
         let source_id = self
             .store
             .note_id_by_path(&source_path.to_path_buf())?
             .clone();
 
-        crate::refactor::split::calculate_split_edits(
+        crate::mutation::split::calculate_split_edits(
             &self.store,
             &self.identity,
             content_provider,

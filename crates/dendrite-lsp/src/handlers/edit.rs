@@ -1,4 +1,4 @@
-use dendrite_core::refactor::model::EditPlan;
+use dendrite_core::mutation::model::EditPlan;
 use tower_lsp::jsonrpc::{Error, ErrorCode, Result};
 use tower_lsp::lsp_types::ExecuteCommandParams;
 use tower_lsp::Client;
@@ -64,7 +64,7 @@ pub async fn handle_create_note(
                 .map(|u| u.to_string())
         });
 
-        // Reuse existing refactor handler to apply EditPlan
+        // Reuse existing mutation handler to apply EditPlan
         crate::handlers::edit::apply_edit_plan(client, plan).await?;
         Ok(Some(serde_json::to_value(target_uri).unwrap()))
     } else {
