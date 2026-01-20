@@ -84,7 +84,7 @@
           "group": "navigation@1"
         },
         {
-          "command": "dendrite.undoRefactor",
+          "command": "dendrite.undoMutation",
           "when": "view == dendriteHierarchy",
           "group": "navigation@2"
         }
