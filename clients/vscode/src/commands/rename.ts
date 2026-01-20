@@ -1,6 +1,6 @@
 import { window, commands, workspace } from 'vscode';
 import { LanguageClient } from 'vscode-languageclient/node';
-import { applyRefactor } from '../utils';
+import { runWorkspaceMutation } from '../utils';
 
 export function registerRenameNoteCommand(client: LanguageClient) {
     return commands.registerCommand('dendrite.renameNote', async () => {
@@ -42,7 +42,7 @@ export function registerRenameNoteCommand(client: LanguageClient) {
             if (newKey) {
                 // 3. Trigger standard LSP rename flow using the new key
                 // This will invoke standard `textDocument/rename` providing the new name
-                await applyRefactor(async () => {
+                await runWorkspaceMutation(async () => {
                      await commands.executeCommand('vscode.executeDocumentRenameProvider', uri, editor.selection.active, newKey)
                         .then(async (edit) => {
                             if (edit) {

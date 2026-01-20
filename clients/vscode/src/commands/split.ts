@@ -1,6 +1,6 @@
 import { window, commands } from 'vscode';
 import { LanguageClient } from 'vscode-languageclient/node';
-import { applyRefactor } from '../utils';
+import { runWorkspaceMutation } from '../utils';
 
 export function registerSplitNoteCommand(client: LanguageClient) {
     return commands.registerCommand('dendrite.splitNote', async (...args: any[]) => {
@@ -37,7 +37,7 @@ export function registerSplitNoteCommand(client: LanguageClient) {
                 return;
             }
 
-            await applyRefactor(async () => {
+            await runWorkspaceMutation(async () => {
                 await client.sendRequest('workspace/executeCommand', {
                     command: 'dendrite/splitNote',
                     arguments: [uri, range, newNoteName]

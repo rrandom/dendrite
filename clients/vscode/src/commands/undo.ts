@@ -1,11 +1,11 @@
 import { window, commands } from 'vscode';
 import { LanguageClient } from 'vscode-languageclient/node';
-import { applyRefactor } from '../utils';
+import { runWorkspaceMutation } from '../utils';
 
 export function registerUndoCommand(client: LanguageClient) {
     return commands.registerCommand('dendrite.undoRefactor', async () => {
         try {
-            await applyRefactor(async () => {
+            await runWorkspaceMutation(async () => {
                 await client.sendRequest('workspace/executeCommand', {
                     command: 'dendrite/undoRefactor',
                     arguments: []

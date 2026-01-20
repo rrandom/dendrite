@@ -1,6 +1,6 @@
 import { window, commands, workspace, Uri } from 'vscode';
 import { LanguageClient } from 'vscode-languageclient/node';
-import { applyRefactor } from '../utils';
+import { runWorkspaceMutation } from '../utils';
 
 export function registerCreateNoteCommand(client: LanguageClient) {
     return commands.registerCommand('dendrite.createNote', async () => {
@@ -17,7 +17,7 @@ export function registerCreateNoteCommand(client: LanguageClient) {
         try {
             // Execute command on server. 
             // The server will trigger a workspace/applyEdit to create the file.
-            await applyRefactor(async () => {
+            await runWorkspaceMutation(async () => {
                 const uriString = await client.sendRequest<string | null>('workspace/executeCommand', {
                     command: 'dendrite/createNote',
                     arguments: [key]

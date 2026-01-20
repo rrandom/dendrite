@@ -1,6 +1,6 @@
 import { window, commands, workspace } from 'vscode';
 import { LanguageClient } from 'vscode-languageclient/node';
-import { applyRefactor } from '../utils';
+import { runWorkspaceMutation } from '../utils';
 import { generatePreviewHtml } from '../preview';
 
 export function registerReorganizeHierarchyCommand(client: LanguageClient) {
@@ -78,7 +78,7 @@ export function registerReorganizeHierarchyCommand(client: LanguageClient) {
             }
 
             // 4. Execute
-            await applyRefactor(async () => {
+            await runWorkspaceMutation(async () => {
                 await client.sendRequest('workspace/executeCommand', {
                     command: 'dendrite/reorganizeHierarchy',
                     arguments: [oldKey, newKey]
