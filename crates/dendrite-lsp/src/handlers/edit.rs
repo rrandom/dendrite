@@ -27,7 +27,7 @@ pub async fn handle_create_note(
     params: ExecuteCommandParams,
 ) -> Result<Option<serde_json::Value>> {
     // 1. Parse Arguments
-    if params.arguments.len() < 1 {
+    if params.arguments.is_empty() {
         return Err(Error {
             code: ErrorCode::InvalidParams,
             message: "Missing argument: note_key".into(),
@@ -53,7 +53,7 @@ pub async fn handle_create_note(
     // 4. Apply changes (if any)
     if let Some(plan) = plan {
         // Extract the target URI and ensure it's a properly formatted URI string
-        let target_uri = plan.edits.get(0).and_then(|e| {
+        let target_uri = plan.edits.first().and_then(|e| {
             // Try as URL first, fallback to path-to-uri
             tower_lsp::lsp_types::Url::parse(&e.uri)
                 .ok()

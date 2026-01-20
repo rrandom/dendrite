@@ -134,13 +134,7 @@ pub async fn handle_resolve_hierarchy_edits(
                                 return u.to_file_path().ok();
                             }
                         }
-                        // Try as raw path
-                        let p = std::path::PathBuf::from(s);
-                        if p.is_absolute() {
-                            Some(p)
-                        } else {
-                            Some(p)
-                        }
+                        Some(std::path::PathBuf::from(s))
                     };
 
                     if let (Some(op), Some(np)) = (to_path(old_uri), to_path(&new_uri)) {

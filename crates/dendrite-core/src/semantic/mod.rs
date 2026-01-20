@@ -64,6 +64,7 @@ pub trait SemanticModel: Send + Sync {
     /// - Logseq: treat all bullets as blocks
     /// - OrgMode: different heading depth rules
     /// - Frontmatter: custom delimiters
+    ///
     /// Generate initial content for a new note
     fn generate_new_note_content(&self, _key: &NoteKey) -> String {
         "# New Note".to_string()
