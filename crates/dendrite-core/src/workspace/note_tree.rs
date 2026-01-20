@@ -114,17 +114,11 @@ impl Workspace {
                 .map(|path| self.model.note_key_from_path(path, ""))
         });
 
-        // Get path as URI string
-        let path_uri = note.path.as_ref().and_then(|path| {
-            // Convert PathBuf to URI string
-            path.to_str().map(|s| {
-                if cfg!(windows) {
-                    format!("file:///{}", s.replace('\\', "/"))
-                } else {
-                    format!("file://{}", s)
-                }
-            })
-        });
+        // Get path as plain string (LSP layer will convert to URI)
+        let path_uri = note
+            .path
+            .as_ref()
+            .map(|path| path.to_string_lossy().to_string());
 
         // Get children (recursive)
         let children = tree
@@ -141,12 +135,22 @@ impl Workspace {
         // Convert NoteId to string (UUID)
         let id_string = note_id.0.to_string();
 
+        let title = if let Some(key) = &note_key {
+            if key == "root" && note.title.is_none() {
+                Some("root".to_string())
+            } else {
+                note.title.clone()
+            }
+        } else {
+            note.title.clone()
+        };
+
         Some(TreeView {
             note: crate::model::NoteRef {
                 id: id_string,
                 key: note_key,
                 path: path_uri,
-                title: note.title.clone(),
+                title,
             },
             children,
         })

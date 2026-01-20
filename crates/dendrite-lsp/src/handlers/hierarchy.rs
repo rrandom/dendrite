@@ -36,7 +36,26 @@ pub async fn handle_get_hierarchy(
     let ws = &vault.workspace;
 
     // Get tree view from workspace
-    let tree_view = ws.get_tree_view();
+    let mut tree_view = ws.get_tree_view();
+
+    // Convert plain paths to properly formatted URIs
+    fn convert_tree_paths_to_uris(nodes: &mut Vec<dendrite_core::model::TreeView>) {
+        for node in nodes {
+            if let Some(path_str) = &node.note.path {
+                // If it's already a URI, keep it, otherwise convert from path
+                if !path_str.starts_with("file://") {
+                    if let Ok(url) =
+                        tower_lsp::lsp_types::Url::from_file_path(std::path::PathBuf::from(path_str))
+                    {
+                        node.note.path = Some(url.to_string());
+                    }
+                }
+            }
+            convert_tree_paths_to_uris(&mut node.children);
+        }
+    }
+
+    convert_tree_paths_to_uris(&mut tree_view);
 
     client
         .log_message(

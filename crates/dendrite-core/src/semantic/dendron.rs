@@ -58,17 +58,27 @@ impl SemanticModel for DendronModel {
     }
 
     fn resolve_parent(&self, note: &NoteKey) -> Option<NoteKey> {
-        // For Dendron: "foo.bar.baz" -> "foo.bar", "foo.bar" -> "foo", "foo" -> None
+        // Special case: "root" has no parent
+        if note == "root" {
+            return None;
+        }
+
+        // For Dendron: "foo.bar.baz" -> "foo.bar", "foo.bar" -> "foo"
         let parts: Vec<&str> = note.split('.').collect();
         if parts.len() <= 1 {
-            // No parent (root level or single part)
-            return None;
+            // No hierarchical parent, so the parent is "root"
+            return Some("root".to_string());
         }
         // Return all parts except the last one, joined by '.'
         Some(parts[..parts.len() - 1].join("."))
     }
 
     fn is_descendant(&self, candidate: &NoteKey, parent: &NoteKey) -> bool {
+        // Special case: everyone is a descendant of "root" (except root itself)
+        if parent == "root" {
+            return candidate != "root";
+        }
+
         // Dendron: candidate starts with "parent."
         // e.g. "a.b" is descendant of "a"
         if candidate.len() <= parent.len() {
