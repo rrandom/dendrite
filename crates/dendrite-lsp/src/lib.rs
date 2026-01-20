@@ -203,6 +203,13 @@ impl tower_lsp::LanguageServer for Backend {
         handlers::handle_code_action(&self.client, &self.state, params).await
     }
 
+    async fn will_save_wait_until(
+        &self,
+        params: WillSaveTextDocumentParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<Vec<TextEdit>>> {
+        handlers::handle_will_save_wait_until(&self.state, params).await
+    }
+
     async fn execute_command(
         &self,
         params: ExecuteCommandParams,

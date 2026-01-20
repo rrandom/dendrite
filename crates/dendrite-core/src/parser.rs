@@ -323,6 +323,43 @@ pub(crate) fn parse_markdown(text: &str, supported_kinds: &[LinkKind]) -> ParseR
     }
 }
 
+/// Finds the line containing "updated: ..." within the first `limit` bytes of `text`.
+/// Returns the range of the value part.
+pub fn get_updated_field_range(text: &str, limit: usize) -> Option<TextRange> {
+    let limit = std::cmp::min(limit, text.len());
+    let search_area = &text[..limit];
+    let line_map = LineMap::new(text);
+
+    for line in search_area.lines() {
+        if let Some(pos) = line.find("updated:") {
+            let value_start = pos + "updated:".len();
+            let value_part = &line[value_start..];
+            let trimmed_val = value_part.trim();
+
+            if let Some(val_pos_in_line) = line.find(trimmed_val) {
+                let current_line_start = search_area.find(line).unwrap();
+                let start_offset = current_line_start + val_pos_in_line;
+                let end_offset = start_offset + trimmed_val.len();
+
+                return Some(TextRange {
+                    start: line_map.offset_to_point(text, start_offset),
+                    end: line_map.offset_to_point(text, end_offset),
+                });
+            } else {
+                // If it's empty like "updated: ", just return the end of "updated: "
+                let current_line_start = search_area.find(line).unwrap();
+                let start_offset = current_line_start + value_start;
+                let end_offset = start_offset + value_part.len();
+                return Some(TextRange {
+                    start: line_map.offset_to_point(text, start_offset),
+                    end: line_map.offset_to_point(text, end_offset),
+                });
+            }
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

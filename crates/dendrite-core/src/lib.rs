@@ -12,11 +12,12 @@ pub mod parser;
 pub mod refactor;
 pub mod semantic;
 pub mod store;
-mod utils;
+pub mod utils;
 pub mod vfs;
 pub mod workspace;
 
 pub use identity::IdentityRegistry;
 pub use semantic::{DendronModel, SemanticModel};
-pub use utils::{normalize_path_to_id, slugify_heading};
+pub use utils::normalize_path_to_id;
+pub use utils::slugify_heading;
 pub use workspace::{Vault, Workspace};

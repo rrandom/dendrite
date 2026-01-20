@@ -60,7 +60,16 @@ pub async fn handle_initialize(
 
     Ok(InitializeResult {
         capabilities: ServerCapabilities {
-            text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
+            text_document_sync: Some(
+                TextDocumentSyncOptions {
+                    open_close: Some(true),
+                    change: Some(TextDocumentSyncKind::FULL),
+                    will_save: Some(false),
+                    will_save_wait_until: Some(true),
+                    save: Some(TextDocumentSyncSaveOptions::Supported(true)),
+                }
+                .into(),
+            ),
             definition_provider: Some(OneOf::Left(true)),
             rename_provider: Some(OneOf::Left(true)),
             hover_provider: Some(HoverProviderCapability::Simple(true)),

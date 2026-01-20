@@ -44,9 +44,9 @@ pub async fn handle_get_hierarchy(
             if let Some(path_str) = &node.note.path {
                 // If it's already a URI, keep it, otherwise convert from path
                 if !path_str.starts_with("file://") {
-                    if let Ok(url) =
-                        tower_lsp::lsp_types::Url::from_file_path(std::path::PathBuf::from(path_str))
-                    {
+                    if let Ok(url) = tower_lsp::lsp_types::Url::from_file_path(
+                        std::path::PathBuf::from(path_str),
+                    ) {
                         node.note.path = Some(url.to_string());
                     }
                 }

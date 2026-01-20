@@ -1,6 +1,6 @@
+use dendrite_core::refactor::model::EditPlan;
 use tower_lsp::jsonrpc::{Error, ErrorCode, Result};
 use tower_lsp::lsp_types::ExecuteCommandParams;
-use dendrite_core::refactor::model::EditPlan;
 use tower_lsp::Client;
 
 use crate::state::GlobalState;
@@ -20,7 +20,6 @@ pub(crate) async fn apply_edit_plan(client: &Client, plan: EditPlan) -> Result<(
             data: None,
         })
 }
-
 
 pub async fn handle_create_note(
     client: &Client,
