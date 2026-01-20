@@ -75,10 +75,6 @@ impl Workspace {
         )
     }
 
-    /// Audit the entire workspace for reference graph health.
-    pub fn audit(&self) -> crate::mutation::model::EditPlan {
-        crate::mutation::audit::calculate_audit_diagnostics(&self.store, self.model.as_ref())
-    }
 
     /// Extract a selection into a new note (Split Note).
     pub fn split_note(

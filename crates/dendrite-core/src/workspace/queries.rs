@@ -175,4 +175,9 @@ impl Workspace {
     pub fn format_wikilink(&self, target: &str, alias: Option<&str>) -> String {
         self.model.format_wikilink(target, alias, None, false)
     }
+
+    /// Audit the entire workspace for reference graph health.
+    pub fn audit(&self) -> crate::mutation::model::EditPlan {
+        crate::analysis::audit::calculate_audit_diagnostics(&self.store, self.model.as_ref())
+    }
 }

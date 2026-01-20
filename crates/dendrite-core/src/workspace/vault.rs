@@ -85,13 +85,13 @@ impl Vault {
             .split_note(self, source_path, selection, new_note_title)
     }
 
+    // ------------------------------------------------------------------------
+    // Note Editing & Health
+    // ------------------------------------------------------------------------
+
     pub fn audit(&self) -> crate::mutation::model::EditPlan {
         self.workspace.audit()
     }
-
-    // ------------------------------------------------------------------------
-    // Note Editing
-    // ------------------------------------------------------------------------
 
     pub fn create_note(
         &self,

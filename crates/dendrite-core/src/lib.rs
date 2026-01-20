@@ -10,6 +10,7 @@ pub mod line_map;
 pub mod model;
 pub mod parser;
 pub mod mutation;
+pub mod analysis;
 pub mod semantic;
 pub mod store;
 pub mod utils;
