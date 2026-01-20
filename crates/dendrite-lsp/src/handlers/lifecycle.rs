@@ -86,7 +86,7 @@ pub async fn handle_initialize(
                     "dendrite/getHierarchy".to_string(),
                     "dendrite/listNotes".to_string(),
                     "dendrite/getNoteKey".to_string(),
-                    "dendrite/undoRefactor".to_string(),
+                    "dendrite/undoMutation".to_string(),
                     "dendrite/splitNote".to_string(),
                     "dendrite/reorganizeHierarchy".to_string(),
                     "dendrite/workspaceAudit".to_string(),

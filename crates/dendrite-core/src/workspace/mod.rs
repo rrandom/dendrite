@@ -5,7 +5,6 @@ use crate::semantic::SemanticModel;
 use crate::store::Store;
 
 mod assembler;
-mod edit_api;
 mod indexer;
 mod note_tree;
 mod queries;
