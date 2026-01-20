@@ -73,7 +73,7 @@ pub async fn handle_reorganize_hierarchy_command(
                 history.pop_front();
             }
         }
-        
+
         Ok(Some(serde_json::Value::Bool(true)))
     } else {
         Ok(Some(serde_json::Value::Bool(false)))
@@ -101,11 +101,13 @@ pub async fn handle_resolve_hierarchy_edits(
         for group in plan.edits {
             for change in group.changes {
                 if let dendrite_core::refactor::model::Change::ResourceOp(
-                    dendrite_core::refactor::model::ResourceOperation::RenameFile { new_uri, .. },
+                    dendrite_core::refactor::model::ResourceOperation::RenameFile {
+                        new_uri, ..
+                    },
                 ) = change
                 {
                     let old_uri = &group.uri;
-                    
+
                     // Helper to resolve URI or Path to PathBuf
                     let to_path = |s: &str| -> Option<std::path::PathBuf> {
                         if let Ok(u) = Url::parse(s) {
@@ -123,9 +125,9 @@ pub async fn handle_resolve_hierarchy_edits(
                     };
 
                     if let (Some(op), Some(np)) = (to_path(old_uri), to_path(&new_uri)) {
-                         let k1 = vault.workspace.resolve_note_key(&op).unwrap_or_default();
-                         let k2 = vault.workspace.resolve_note_key(&np).unwrap_or_default();
-                         moves.push((k1, k2));
+                        let k1 = vault.workspace.resolve_note_key(&op).unwrap_or_default();
+                        let k2 = vault.workspace.resolve_note_key(&np).unwrap_or_default();
+                        moves.push((k1, k2));
                     }
                 }
             }

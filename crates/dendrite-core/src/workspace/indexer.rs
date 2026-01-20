@@ -60,7 +60,7 @@ impl<'a> Indexer<'a> {
                     .get_note(&existing_id)
                     .and_then(|n| n.digest.clone());
 
-                let (_, old_key) = self
+                let old_key = self
                     .workspace
                     .identity
                     .key_of(&existing_id)
@@ -106,7 +106,6 @@ impl<'a> Indexer<'a> {
             .workspace
             .identity
             .key_of(&old_id)
-            .map(|(_, key)| key)
             .unwrap_or_else(|| self.workspace.model.note_key_from_path(&old_path, content));
 
         let new_key = self.workspace.model.note_key_from_path(&new_path, content);

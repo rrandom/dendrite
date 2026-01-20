@@ -26,15 +26,11 @@ impl Workspace {
             let note_id = &note.id;
 
             // Get note key
-            let note_key = self
-                .identity
-                .key_of(note_id)
-                .map(|(_, key)| key)
-                .or_else(|| {
-                    note.path
-                        .as_ref()
-                        .map(|path| self.model.note_key_from_path(path, ""))
-                });
+            let note_key = self.identity.key_of(note_id).or_else(|| {
+                note.path
+                    .as_ref()
+                    .map(|path| self.model.note_key_from_path(path, ""))
+            });
 
             let Some(note_key) = note_key else {
                 // Skip notes without key
@@ -112,15 +108,11 @@ impl Workspace {
         let note = self.store.get_note(note_id)?;
 
         // Get note key
-        let note_key = self
-            .identity
-            .key_of(note_id)
-            .map(|(_, key)| key)
-            .or_else(|| {
-                note.path
-                    .as_ref()
-                    .map(|path| self.model.note_key_from_path(path, ""))
-            });
+        let note_key = self.identity.key_of(note_id).or_else(|| {
+            note.path
+                .as_ref()
+                .map(|path| self.model.note_key_from_path(path, ""))
+        });
 
         // Get path as URI string
         let path_uri = note.path.as_ref().and_then(|path| {
@@ -169,7 +161,7 @@ impl Workspace {
             .filter_map(|note| {
                 // only process notes with path
                 if note.path.is_some() {
-                    self.identity.key_of(&note.id).map(|(_, key)| key)
+                    self.identity.key_of(&note.id)
                 } else {
                     None
                 }

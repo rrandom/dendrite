@@ -72,8 +72,22 @@ pub fn calculate_hierarchy_edits(
             a.uri.cmp(&b.uri)
         } else {
             // Same URI: TextEdits (is_rename=false) before Rename (is_rename=true)
-            let a_is_rename = a.changes.iter().any(|c| matches!(c, crate::refactor::model::Change::ResourceOp(crate::refactor::model::ResourceOperation::RenameFile { .. })));
-            let b_is_rename = b.changes.iter().any(|c| matches!(c, crate::refactor::model::Change::ResourceOp(crate::refactor::model::ResourceOperation::RenameFile { .. })));
+            let a_is_rename = a.changes.iter().any(|c| {
+                matches!(
+                    c,
+                    crate::refactor::model::Change::ResourceOp(
+                        crate::refactor::model::ResourceOperation::RenameFile { .. }
+                    )
+                )
+            });
+            let b_is_rename = b.changes.iter().any(|c| {
+                matches!(
+                    c,
+                    crate::refactor::model::Change::ResourceOp(
+                        crate::refactor::model::ResourceOperation::RenameFile { .. }
+                    )
+                )
+            });
             a_is_rename.cmp(&b_is_rename)
         }
     });

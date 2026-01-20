@@ -47,3 +47,8 @@ pub struct GetNoteKeyParams {
 pub struct GetNoteKeyResult {
     pub key: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateNoteParams {
+    pub note_key: String,
+}

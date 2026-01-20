@@ -797,12 +797,12 @@ mod tests {
 
         let result = backend.handle_execute_command(params).await.unwrap();
         assert!(result.is_some());
-        
+
         let moves: Vec<(String, String)> = serde_json::from_value(result.unwrap()).unwrap();
 
         // Expect: projects.active.one -> archive.projects.one
         assert!(!moves.is_empty(), "Should return at least one move");
-        
+
         let (old_k, new_k) = &moves[0];
         assert_eq!(old_k, "projects.active.one");
         assert_eq!(new_k, "archive.projects.one");

@@ -1,4 +1,5 @@
 mod completion;
+pub mod edit;
 pub mod hierarchy;
 mod lifecycle;
 mod lookup;

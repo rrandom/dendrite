@@ -88,6 +88,17 @@ impl Vault {
     pub fn audit(&self) -> crate::refactor::model::EditPlan {
         self.workspace.audit()
     }
+
+    // ------------------------------------------------------------------------
+    // Note Editing
+    // ------------------------------------------------------------------------
+
+    pub fn create_note(
+        &self,
+        note_key: &crate::model::NoteKey,
+    ) -> Option<crate::refactor::model::EditPlan> {
+        self.workspace.create_note(note_key)
+    }
 }
 
 impl crate::refactor::model::ContentProvider for Vault {

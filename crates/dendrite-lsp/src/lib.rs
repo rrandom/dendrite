@@ -103,6 +103,9 @@ impl Backend {
             "dendrite/workspaceAudit" => {
                 handlers::handle_workspace_audit_command(&self.client, &self.state, params).await
             }
+            "dendrite/createNote" => {
+                handlers::edit::handle_create_note(&self.client, &self.state, params).await
+            }
             "dendrite/resolveHierarchyEdits" => {
                 handlers::hierarchy::handle_resolve_hierarchy_edits(
                     &self.client,

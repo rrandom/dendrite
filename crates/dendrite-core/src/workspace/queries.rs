@@ -127,7 +127,7 @@ impl Workspace {
         self.store
             .all_notes()
             .filter_map(|note| {
-                self.identity.key_of(&note.id).map(|(_, key)| {
+                self.identity.key_of(&note.id).map(|key| {
                     let display_name = self.model.resolve_display_name(note);
                     (key, display_name)
                 })

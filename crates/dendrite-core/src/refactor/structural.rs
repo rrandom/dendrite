@@ -30,7 +30,7 @@ pub(crate) fn calculate_structural_edits(
 ) -> Option<EditPlan> {
     let note = store.get_note(note_id)?;
     let old_path = note.path.as_ref()?;
-    let (_, old_key) = identity.key_of(note_id)?;
+    let old_key = identity.key_of(note_id)?;
 
     let is_rename = old_key != new_key;
     let is_move = old_path != &new_path;

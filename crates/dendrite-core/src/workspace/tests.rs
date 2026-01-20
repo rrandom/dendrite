@@ -42,7 +42,7 @@ fn test_parse_note_resolves_links_correctly() {
     assert_eq!(note.links.len(), 1, "Should have one link");
 
     let link_target_key = ws.model.note_key_from_link(&note1_key, "note2");
-    let note2_key = ws.identity.key_of(&note2_id).map(|(_, k)| k);
+    let note2_key = ws.identity.key_of(&note2_id);
 
     assert_eq!(
         note.links[0].target,
@@ -231,7 +231,7 @@ fn test_semantic_rename_preserves_note_id() {
     let new_key = "new_name".to_string();
     ws.identity.rebind(&old_key, &new_key);
 
-    let (_, updated_key) = ws.identity.key_of(&initial_id).unwrap();
+    let updated_key = ws.identity.key_of(&initial_id).unwrap();
     assert_eq!(updated_key, "new_name", "NoteKey should be updated");
     let new_id = ws.identity.lookup(&updated_key).unwrap();
     assert_eq!(
