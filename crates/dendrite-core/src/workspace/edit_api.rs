@@ -5,14 +5,7 @@ use crate::utils::{id, time};
 impl Workspace {
     pub(crate) fn create_note(&self, note_key: &crate::model::NoteKey) -> Option<EditPlan> {
         let full_path = self.model.path_from_note_key(note_key);
-        let uri = if cfg!(windows) {
-            format!(
-                "file:///{}",
-                full_path.display().to_string().replace('\\', "/")
-            )
-        } else {
-            format!("file://{}", full_path.display())
-        };
+        let uri = full_path.to_string_lossy().to_string();
 
         // 3. Generate Content
         let id = id::generate_id();

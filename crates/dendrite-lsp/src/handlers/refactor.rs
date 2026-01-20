@@ -1,6 +1,7 @@
+use crate::handlers::edit::apply_edit_plan;
 use crate::state::GlobalState;
 use dendrite_core::model::TextRange;
-use dendrite_core::refactor::model::EditPlan;
+
 use std::collections::HashMap;
 use tower_lsp::jsonrpc::{Error, ErrorCode, Result};
 use tower_lsp::lsp_types::*;
@@ -134,20 +135,4 @@ pub async fn handle_workspace_audit_command(
     client.show_message(MessageType::INFO, msg).await;
 
     Ok(Some(serde_json::to_value(report).unwrap()))
-}
-
-/// Helper to apply EditPlan via WorkspaceEdit
-pub(crate) async fn apply_edit_plan(client: &Client, plan: EditPlan) -> Result<()> {
-    let workspace_edit = crate::conversion::edit_plan_to_workspace_edit(plan);
-
-    client
-        .apply_edit(workspace_edit)
-        .await?
-        .applied
-        .then_some(())
-        .ok_or_else(|| Error {
-            code: ErrorCode::InternalError,
-            message: "Client failed to apply workspace edit".into(),
-            data: None,
-        })
 }

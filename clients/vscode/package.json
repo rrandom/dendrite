@@ -64,6 +64,11 @@
         "command": "dendrite.workspaceAudit",
         "title": "Run Workspace Audit",
         "category": "Dendrite"
+      },
+      {
+        "command": "dendrite.createNote",
+        "title": "Create New Note",
+        "category": "Dendrite"
       }
     ],
     "menus": {

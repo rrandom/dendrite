@@ -1,5 +1,3 @@
-use nanoid::nanoid;
-
 /// Generate a unique ID for a note (Dendron compatible)
 ///
 /// Returns a 23-character URL-friendly string.

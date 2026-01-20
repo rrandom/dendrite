@@ -141,4 +141,38 @@ impl Workspace {
             .lookup(&key.to_string())
             .and_then(|id| self.store.get_note(&id))
     }
+
+    // =========================================================================
+    // Facade APIs: Unified access to SemanticModel, IdentityRegistry, and Store
+    // =========================================================================
+
+    /// Get the NoteKey for a given Note
+    pub fn key_of_note(&self, note: &Note) -> Option<NoteKey> {
+        self.identity.key_of(&note.id)
+    }
+
+    /// Calculate the file path for a NoteKey (does not check if file exists)
+    pub fn path_for_key(&self, key: &NoteKey) -> std::path::PathBuf {
+        self.model.path_from_note_key(key)
+    }
+
+    /// Get the parent NoteKey (Dendron hierarchy)
+    pub fn parent_of(&self, key: &NoteKey) -> Option<NoteKey> {
+        self.model.resolve_parent(key)
+    }
+
+    /// Check if `candidate` is a descendant of `parent`
+    pub fn is_descendant(&self, candidate: &NoteKey, parent: &NoteKey) -> bool {
+        self.model.is_descendant(candidate, parent)
+    }
+
+    /// Get the display name for a Note
+    pub fn display_name(&self, note: &Note) -> String {
+        self.model.resolve_display_name(note)
+    }
+
+    /// Format a WikiLink according to the semantic model
+    pub fn format_wikilink(&self, target: &str, alias: Option<&str>) -> String {
+        self.model.format_wikilink(target, alias, None, false)
+    }
 }
