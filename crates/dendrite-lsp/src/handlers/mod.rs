@@ -1,17 +1,16 @@
+pub mod analysis;
 mod completion;
-pub mod edit;
-pub mod hierarchy;
+mod hierarchy;
 mod lifecycle;
-mod lookup;
+pub mod lookup;
 mod metadata;
 pub mod mutation;
 mod navigation;
 mod notifications;
-pub mod query;
 pub mod rename;
 mod semantic_tokens;
-mod undo;
 
+pub use analysis::*;
 pub use completion::*;
 pub use hierarchy::*;
 pub use lifecycle::*;
@@ -20,6 +19,4 @@ pub use metadata::*;
 pub use mutation::*;
 pub use navigation::*;
 pub use notifications::*;
-pub use query::*;
 pub use semantic_tokens::*;
-pub use undo::*;

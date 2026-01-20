@@ -93,32 +93,23 @@ impl Backend {
                 handlers::handle_split_note_command(&self.client, &self.state, params).await
             }
             "dendrite/reorganizeHierarchy" => {
-                handlers::hierarchy::handle_reorganize_hierarchy_command(
-                    &self.client,
-                    &self.state,
-                    params,
-                )
-                .await
+                handlers::handle_reorganize_hierarchy_command(&self.client, &self.state, params)
+                    .await
             }
             "dendrite/workspaceAudit" => {
                 handlers::handle_workspace_audit_command(&self.client, &self.state, params).await
             }
             "dendrite/createNote" => {
-                handlers::edit::handle_create_note(&self.client, &self.state, params).await
+                handlers::handle_create_note(&self.client, &self.state, params).await
             }
             "dendrite/deleteNote" => {
                 handlers::handle_delete_note_command(&self.client, &self.state, params).await
             }
             "dendrite/getBacklinks" => {
-                handlers::handle_get_backlinks_command(&self.state, params).await
+                handlers::lookup::handle_get_backlinks_command(&self.state, params).await
             }
             "dendrite/resolveHierarchyEdits" => {
-                handlers::hierarchy::handle_resolve_hierarchy_edits(
-                    &self.client,
-                    &self.state,
-                    params,
-                )
-                .await
+                handlers::handle_resolve_hierarchy_edits(&self.client, &self.state, params).await
             }
             _ => Err(Error {
                 code: ErrorCode::MethodNotFound,
