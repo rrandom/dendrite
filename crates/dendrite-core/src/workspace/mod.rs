@@ -25,6 +25,7 @@ use note_tree::NoteTree;
 pub use vault::Vault;
 
 pub struct Workspace {
+    pub(crate) config: crate::config::DendriteConfig,
     pub(crate) model: Box<dyn SemanticModel>,
     pub(crate) identity: IdentityRegistry,
     pub(crate) store: Store,
@@ -33,8 +34,9 @@ pub struct Workspace {
 }
 
 impl Workspace {
-    pub fn new(model: Box<dyn SemanticModel>) -> Self {
+    pub fn new(config: crate::config::DendriteConfig, model: Box<dyn SemanticModel>) -> Self {
         Self {
+            config,
             model,
             identity: IdentityRegistry::new(),
             store: Store::new(),

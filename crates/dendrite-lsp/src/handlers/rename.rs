@@ -41,10 +41,14 @@ pub async fn handle_rename(
     match plan {
         Some(p) => {
             if p.reversible {
+                let limit = {
+                    let config = state.config.read().await;
+                    config.mutation_history_limit
+                };
                 let mut history = state.mutation_history.write().await;
                 history.push_back(p.clone());
-                // Limit history size to 5
-                if history.len() > 5 {
+                // Limit history size based on config
+                while history.len() > limit {
                     history.pop_front();
                 }
             }

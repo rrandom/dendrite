@@ -7,7 +7,6 @@ use crate::state::GlobalState;
 pub struct CacheManager {
     state: GlobalState,
     receiver: UnboundedReceiver<()>,
-    debounce_duration: Duration,
 }
 
 impl CacheManager {
@@ -15,7 +14,6 @@ impl CacheManager {
         Self {
             state,
             receiver,
-            debounce_duration: Duration::from_secs(5),
         }
     }
 
@@ -25,13 +23,21 @@ impl CacheManager {
         let mut last_signal = None;
 
         loop {
+            // Read settings for each iteration
+            let (enabled, interval) = {
+                let config = self.state.config.read().await;
+                (config.cache.enabled, config.cache.save_interval)
+            };
+
             tokio::select! {
                 Some(_) = self.receiver.recv() => {
-                    last_signal = Some(Instant::now());
+                    if enabled {
+                        last_signal = Some(Instant::now());
+                    }
                 }
-                _ = sleep(Duration::from_secs(1)), if last_signal.is_some() => {
+                _ = sleep(Duration::from_millis(100)), if last_signal.is_some() => {
                     if let Some(instant) = last_signal {
-                        if instant.elapsed() >= self.debounce_duration {
+                        if instant.elapsed().as_millis() >= interval as u128 {
                             self.perform_save().await;
                             last_signal = None;
                         }

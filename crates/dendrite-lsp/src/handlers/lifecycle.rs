@@ -14,6 +14,18 @@ pub async fn handle_initialize(
 
     if let Some(uri) = root_uri {
         if let Ok(root_path) = uri.to_file_path() {
+            // 0. Update initial LSP settings if provided
+            if let Some(options) = params.initialization_options {
+                if let Some(dendrite_opts) = options.get("dendrite") {
+                    if let Ok(new_settings) =
+                        serde_json::from_value::<crate::config::LspSettings>(dendrite_opts.clone())
+                    {
+                        let mut config_lock = state.config.write().await;
+                        *config_lock = new_settings;
+                    }
+                }
+            }
+
             client
                 .log_message(
                     MessageType::INFO,
@@ -24,8 +36,19 @@ pub async fn handle_initialize(
             let root_path_clone = root_path.clone();
             let fs = state.fs.clone();
             let (vault, _files, stats, cache_loaded_msg) = tokio::task::spawn_blocking(move || {
-                let workspace =
-                    Workspace::new(Box::new(DendronModel::new(root_path_clone.clone())));
+                // 1. Find and load config
+                let dendrite_yaml = root_path_clone.join("dendrite.yaml");
+                let config = if dendrite_yaml.exists() {
+                    let content = std::fs::read_to_string(dendrite_yaml).unwrap_or_default();
+                    dendrite_core::DendriteConfig::from_yaml(&content).unwrap_or_default()
+                } else {
+                    dendrite_core::DendriteConfig::default()
+                };
+
+                let workspace = Workspace::new(
+                    config,
+                    Box::new(DendronModel::new(root_path_clone.clone())),
+                );
                 let mut v = Vault::new(workspace, fs);
 
                 // Try to load cache first

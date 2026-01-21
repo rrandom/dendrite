@@ -86,9 +86,13 @@ pub async fn handle_reorganize_hierarchy_command(
 
         // Store in history for undo
         if plan.reversible {
+            let limit = {
+                let config = state.config.read().await;
+                config.mutation_history_limit
+            };
             let mut history = state.mutation_history.write().await;
             history.push_back(plan);
-            if history.len() > 5 {
+            while history.len() > limit {
                 history.pop_front();
             }
         }

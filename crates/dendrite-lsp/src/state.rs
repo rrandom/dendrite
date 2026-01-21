@@ -1,3 +1,4 @@
+use crate::config::LspSettings;
 use dendrite_core::mutation::model::EditPlan;
 use dendrite_core::vfs::FileSystem;
 use dendrite_core::workspace::Vault;
@@ -21,18 +22,24 @@ pub struct GlobalState {
     pub mutation_history: Arc<RwLock<VecDeque<EditPlan>>>,
     /// Signal to trigger debounced cache saving
     pub(crate) dirty_signal: tokio::sync::mpsc::UnboundedSender<()>,
+    /// LSP-specific settings (from client or default)
+    pub config: Arc<RwLock<LspSettings>>,
 }
 
 impl GlobalState {
     pub fn new(fs: Arc<dyn FileSystem>) -> Self {
         let (dirty_tx, dirty_rx) = tokio::sync::mpsc::unbounded_channel();
+        let config = LspSettings::default();
 
         let state = Self {
             vault: Arc::new(RwLock::new(None)),
             document_cache: Arc::new(RwLock::new(HashMap::new())),
             fs,
-            mutation_history: Arc::new(RwLock::new(VecDeque::with_capacity(5))),
+            mutation_history: Arc::new(RwLock::new(VecDeque::with_capacity(
+                config.mutation_history_limit,
+            ))),
             dirty_signal: dirty_tx,
+            config: Arc::new(RwLock::new(config)),
         };
 
         // Start background cache manager

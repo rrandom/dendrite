@@ -12,7 +12,7 @@ use crate::workspace::Indexer;
 fn create_test_workspace() -> (Workspace, TempDir) {
     let temp_dir = TempDir::new().unwrap();
     let model = Box::new(DendronModel::new(temp_dir.path().to_path_buf()));
-    let workspace = Workspace::new(model);
+    let workspace = Workspace::new(crate::config::DendriteConfig::default(), model);
     (workspace, temp_dir)
 }
 

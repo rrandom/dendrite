@@ -1,4 +1,5 @@
 pub mod analysis;
+mod configuration;
 mod completion;
 mod hierarchy;
 mod lifecycle;
@@ -11,6 +12,7 @@ pub mod rename;
 mod semantic_tokens;
 
 pub use analysis::*;
+pub use configuration::*;
 pub use completion::*;
 pub use hierarchy::*;
 pub use lifecycle::*;

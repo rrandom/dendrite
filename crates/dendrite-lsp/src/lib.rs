@@ -12,6 +12,7 @@ use state::GlobalState;
 use std::sync::Arc;
 
 mod cache_manager;
+pub mod config;
 mod conversion;
 mod handlers;
 mod protocol;
@@ -156,6 +157,10 @@ impl tower_lsp::LanguageServer for Backend {
 
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
         handlers::handle_did_change_watched_files(&self.client, &self.state, params).await;
+    }
+
+    async fn did_change_configuration(&self, params: DidChangeConfigurationParams) {
+        handlers::handle_did_change_configuration(&self.client, &self.state, params).await;
     }
 
     async fn did_rename_files(&self, params: RenameFilesParams) {

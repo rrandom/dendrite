@@ -6,7 +6,7 @@
 
 pub mod analysis;
 pub mod cache;
-mod config;
+pub mod config;
 pub mod identity;
 pub mod line_map;
 pub mod model;
@@ -18,6 +18,7 @@ pub mod utils;
 pub mod vfs;
 pub mod workspace;
 
+pub use config::DendriteConfig;
 pub use identity::IdentityRegistry;
 pub use semantic::{DendronModel, SemanticModel};
 pub use utils::normalize_path_to_id;
