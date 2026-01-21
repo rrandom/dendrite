@@ -46,7 +46,7 @@
         "category": "Dendrite"
       },
       {
-        "command": "dendrite.undoRefactor",
+        "command": "dendrite.undoMutation",
         "title": "Undo Last Refactor",
         "category": "Dendrite"
       },
