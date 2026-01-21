@@ -65,10 +65,7 @@ impl Default for DendriteConfig {
                     name: "main".to_string(),
                     path: PathBuf::from("."),
                 }],
-                ignore_patterns: vec![
-                    "**/.git/**".to_string(),
-                    "**/node_modules/**".to_string(),
-                ],
+                ignore_patterns: vec!["**/.git/**".to_string(), "**/node_modules/**".to_string()],
             },
             semantic: SemanticConfig {
                 model: "Dendron".to_string(),

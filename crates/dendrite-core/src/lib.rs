@@ -23,4 +23,4 @@ pub use identity::IdentityRegistry;
 pub use semantic::{DendronModel, SemanticModel};
 pub use utils::normalize_path_to_id;
 pub use utils::slugify_heading;
-pub use workspace::{Vault, Workspace};
+pub use workspace::{DendriteEngine, Workspace};

@@ -58,6 +58,7 @@ pub struct Block {
 pub struct Note {
     #[allow(private_interfaces)]
     pub id: NoteId,
+    pub vault_name: String,
     pub path: Option<PathBuf>,
     pub title: Option<String>,
     #[serde(with = "frontmatter_serde")]
@@ -112,6 +113,8 @@ pub struct NoteRef {
     pub key: Option<NoteKey>,
     /// File path as URI string
     pub path: Option<String>,
+    /// Vault name
+    pub vault_name: Option<String>,
     /// Note title
     pub title: Option<String>,
 }

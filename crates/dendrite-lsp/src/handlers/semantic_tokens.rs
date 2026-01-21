@@ -27,12 +27,12 @@ pub async fn handle_semantic_tokens_full(
         return Ok(None);
     };
 
-    let state_lock = state.vault.read().await;
-    let Some(vault) = &*state_lock else {
+    let state_lock = state.engine.read().await;
+    let Some(engine) = &*state_lock else {
         return Ok(None);
     };
 
-    let Some(note) = vault.workspace.note_by_path(&path) else {
+    let Some(note) = engine.workspace.note_by_path(&path) else {
         return Ok(None);
     };
 

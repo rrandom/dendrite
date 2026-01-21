@@ -11,16 +11,21 @@ use super::{Indexer, Workspace};
 impl Workspace {
     pub fn initialize(
         &mut self,
-        root: PathBuf,
         fs: &dyn FileSystem,
     ) -> (Vec<PathBuf>, crate::workspace::indexer::IndexingStats) {
         let mut indexer = Indexer::new(self, fs);
-        indexer.full_index(root)
+        indexer.full_index()
     }
 
-    pub fn update_file(&mut self, path: PathBuf, content: &str, fs: &dyn FileSystem) {
+    pub fn update_file(
+        &mut self,
+        path: PathBuf,
+        content: &str,
+        vault_name: String,
+        fs: &dyn FileSystem,
+    ) {
         let mut indexer = Indexer::new(self, fs);
-        indexer.update_content(path, content);
+        indexer.update_content(path, content, vault_name);
     }
 
     pub fn delete_file(&mut self, path: &PathBuf, fs: &dyn FileSystem) {
@@ -33,9 +38,10 @@ impl Workspace {
         old_path: PathBuf,
         new_path: PathBuf,
         content: &str,
+        vault_name: String,
         fs: &dyn FileSystem,
     ) {
         let mut indexer = Indexer::new(self, fs);
-        indexer.rename_file(old_path, new_path, content);
+        indexer.rename_file(old_path, new_path, content, vault_name);
     }
 }

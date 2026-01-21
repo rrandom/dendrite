@@ -19,21 +19,21 @@ pub async fn handle_list_notes(
         )
         .await;
 
-    let state_lock = state.vault.read().await;
-    let Some(vault) = &*state_lock else {
+    let state_lock = state.engine.read().await;
+    let Some(engine) = &*state_lock else {
         client
             .log_message(
                 MessageType::WARNING,
-                "⚠️ Vault not initialized for listNotes".to_string(),
+                "⚠️ DendriteEngine not initialized for listNotes".to_string(),
             )
             .await;
         return Err(Error {
             code: ErrorCode::InternalError,
-            message: "Vault not initialized".into(),
+            message: "DendriteEngine not initialized".into(),
             data: None,
         });
     };
-    let ws = &vault.workspace;
+    let ws = &engine.workspace;
 
     // Get all notes
     let all_notes = ws.all_notes();
@@ -141,8 +141,8 @@ pub async fn handle_get_note_key(
         data: None,
     })?;
 
-    let state_lock = state.vault.read().await;
-    let Some(vault) = &*state_lock else {
+    let state_lock = state.engine.read().await;
+    let Some(engine) = &*state_lock else {
         return Err(Error {
             code: ErrorCode::InternalError,
             message: "Vault not initialized".into(),
@@ -150,7 +150,7 @@ pub async fn handle_get_note_key(
         });
     };
 
-    let key = vault
+    let key = engine
         .workspace
         .resolve_note_key(&path)
         .ok_or_else(|| Error {
@@ -175,16 +175,16 @@ pub async fn handle_get_backlinks_command(
         };
     let note_key = params.note_key;
 
-    let vault_guard = _state.vault.read().await;
-    let vault = vault_guard.as_ref().ok_or_else(Error::internal_error)?;
+    let engine_guard = _state.engine.read().await;
+    let engine = engine_guard.as_ref().ok_or_else(Error::internal_error)?;
 
-    let backlinks = vault
+    let backlinks = engine
         .workspace
         .backlinks_by_key(&note_key)
         .iter()
         .filter_map(|note| {
-            let key = vault.workspace.key_of_note(note)?;
-            let title = Some(vault.workspace.display_name(note));
+            let key = engine.workspace.key_of_note(note)?;
+            let title = Some(engine.workspace.display_name(note));
             let uri = note.path.as_ref().map(|p| p.to_string_lossy().to_string());
 
             Some(NoteSummary { key, uri, title })

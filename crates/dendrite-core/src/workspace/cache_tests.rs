@@ -1,7 +1,7 @@
 use super::*;
 use crate::semantic::DendronModel;
 use crate::vfs::PhysicalFileSystem;
-use crate::workspace::Vault;
+use crate::workspace::DendriteEngine;
 use std::fs;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -16,7 +16,17 @@ fn test_cache_save_and_load() {
     fs::write(&note_path, "# Note 1\n\n[[note2]]").unwrap();
 
     let model = Box::new(DendronModel::new(root.clone()));
-    let mut vault = Vault::new(Workspace::new(crate::config::DendriteConfig::default(), model), fs.clone());
+    let config = crate::config::DendriteConfig {
+        workspace: crate::config::WorkspaceConfig {
+            vaults: vec![crate::config::VaultConfig {
+                name: "main".to_string(),
+                path: root.clone(),
+            }],
+            ..crate::config::DendriteConfig::default().workspace
+        },
+        ..crate::config::DendriteConfig::default()
+    };
+    let mut vault = DendriteEngine::new(Workspace::new(config, model), fs.clone());
 
     // Initial indexing
     vault.initialize(root.clone());
@@ -33,7 +43,17 @@ fn test_cache_save_and_load() {
 
     // Create new vault and load cache
     let model2 = Box::new(DendronModel::new(root.clone()));
-    let mut vault2 = Vault::new(Workspace::new(crate::config::DendriteConfig::default(), model2), fs.clone());
+    let config2 = crate::config::DendriteConfig {
+        workspace: crate::config::WorkspaceConfig {
+            vaults: vec![crate::config::VaultConfig {
+                name: "main".to_string(),
+                path: root.clone(),
+            }],
+            ..crate::config::DendriteConfig::default().workspace
+        },
+        ..crate::config::DendriteConfig::default()
+    };
+    let mut vault2 = DendriteEngine::new(Workspace::new(config2, model2), fs.clone());
     vault2
         .load_cache(&cache_path)
         .expect("Failed to load cache");
@@ -63,7 +83,17 @@ fn test_cache_tier1_hit() {
     fs::write(&note_path, "# Note 1").unwrap();
 
     let model = Box::new(DendronModel::new(root.clone()));
-    let mut vault = Vault::new(Workspace::new(crate::config::DendriteConfig::default(), model), fs.clone());
+    let config = crate::config::DendriteConfig {
+        workspace: crate::config::WorkspaceConfig {
+            vaults: vec![crate::config::VaultConfig {
+                name: "main".to_string(),
+                path: root.clone(),
+            }],
+            ..crate::config::DendriteConfig::default().workspace
+        },
+        ..crate::config::DendriteConfig::default()
+    };
+    let mut vault = DendriteEngine::new(Workspace::new(config, model), fs.clone());
 
     vault.initialize(root.clone());
     let cache_path = root.join("cache.bin");
@@ -71,7 +101,17 @@ fn test_cache_tier1_hit() {
 
     // Create new vault, load cache
     let model2 = Box::new(DendronModel::new(root.clone()));
-    let mut vault2 = Vault::new(Workspace::new(crate::config::DendriteConfig::default(), model2), fs.clone());
+    let config2 = crate::config::DendriteConfig {
+        workspace: crate::config::WorkspaceConfig {
+            vaults: vec![crate::config::VaultConfig {
+                name: "main".to_string(),
+                path: root.clone(),
+            }],
+            ..crate::config::DendriteConfig::default().workspace
+        },
+        ..crate::config::DendriteConfig::default()
+    };
+    let mut vault2 = DendriteEngine::new(Workspace::new(config2, model2), fs.clone());
     vault2.load_cache(&cache_path).unwrap();
 
     // Now "index" again. It should be a Tier 1 hit.
@@ -92,7 +132,17 @@ fn test_cache_tier2_digest_match() {
     fs::write(&note_path, content).unwrap();
 
     let model = Box::new(DendronModel::new(root.clone()));
-    let mut vault = Vault::new(Workspace::new(crate::config::DendriteConfig::default(), model), fs.clone());
+    let config = crate::config::DendriteConfig {
+        workspace: crate::config::WorkspaceConfig {
+            vaults: vec![crate::config::VaultConfig {
+                name: "main".to_string(),
+                path: root.clone(),
+            }],
+            ..crate::config::DendriteConfig::default().workspace
+        },
+        ..crate::config::DendriteConfig::default()
+    };
+    let mut vault = DendriteEngine::new(Workspace::new(config, model), fs.clone());
 
     vault.initialize(root.clone());
     let cache_path = root.join("cache.bin");
@@ -108,7 +158,17 @@ fn test_cache_tier2_digest_match() {
 
     // Load cache in new vault
     let model2 = Box::new(DendronModel::new(root.clone()));
-    let mut vault2 = Vault::new(Workspace::new(crate::config::DendriteConfig::default(), model2), fs.clone());
+    let config2 = crate::config::DendriteConfig {
+        workspace: crate::config::WorkspaceConfig {
+            vaults: vec![crate::config::VaultConfig {
+                name: "main".to_string(),
+                path: root.clone(),
+            }],
+            ..crate::config::DendriteConfig::default().workspace
+        },
+        ..crate::config::DendriteConfig::default()
+    };
+    let mut vault2 = DendriteEngine::new(Workspace::new(config2, model2), fs.clone());
     vault2.load_cache(&cache_path).unwrap();
 
     // Index again. Tier 1 will miss (mtime), Tier 2 should hit (digest).

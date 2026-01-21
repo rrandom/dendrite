@@ -13,8 +13,8 @@ pub async fn handle_rename(
     let new_name = params.new_name;
 
     // Resolve workspace
-    let vault = state.vault.read().await;
-    let workspace = match &*vault {
+    let engine = state.engine.read().await;
+    let workspace = match &*engine {
         Some(v) => &v.workspace,
         None => return Ok(None),
     };
@@ -33,7 +33,7 @@ pub async fn handle_rename(
 
     // Calculate edits using Vault API
     // We use match instead of ? to handle Option->Result correctly
-    let plan = match &*vault {
+    let plan = match &*engine {
         Some(v) => v.rename_note(&old_key, &new_name),
         None => return Ok(None),
     };

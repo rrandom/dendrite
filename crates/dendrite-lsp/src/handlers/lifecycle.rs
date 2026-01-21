@@ -1,5 +1,5 @@
 use crate::state::GlobalState;
-use dendrite_core::{DendronModel, Vault, Workspace};
+use dendrite_core::{DendriteEngine, DendronModel, Workspace};
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::Client;
@@ -35,44 +35,51 @@ pub async fn handle_initialize(
 
             let root_path_clone = root_path.clone();
             let fs = state.fs.clone();
-            let (vault, _files, stats, cache_loaded_msg) = tokio::task::spawn_blocking(move || {
-                // 1. Find and load config
-                let dendrite_yaml = root_path_clone.join("dendrite.yaml");
-                let config = if dendrite_yaml.exists() {
-                    let content = std::fs::read_to_string(dendrite_yaml).unwrap_or_default();
-                    dendrite_core::DendriteConfig::from_yaml(&content).unwrap_or_default()
-                } else {
-                    dendrite_core::DendriteConfig::default()
-                };
+            let (engine, _files, stats, cache_loaded_msg) =
+                tokio::task::spawn_blocking(move || {
+                    // 1. Find and load config
+                    let dendrite_yaml = root_path_clone.join("dendrite.yaml");
+                    let config = if dendrite_yaml.exists() {
+                        let content = std::fs::read_to_string(dendrite_yaml).unwrap_or_default();
+                        dendrite_core::DendriteConfig::from_yaml(&content).unwrap_or_default()
+                    } else {
+                        let mut c = dendrite_core::DendriteConfig::default();
+                        if let Some(main) = c.workspace.vaults.iter_mut().find(|v| v.name == "main") {
+                            main.path = root_path_clone.clone();
+                        }
+                        c
+                    };
 
-                let workspace = Workspace::new(
-                    config,
-                    Box::new(DendronModel::new(root_path_clone.clone())),
-                );
-                let mut v = Vault::new(workspace, fs);
+                    let workspace = Workspace::new(
+                        config,
+                        Box::new(DendronModel::new(root_path_clone.clone())),
+                    );
+                    let mut v = DendriteEngine::new(workspace, fs);
 
-                // Try to load cache first
-                let cache_path = root_path_clone.join(".dendrite").join("cache.bin");
-                let cache_msg = match v.load_cache(&cache_path) {
-                    Ok(_) => "💾 Persistent cache loaded successfully".to_string(),
-                    Err(e) => format!("🆕 Starting fresh scan (cache: {})", e),
-                };
+                    // Try to load cache first
+                    let cache_path = root_path_clone.join(".dendrite").join("cache.bin");
+                    let cache_msg = match v.load_cache(&cache_path) {
+                        Ok(_) => "💾 Persistent cache loaded successfully".to_string(),
+                        Err(e) => format!("🆕 Starting fresh scan (cache: {})", e),
+                    };
 
-                let (files, stats) = v.initialize(root_path_clone.clone());
+                    let (files, stats) = v.initialize(root_path_clone.clone());
 
-                // Save cache immediately to warm it up
-                let _ = v.save_cache(&cache_path);
+                    // Save cache immediately to warm it up
+                    let _ = v.save_cache(&cache_path);
 
-                (v, files, stats, cache_msg)
-            })
-            .await
-            .map_err(|e| tower_lsp::jsonrpc::Error {
-                code: tower_lsp::jsonrpc::ErrorCode::InternalError,
-                message: format!("Failed to initialize workspace: {}", e).into(),
-                data: None,
-            })?;
+                    (v, files, stats, cache_msg)
+                })
+                .await
+                .map_err(|e| tower_lsp::jsonrpc::Error {
+                    code: tower_lsp::jsonrpc::ErrorCode::InternalError,
+                    message: format!("Failed to initialize workspace: {}", e).into(),
+                    data: None,
+                })?;
 
-            client.log_message(MessageType::INFO, cache_loaded_msg).await;
+            client
+                .log_message(MessageType::INFO, cache_loaded_msg)
+                .await;
 
             client
                 .log_message(
@@ -88,7 +95,7 @@ pub async fn handle_initialize(
                 )
                 .await;
 
-            let notes_count = vault.workspace.all_notes().len();
+            let notes_count = engine.workspace.all_notes().len();
             client
                 .log_message(
                     MessageType::INFO,
@@ -96,8 +103,8 @@ pub async fn handle_initialize(
                 )
                 .await;
 
-            let mut vault_lock = state.vault.write().await;
-            *vault_lock = Some(vault);
+            let mut engine_lock = state.engine.write().await;
+            *engine_lock = Some(engine);
         }
     } else {
         client

@@ -11,10 +11,7 @@ pub struct CacheManager {
 
 impl CacheManager {
     pub fn new(state: GlobalState, receiver: UnboundedReceiver<()>) -> Self {
-        Self {
-            state,
-            receiver,
-        }
+        Self { state, receiver }
     }
 
     pub async fn start(mut self) {
@@ -48,12 +45,12 @@ impl CacheManager {
     }
 
     async fn perform_save(&self) {
-        let vault_opt = self.state.vault.read().await;
-        if let Some(vault) = vault_opt.as_ref() {
-            let root = vault.workspace.root().to_path_buf();
+        let engine_opt = self.state.engine.read().await;
+        if let Some(engine) = engine_opt.as_ref() {
+            let root = engine.workspace.root().to_path_buf();
             let cache_path = root.join(".dendrite").join("cache.bin");
 
-            match vault.save_cache(&cache_path) {
+            match engine.save_cache(&cache_path) {
                 Ok(_) => {
                     // We don't want to spam the log, but maybe a debug trace
                     // eprintln!("💾 Cache saved to {:?}", cache_path);

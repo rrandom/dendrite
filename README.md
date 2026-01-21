@@ -24,6 +24,10 @@ It is designed for speed: featuring a **two-tier persistent cache** and a **debo
 - Node.js and pnpm
 - VS Code (for extension development)
 
+## Documentation
+
+- [Configuration Guide](docs/configuration.md): Learn how to configure `dendrite.yaml` and VS Code settings.
+
 ## Development
 
 ### Install Dependencies

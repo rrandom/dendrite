@@ -10,11 +10,11 @@ pub async fn handle_goto_definition(
     state: &GlobalState,
     params: GotoDefinitionParams,
 ) -> Result<Option<GotoDefinitionResponse>> {
-    let state_lock = state.vault.read().await;
-    let Some(vault) = &*state_lock else {
+    let state_lock = state.engine.read().await;
+    let Some(engine) = &*state_lock else {
         return Ok(None);
     };
-    let ws = &vault.workspace;
+    let ws = &engine.workspace;
 
     let uri = &params.text_document_position_params.text_document.uri;
     let position = params.text_document_position_params.position;
@@ -88,11 +88,11 @@ pub async fn handle_hover(
     state: &GlobalState,
     params: HoverParams,
 ) -> Result<Option<Hover>> {
-    let state_lock = state.vault.read().await;
-    let Some(vault) = &*state_lock else {
+    let state_lock = state.engine.read().await;
+    let Some(engine) = &*state_lock else {
         return Ok(None);
     };
-    let ws = &vault.workspace;
+    let ws = &engine.workspace;
 
     let uri = &params.text_document_position_params.text_document.uri;
     let position = params.text_document_position_params.position;
@@ -189,11 +189,11 @@ pub async fn handle_document_highlight(
         )
         .await;
 
-    let state_lock = state.vault.read().await;
-    let Some(vault) = &*state_lock else {
+    let state_lock = state.engine.read().await;
+    let Some(engine) = &*state_lock else {
         return Ok(None);
     };
-    let ws = &vault.workspace;
+    let ws = &engine.workspace;
 
     let uri = &params.text_document_position_params.text_document.uri;
     let position = params.text_document_position_params.position;

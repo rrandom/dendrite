@@ -13,9 +13,9 @@ pub async fn handle_did_open(state: &GlobalState, params: DidOpenTextDocumentPar
         cache.insert(uri.clone(), text.clone());
     }
 
-    // Update vault
-    let mut vault_lock = state.vault.write().await;
-    if let Some(v) = &mut *vault_lock {
+    // Update engine
+    let mut engine_lock = state.engine.write().await;
+    if let Some(v) = &mut *engine_lock {
         if let Ok(path) = uri.to_file_path() {
             v.update_content(path, &text);
             let _ = state.dirty_signal.send(());
@@ -36,9 +36,9 @@ pub async fn handle_did_change(state: &GlobalState, params: DidChangeTextDocumen
             cache.insert(uri.clone(), text.clone());
         }
 
-        // Update vault
-        let mut vault_lock = state.vault.write().await;
-        if let Some(v) = &mut *vault_lock {
+        // Update engine
+        let mut engine_lock = state.engine.write().await;
+        if let Some(v) = &mut *engine_lock {
             if let Ok(path) = uri.to_file_path() {
                 v.update_content(path, &text);
                 let _ = state.dirty_signal.send(());
@@ -53,10 +53,10 @@ pub async fn handle_did_change_watched_files(
     state: &GlobalState,
     params: DidChangeWatchedFilesParams,
 ) {
-    let mut vault_lock = state.vault.write().await;
+    let mut engine_lock = state.engine.write().await;
     let mut changed = false;
 
-    if let Some(v) = &mut *vault_lock {
+    if let Some(v) = &mut *engine_lock {
         for change in params.changes {
             let uri = change.uri.clone();
             if let Ok(path) = uri.to_file_path() {
@@ -108,8 +108,8 @@ pub async fn handle_did_rename_files(
     state: &GlobalState,
     params: RenameFilesParams,
 ) {
-    let mut vault_lock = state.vault.write().await;
-    if let Some(v) = &mut *vault_lock {
+    let mut engine_lock = state.engine.write().await;
+    if let Some(v) = &mut *engine_lock {
         for file_rename in params.files {
             let old_uri = file_rename.old_uri.parse::<Url>();
             let new_uri = file_rename.new_uri.parse::<Url>();

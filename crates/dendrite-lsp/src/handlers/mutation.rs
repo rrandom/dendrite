@@ -71,8 +71,8 @@ pub async fn handle_create_note(
         .map_err(|_| Error::invalid_params("Invalid note_key argument"))?;
 
     // 2. Access Vault
-    let state_lock = state.vault.read().await;
-    let Some(vault) = &*state_lock else {
+    let state_lock = state.engine.read().await;
+    let Some(engine) = &*state_lock else {
         return Err(Error {
             code: ErrorCode::InternalError,
             message: "Vault not initialized".into(),
@@ -80,7 +80,7 @@ pub async fn handle_create_note(
         });
     };
 
-    let plan = vault.create_note(&note_key);
+    let plan = engine.create_note(&note_key);
 
     // 4. Apply changes (if any)
     if let Some(plan) = plan {
@@ -125,15 +125,15 @@ pub async fn handle_split_note_command(
     let new_note_name: String = serde_json::from_value(params.arguments[2].clone())
         .map_err(|_| Error::invalid_params("Invalid new_note_name"))?;
 
-    let vault_guard = state.vault.read().await;
-    let vault = vault_guard.as_ref().ok_or_else(Error::internal_error)?;
+    let engine_guard = state.engine.read().await;
+    let engine = engine_guard.as_ref().ok_or_else(Error::internal_error)?;
 
     let source_path = source_uri
         .to_file_path()
         .map_err(|_| Error::internal_error())?;
 
     // Verify key exists
-    let _old_key = vault
+    let _old_key = engine
         .workspace
         .resolve_note_key(&source_path)
         .ok_or_else(|| Error {
@@ -154,7 +154,7 @@ pub async fn handle_split_note_command(
         },
     };
 
-    let plan = vault.split_note(&source_path, text_range, &new_note_name);
+    let plan = engine.split_note(&source_path, text_range, &new_note_name);
 
     if let Some(plan) = plan {
         apply_edit_plan(client, plan).await?;
@@ -178,10 +178,10 @@ pub async fn handle_delete_note_command(
         };
     let note_key = params.note_key;
 
-    let vault_guard = state.vault.read().await;
-    let vault = vault_guard.as_ref().ok_or_else(Error::internal_error)?;
+    let engine_guard = state.engine.read().await;
+    let engine = engine_guard.as_ref().ok_or_else(Error::internal_error)?;
 
-    let plan = vault.delete_note(&note_key);
+    let plan = engine.delete_note(&note_key);
 
     if let Some(plan) = plan {
         apply_edit_plan(client, plan).await?;
@@ -196,9 +196,9 @@ pub async fn handle_undo_mutation(client: &tower_lsp::Client, state: &GlobalStat
 
     if let Some(plan) = history.pop_back() {
         // 1. Invert the plan
-        let vault_guard = state.vault.read().await;
+        let engine_guard = state.engine.read().await;
         // Map Vault (if present) to dyn ContentProvider
-        let cp = vault_guard
+        let cp = engine_guard
             .as_ref()
             .map(|v| v as &dyn dendrite_core::mutation::model::ContentProvider);
         let inverted_plan = plan.invert(cp);

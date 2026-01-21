@@ -5,10 +5,10 @@ use serde::{Deserialize, Serialize};
 pub struct LspSettings {
     /// Logging level for the LSP server
     pub log_level: LogLevel,
-    
+
     /// Persistent cache settings
     pub cache: CacheSettings,
-    
+
     /// Maximum number of mutation history entries for undo
     pub mutation_history_limit: usize,
 }
@@ -28,7 +28,7 @@ pub enum LogLevel {
 pub struct CacheSettings {
     /// Whether to enable persistent cache (saving/loading)
     pub enabled: bool,
-    
+
     /// Interval in milliseconds for debounced cache saving
     pub save_interval: u64,
 }

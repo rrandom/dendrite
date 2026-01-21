@@ -30,20 +30,31 @@ impl<'a> Indexer<'a> {
         }
     }
 
-    /// Performs a full index of the workspace.
-    pub fn full_index(&mut self, root: PathBuf) -> (Vec<PathBuf>, IndexingStats) {
-        let extensions = self.workspace.model.supported_extensions();
-        let mut files = Vec::new();
+    /// Performs a full index of the workspace using all configured vaults.
+    pub fn full_index(&mut self) -> (Vec<PathBuf>, IndexingStats) {
+        let extensions: Vec<String> = self
+            .workspace
+            .model
+            .supported_extensions()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let vaults = self.workspace.config.workspace.vaults.clone();
+        let mut all_files = Vec::new();
 
-        for ext in extensions {
-            files.extend(self.fs.list_files(&root, ext));
+        for vault in vaults {
+            let mut vault_files = Vec::new();
+            for ext in &extensions {
+                vault_files.extend(self.fs.list_files(&vault.path, ext));
+            }
+
+            for path in &vault_files {
+                self.index_file(path.clone(), &vault.name);
+            }
+            all_files.extend(vault_files);
         }
 
-        self.stats.total_files = files.len();
-
-        for path in &files {
-            self.index_file(path.clone());
-        }
+        self.stats.total_files = all_files.len();
 
         // Build virtual notes for missing hierarchy levels
         self.workspace.fill_missing_hierarchy_levels();
@@ -51,11 +62,11 @@ impl<'a> Indexer<'a> {
         // Invalidate tree to trigger rebuild on next access
         self.workspace.invalidate_tree();
 
-        (files, self.stats.clone())
+        (all_files, self.stats.clone())
     }
 
     /// Indexes a single file from disk.
-    pub fn index_file(&mut self, path: PathBuf) {
+    pub fn index_file(&mut self, path: PathBuf, vault_name: &str) {
         // Tier 1: Metadata Check
         if let Ok(fs_meta) = self.fs.metadata(&path) {
             if let Some(cached_meta) = self.workspace.cache_metadata.get(&path) {
@@ -97,16 +108,22 @@ impl<'a> Indexer<'a> {
             }
         }
 
-        self.update_content_internal(path, &content, digest);
+        self.update_content_internal(path, &content, digest, vault_name.to_string());
     }
 
     /// Updates or creates a note from provided content.
-    pub fn update_content(&mut self, path: PathBuf, content: &str) {
+    pub fn update_content(&mut self, path: PathBuf, content: &str, vault_name: String) {
         let digest = crate::parser::compute_digest(content);
-        self.update_content_internal(path, content, digest);
+        self.update_content_internal(path, content, digest, vault_name);
     }
 
-    fn update_content_internal(&mut self, path: PathBuf, content: &str, digest: String) {
+    fn update_content_internal(
+        &mut self,
+        path: PathBuf,
+        content: &str,
+        digest: String,
+        vault_name: String,
+    ) {
         self.stats.full_parses += 1;
         let new_key = self.workspace.model.note_key_from_path(&path, content);
 
@@ -141,7 +158,7 @@ impl<'a> Indexer<'a> {
         parse_result.digest = digest.clone();
 
         let note = NoteAssembler::new(&*self.workspace.model, &mut self.workspace.identity)
-            .assemble(parse_result, &path, &note_id);
+            .assemble(parse_result, &path, &note_id, vault_name);
 
         let targets: Vec<NoteId> = note.links.iter().map(|link| link.target.clone()).collect();
         self.workspace.store.upsert_note(note);
@@ -166,9 +183,15 @@ impl<'a> Indexer<'a> {
     }
 
     /// Handles file renaming.
-    pub fn rename_file(&mut self, old_path: PathBuf, new_path: PathBuf, content: &str) {
+    pub fn rename_file(
+        &mut self,
+        old_path: PathBuf,
+        new_path: PathBuf,
+        content: &str,
+        vault_name: String,
+    ) {
         let Some(old_id) = self.workspace.store.note_id_by_path(&old_path).cloned() else {
-            self.update_content(new_path, content);
+            self.update_content(new_path, content, vault_name);
             return;
         };
 
@@ -186,7 +209,7 @@ impl<'a> Indexer<'a> {
 
         let parse_result = parse_markdown(content, &self.workspace.model.supported_link_kinds());
         let note = NoteAssembler::new(&*self.workspace.model, &mut self.workspace.identity)
-            .assemble(parse_result, &new_path, &old_id);
+            .assemble(parse_result, &new_path, &old_id, vault_name);
 
         let targets: Vec<NoteId> = note.links.iter().map(|link| link.target.clone()).collect();
         self.workspace.store.upsert_note(note);

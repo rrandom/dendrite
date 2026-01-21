@@ -3,25 +3,25 @@ use crate::vfs::FileSystem;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-/// The Vault acts as the high-level Facade for the Dendrite Core.
+/// The DendriteEngine acts as the high-level Facade for the Dendrite Core.
 ///
 /// # Architecture Decision: Action vs Query Separation
 ///
-/// *   **Actions (Write/Mutation)**: Unified in `Vault`.
+/// *   **Actions (Write/Mutation)**: Unified in `DendriteEngine`.
 ///     All operations that modify state (File Sync) or calculate changes (Mutation)
-///     SHOULD happen through methods on `Vault`. This ensures a single entry point for
+///     SHOULD happen through methods on `DendriteEngine`. This ensures a single entry point for
 ///     business logic that may involve the FileSystem or Side Effects.
 ///
-/// *   **Queries (Read)**: Access `vault.workspace` directly.
+/// *   **Queries (Read)**: Access `engine.workspace` directly.
 ///     Read-only operations (resolving keys, looking up notes, graph traversal) DO NOT
-///     need to be wrapped in `Vault`. Callers should access `vault.workspace` directly.
+///     need to be wrapped in `DendriteEngine`. Callers should access `engine.workspace` directly.
 ///     This avoids boilerplate and keeps the API surface clean.
-pub struct Vault {
+pub struct DendriteEngine {
     pub workspace: Workspace,
     pub fs: Arc<dyn FileSystem>,
 }
 
-impl Vault {
+impl DendriteEngine {
     pub fn new(workspace: Workspace, fs: Arc<dyn FileSystem>) -> Self {
         Self { workspace, fs }
     }
@@ -60,13 +60,18 @@ impl Vault {
 
     pub fn initialize(
         &mut self,
-        root: PathBuf,
+        _root: PathBuf,
     ) -> (Vec<PathBuf>, crate::workspace::indexer::IndexingStats) {
-        self.workspace.initialize(root, &*self.fs)
+        self.workspace.initialize(&*self.fs)
     }
 
     pub fn update_content(&mut self, path: PathBuf, content: &str) {
-        self.workspace.update_file(path, content, &*self.fs);
+        let vault_name = self
+            .workspace
+            .vault_name_for_path(&path)
+            .unwrap_or_else(|| "main".to_string());
+        self.workspace
+            .update_file(path, content, vault_name, &*self.fs);
     }
 
     pub fn delete_file(&mut self, path: &PathBuf) {
@@ -74,8 +79,12 @@ impl Vault {
     }
 
     pub fn rename_file(&mut self, old_path: PathBuf, new_path: PathBuf, content: &str) {
+        let vault_name = self
+            .workspace
+            .vault_name_for_path(&new_path)
+            .unwrap_or_else(|| "main".to_string());
         self.workspace
-            .rename_file(old_path, new_path, content, &*self.fs);
+            .rename_file(old_path, new_path, content, vault_name, &*self.fs);
     }
 
     // ------------------------------------------------------------------------
@@ -136,7 +145,7 @@ impl Vault {
     }
 }
 
-impl crate::mutation::model::ContentProvider for Vault {
+impl crate::mutation::model::ContentProvider for DendriteEngine {
     fn get_content(&self, uri: &str) -> Option<String> {
         self.fs.read_to_string(&std::path::PathBuf::from(uri)).ok()
     }

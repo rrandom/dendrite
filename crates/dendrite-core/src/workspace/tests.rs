@@ -24,7 +24,7 @@ fn test_parse_note_resolves_links_correctly() {
     let note2_path = temp_dir.path().join("note2.md");
     fs::write(&note2_path, "# Note 2").unwrap();
     let mut indexer = Indexer::new(&mut ws, &fs);
-    indexer.update_content(note2_path.clone(), "# Note 2");
+    indexer.update_content(note2_path.clone(), "# Note 2", "main".to_string());
     let note2_id = ws.store.note_id_by_path(&note2_path).unwrap().clone();
 
     let note1_path = temp_dir.path().join("note1.md");
@@ -37,6 +37,7 @@ fn test_parse_note_resolves_links_correctly() {
         parse_result,
         &note1_path,
         &note1_id,
+        "main".to_string(),
     );
 
     assert_eq!(note.links.len(), 1, "Should have one link");
@@ -69,7 +70,11 @@ fn test_note_id_stable_on_file_rename() {
     let file1_path = temp_dir.path().join("note1.md");
     fs::write(&file1_path, "# Note 1\n\nContent").unwrap();
 
-    Indexer::new(&mut ws, &fs).update_content(file1_path.clone(), "# Note 1\n\nContent");
+    Indexer::new(&mut ws, &fs).update_content(
+        file1_path.clone(),
+        "# Note 1\n\nContent",
+        "main".to_string(),
+    );
     let initial_id = ws.store.note_id_by_path(&file1_path).unwrap().clone();
 
     let file2_path = temp_dir.path().join("note2.md");
@@ -78,6 +83,7 @@ fn test_note_id_stable_on_file_rename() {
         file1_path.clone(),
         file2_path.clone(),
         "# Note 1\n\nContent",
+        "main".to_string(),
     );
 
     let renamed_id = ws.store.note_id_by_path(&file2_path).unwrap();
@@ -95,10 +101,18 @@ fn test_note_id_stable_on_file_content_change() {
     let file_path = temp_dir.path().join("note.md");
     fs::write(&file_path, "# Note\n\nInitial content").unwrap();
 
-    Indexer::new(&mut ws, &fs).update_content(file_path.clone(), "# Note\n\nInitial content");
+    Indexer::new(&mut ws, &fs).update_content(
+        file_path.clone(),
+        "# Note\n\nInitial content",
+        "main".to_string(),
+    );
     let initial_id = ws.store.note_id_by_path(&file_path).unwrap().clone();
 
-    Indexer::new(&mut ws, &fs).update_content(file_path.clone(), "# Note\n\nModified content");
+    Indexer::new(&mut ws, &fs).update_content(
+        file_path.clone(),
+        "# Note\n\nModified content",
+        "main".to_string(),
+    );
 
     let changed_id = ws.store.note_id_by_path(&file_path).unwrap();
     assert_eq!(
@@ -115,7 +129,11 @@ fn test_note_id_stable_on_file_move() {
     let file1_path = temp_dir.path().join("note1.md");
     fs::write(&file1_path, "# Note 1\n\nContent").unwrap();
 
-    Indexer::new(&mut ws, &fs).update_content(file1_path.clone(), "# Note 1\n\nContent");
+    Indexer::new(&mut ws, &fs).update_content(
+        file1_path.clone(),
+        "# Note 1\n\nContent",
+        "main".to_string(),
+    );
     let initial_id = ws.store.note_id_by_path(&file1_path).unwrap().clone();
 
     let file2_path = temp_dir.path().join("subdir").join("note1.md");
@@ -126,6 +144,7 @@ fn test_note_id_stable_on_file_move() {
         file1_path.clone(),
         file2_path.clone(),
         "# Note 1\n\nContent",
+        "main".to_string(),
     );
 
     let moved_id = ws.store.note_id_by_path(&file2_path).unwrap();
@@ -142,12 +161,12 @@ fn test_new_file_creates_new_note_id() {
 
     let file1_path = temp_dir.path().join("note1.md");
     fs::write(&file1_path, "# Note 1").unwrap();
-    Indexer::new(&mut ws, &fs).update_content(file1_path.clone(), "# Note 1");
+    Indexer::new(&mut ws, &fs).update_content(file1_path.clone(), "# Note 1", "main".to_string());
     let id1 = ws.store.note_id_by_path(&file1_path).unwrap().clone();
 
     let file2_path = temp_dir.path().join("note2.md");
     fs::write(&file2_path, "# Note 2").unwrap();
-    Indexer::new(&mut ws, &fs).update_content(file2_path.clone(), "# Note 2");
+    Indexer::new(&mut ws, &fs).update_content(file2_path.clone(), "# Note 2", "main".to_string());
     let id2 = ws.store.note_id_by_path(&file2_path).unwrap().clone();
 
     assert_ne!(id1, id2, "Different files should have different NoteIds");
@@ -166,11 +185,15 @@ fn test_backlinks_maintained_after_rename() {
 
     {
         let mut indexer = Indexer::new(&mut ws, &fs);
-        indexer.update_content(note2_path.clone(), "# Note 2");
+        indexer.update_content(note2_path.clone(), "# Note 2", "main".to_string());
     }
     let note2_id = ws.store.note_id_by_path(&note2_path).unwrap().clone();
 
-    Indexer::new(&mut ws, &fs).update_content(note1_path.clone(), "# Note 1\n\n[[note2]]");
+    Indexer::new(&mut ws, &fs).update_content(
+        note1_path.clone(),
+        "# Note 1\n\n[[note2]]",
+        "main".to_string(),
+    );
 
     let backlinks_before = ws.backlinks_of(&note2_path);
     assert!(
@@ -180,7 +203,12 @@ fn test_backlinks_maintained_after_rename() {
 
     let note2_new_path = temp_dir.path().join("note2_renamed.md");
     fs::write(&note2_new_path, "# Note 2").unwrap();
-    Indexer::new(&mut ws, &fs).rename_file(note2_path.clone(), note2_new_path.clone(), "# Note 2");
+    Indexer::new(&mut ws, &fs).rename_file(
+        note2_path.clone(),
+        note2_new_path.clone(),
+        "# Note 2",
+        "main".to_string(),
+    );
 
     let note2_new_id = ws.store.note_id_by_path(&note2_new_path).unwrap();
     assert_eq!(
@@ -203,12 +231,20 @@ fn test_links_updated_after_content_change() {
     let note_path = temp_dir.path().join("note.md");
     fs::write(&note_path, "# Note\n\n[[target1]]").unwrap();
 
-    Indexer::new(&mut ws, &fs).update_content(note_path.clone(), "# Note\n\n[[target1]]");
+    Indexer::new(&mut ws, &fs).update_content(
+        note_path.clone(),
+        "# Note\n\n[[target1]]",
+        "main".to_string(),
+    );
     let note = ws.note_by_path(&note_path).unwrap();
     let initial_id = note.id.clone();
     let _initial_link_count = note.links.len();
 
-    Indexer::new(&mut ws, &fs).update_content(note_path.clone(), "# Note\n\n[[target2]]");
+    Indexer::new(&mut ws, &fs).update_content(
+        note_path.clone(),
+        "# Note\n\n[[target2]]",
+        "main".to_string(),
+    );
     let updated_note = ws.note_by_path(&note_path).unwrap();
 
     assert_eq!(updated_note.links.len(), 1, "Should have one link");
@@ -223,7 +259,7 @@ fn test_semantic_rename_preserves_note_id() {
     let old_path = temp_dir.path().join("old_name.md");
     fs::write(&old_path, "# Old Name").unwrap();
 
-    Indexer::new(&mut ws, &fs).update_content(old_path.clone(), "# Old Name");
+    Indexer::new(&mut ws, &fs).update_content(old_path.clone(), "# Old Name", "main".to_string());
     let initial_id = ws.store.note_id_by_path(&old_path).unwrap().clone();
 
     // Semantic rename
@@ -249,13 +285,13 @@ fn test_find_link_at_position() {
     fs::write(&target_path, "# Target").unwrap();
     let fs_backend = PhysicalFileSystem;
     let mut indexer = Indexer::new(&mut ws, &fs_backend);
-    indexer.update_content(target_path.clone(), "# Target");
+    indexer.update_content(target_path.clone(), "# Target", "main".to_string());
 
     // Create source note with link
     let source_path = temp_dir.path().join("source.md");
     let source_content = "# Source\n\nThis is a link: [[target]]";
     fs::write(&source_path, source_content).unwrap();
-    indexer.update_content(source_path.clone(), source_content);
+    indexer.update_content(source_path.clone(), source_content, "main".to_string());
 
     // Get the note to check link position
     let note = ws.note_by_path(&source_path).unwrap();
@@ -299,13 +335,21 @@ fn test_find_link_at_position_not_found() {
     let target_path = temp_dir.path().join("target.md");
     fs::write(&target_path, "# Target").unwrap();
     let fs_backend = PhysicalFileSystem;
-    Indexer::new(&mut ws, &fs_backend).update_content(target_path.clone(), "# Target");
+    Indexer::new(&mut ws, &fs_backend).update_content(
+        target_path.clone(),
+        "# Target",
+        "main".to_string(),
+    );
 
     // Create source note with link
     let source_path = temp_dir.path().join("source.md");
     let source_content = "# Source\n\nThis is a link: [[target]]";
     fs::write(&source_path, source_content).unwrap();
-    Indexer::new(&mut ws, &fs_backend).update_content(source_path.clone(), source_content);
+    Indexer::new(&mut ws, &fs_backend).update_content(
+        source_path.clone(),
+        source_content,
+        "main".to_string(),
+    );
 
     // Get the actual link range to calculate positions outside it
     let note = ws.note_by_path(&source_path).unwrap();
@@ -359,15 +403,19 @@ fn test_find_link_at_position_multiple_links() {
     let fs_backend = PhysicalFileSystem;
     {
         let mut indexer = Indexer::new(&mut ws, &fs_backend);
-        indexer.update_content(target1_path.clone(), "# Target 1");
-        indexer.update_content(target2_path.clone(), "# Target 2");
+        indexer.update_content(target1_path.clone(), "# Target 1", "main".to_string());
+        indexer.update_content(target2_path.clone(), "# Target 2", "main".to_string());
     }
 
     // Create source note with multiple links
     let source_path = temp_dir.path().join("source.md");
     let source_content = "# Source\n\n[[target1]] and [[target2]]";
     fs::write(&source_path, source_content).unwrap();
-    Indexer::new(&mut ws, &fs_backend).update_content(source_path.clone(), source_content);
+    Indexer::new(&mut ws, &fs_backend).update_content(
+        source_path.clone(),
+        source_content,
+        "main".to_string(),
+    );
 
     let note = ws.note_by_path(&source_path).unwrap();
     assert_eq!(note.links.len(), 2, "Should have two links");
@@ -401,13 +449,21 @@ fn test_get_link_target_path() {
     let target_path = temp_dir.path().join("target.md");
     fs::write(&target_path, "# Target").unwrap();
     let fs_backend = PhysicalFileSystem;
-    Indexer::new(&mut ws, &fs_backend).update_content(target_path.clone(), "# Target");
+    Indexer::new(&mut ws, &fs_backend).update_content(
+        target_path.clone(),
+        "# Target",
+        "main".to_string(),
+    );
 
     // Create source note with link
     let source_path = temp_dir.path().join("source.md");
     let source_content = "# Source\n\n[[target]]";
     fs::write(&source_path, source_content).unwrap();
-    Indexer::new(&mut ws, &fs_backend).update_content(source_path.clone(), source_content);
+    Indexer::new(&mut ws, &fs_backend).update_content(
+        source_path.clone(),
+        source_content,
+        "main".to_string(),
+    );
 
     // Get the link
     let note = ws.note_by_path(&source_path).unwrap();
@@ -436,7 +492,11 @@ fn test_get_link_target_path_nonexistent() {
     let source_content = "# Source\n\n[[nonexistent]]";
     fs::write(&source_path, source_content).unwrap();
     let fs_backend = PhysicalFileSystem;
-    Indexer::new(&mut ws, &fs_backend).update_content(source_path.clone(), source_content);
+    Indexer::new(&mut ws, &fs_backend).update_content(
+        source_path.clone(),
+        source_content,
+        "main".to_string(),
+    );
 
     // Get the link
     let note = ws.note_by_path(&source_path).unwrap();
@@ -462,13 +522,21 @@ fn test_find_link_at_position_and_get_target_path_integration() {
     let target_path = temp_dir.path().join("target.md");
     fs::write(&target_path, "# Target Note").unwrap();
     let fs_backend = PhysicalFileSystem;
-    Indexer::new(&mut ws, &fs_backend).update_content(target_path.clone(), "# Target Note");
+    Indexer::new(&mut ws, &fs_backend).update_content(
+        target_path.clone(),
+        "# Target Note",
+        "main".to_string(),
+    );
 
     // Create source note with link
     let source_path = temp_dir.path().join("source.md");
     let source_content = "# Source Note\n\nCheck out [[target]] for more info.";
     fs::write(&source_path, source_content).unwrap();
-    Indexer::new(&mut ws, &fs_backend).update_content(source_path.clone(), source_content);
+    Indexer::new(&mut ws, &fs_backend).update_content(
+        source_path.clone(),
+        source_content,
+        "main".to_string(),
+    );
 
     // Find link at a position within the link
     // The link [[target]] should be on line 2 (0-based), around column 10-20
@@ -506,15 +574,15 @@ fn test_all_note_keys() {
     let fs_backend = PhysicalFileSystem;
     {
         let mut indexer = Indexer::new(&mut ws, &fs_backend);
-        indexer.update_content(note1_path.clone(), "# Note One");
+        indexer.update_content(note1_path.clone(), "# Note One", "main".to_string());
 
         let note2_path = temp_dir.path().join("note2.md");
         fs::write(&note2_path, "# Note Two").unwrap();
-        indexer.update_content(note2_path.clone(), "# Note Two");
+        indexer.update_content(note2_path.clone(), "# Note Two", "main".to_string());
 
         let note3_path = temp_dir.path().join("note3.md");
         fs::write(&note3_path, "No title here").unwrap();
-        indexer.update_content(note3_path.clone(), "No title here");
+        indexer.update_content(note3_path.clone(), "No title here", "main".to_string());
     }
 
     // Get all note keys
@@ -571,10 +639,14 @@ fn test_virtual_notes_created_for_missing_parents() {
     let baz_path = temp_dir.path().join("foo.bar.baz.md");
     fs::write(&baz_path, "# Baz").unwrap();
     let fs_backend = PhysicalFileSystem;
-    Indexer::new(&mut ws, &fs_backend).update_content(baz_path.clone(), "# Baz");
+    Indexer::new(&mut ws, &fs_backend).update_content(
+        baz_path.clone(),
+        "# Baz",
+        "main".to_string(),
+    );
 
     // Initialize workspace to trigger virtual note creation
-    ws.initialize(temp_dir.path().to_path_buf(), &fs_backend);
+    ws.initialize(&fs_backend);
 
     // Check that virtual notes were created
     let all_notes: Vec<_> = ws.store.all_notes().collect();
@@ -636,19 +708,19 @@ fn test_tree_structure_built_correctly() {
     let fs_backend = PhysicalFileSystem;
     {
         let mut indexer = Indexer::new(&mut ws, &fs_backend);
-        indexer.update_content(foo_path.clone(), "# Foo");
+        indexer.update_content(foo_path.clone(), "# Foo", "main".to_string());
 
         let foobar_path = temp_dir.path().join("foo.bar.md");
         fs::write(&foobar_path, "# Foo Bar").unwrap();
-        indexer.update_content(foobar_path.clone(), "# Foo Bar");
+        indexer.update_content(foobar_path.clone(), "# Foo Bar", "main".to_string());
 
         let foobarbaz_path = temp_dir.path().join("foo.bar.baz.md");
         fs::write(&foobarbaz_path, "# Foo Bar Baz").unwrap();
-        indexer.update_content(foobarbaz_path.clone(), "# Foo Bar Baz");
+        indexer.update_content(foobarbaz_path.clone(), "# Foo Bar Baz", "main".to_string());
     }
 
     // Initialize to build tree
-    ws.initialize(temp_dir.path().to_path_buf(), &fs_backend);
+    ws.initialize(&fs_backend);
 
     // Get tree structure
     let tree = ws.tree();
@@ -715,10 +787,14 @@ fn test_tree_cache_works() {
     let note_path = temp_dir.path().join("test.md");
     fs::write(&note_path, "# Test").unwrap();
     let fs_backend = PhysicalFileSystem;
-    Indexer::new(&mut ws, &fs_backend).update_content(note_path.clone(), "# Test");
+    Indexer::new(&mut ws, &fs_backend).update_content(
+        note_path.clone(),
+        "# Test",
+        "main".to_string(),
+    );
 
     // Initialize to build tree
-    ws.initialize(temp_dir.path().to_path_buf(), &fs_backend);
+    ws.initialize(&fs_backend);
 
     // First call should build the tree
     let tree1 = ws.tree();
@@ -740,10 +816,14 @@ fn test_tree_invalidated_on_file_changes() {
     let note_path = temp_dir.path().join("test.md");
     fs::write(&note_path, "# Test").unwrap();
     let fs_backend = PhysicalFileSystem;
-    Indexer::new(&mut ws, &fs_backend).update_content(note_path.clone(), "# Test");
+    Indexer::new(&mut ws, &fs_backend).update_content(
+        note_path.clone(),
+        "# Test",
+        "main".to_string(),
+    );
 
     // Initialize to build tree
-    ws.initialize(temp_dir.path().to_path_buf(), &fs_backend);
+    ws.initialize(&fs_backend);
 
     // Get initial tree
     let tree1 = ws.tree();
@@ -753,7 +833,11 @@ fn test_tree_invalidated_on_file_changes() {
     // Add a new note (should invalidate tree)
     let note2_path = temp_dir.path().join("test2.md");
     fs::write(&note2_path, "# Test 2").unwrap();
-    Indexer::new(&mut ws, &fs_backend).update_content(note2_path.clone(), "# Test 2");
+    Indexer::new(&mut ws, &fs_backend).update_content(
+        note2_path.clone(),
+        "# Test 2",
+        "main".to_string(),
+    );
 
     // Tree should be rebuilt with new note
     let tree2 = ws.tree();
@@ -785,15 +869,15 @@ fn test_get_tree_view() {
     let fs_backend = PhysicalFileSystem;
     {
         let mut indexer = Indexer::new(&mut ws, &fs_backend);
-        indexer.update_content(foo_path.clone(), "# Foo");
+        indexer.update_content(foo_path.clone(), "# Foo", "main".to_string());
 
         let foobar_path = temp_dir.path().join("foo.bar.md");
         fs::write(&foobar_path, "# Foo Bar").unwrap();
-        indexer.update_content(foobar_path.clone(), "# Foo Bar");
+        indexer.update_content(foobar_path.clone(), "# Foo Bar", "main".to_string());
     }
 
     // Initialize to build tree and create virtual notes
-    ws.initialize(temp_dir.path().to_path_buf(), &fs_backend);
+    ws.initialize(&fs_backend);
 
     // Get tree view
     let tree_view = ws.get_tree_view();
@@ -848,10 +932,14 @@ fn test_virtual_notes_in_tree_view() {
     let baz_path = temp_dir.path().join("foo.bar.baz.md");
     fs::write(&baz_path, "# Baz").unwrap();
     let fs_backend = PhysicalFileSystem;
-    Indexer::new(&mut ws, &fs_backend).update_content(baz_path.clone(), "# Baz");
+    Indexer::new(&mut ws, &fs_backend).update_content(
+        baz_path.clone(),
+        "# Baz",
+        "main".to_string(),
+    );
 
     // Initialize to create virtual notes
-    ws.initialize(temp_dir.path().to_path_buf(), &fs_backend);
+    ws.initialize(&fs_backend);
 
     // Get tree view
     let tree_view = ws.get_tree_view();
@@ -923,7 +1011,11 @@ fn test_resolve_link_anchor() {
     let target_content = "# Heading 1\n\nSome text ^block-1\n\n## Heading 2\n\nMore text ^block-2";
     fs::write(&target_path, target_content).unwrap();
     let fs_backend = PhysicalFileSystem;
-    Indexer::new(&mut ws, &fs_backend).update_content(target_path.clone(), target_content);
+    Indexer::new(&mut ws, &fs_backend).update_content(
+        target_path.clone(),
+        target_content,
+        "main".to_string(),
+    );
 
     let target_id = ws.store.note_id_by_path(&target_path).unwrap().clone();
 
@@ -931,7 +1023,11 @@ fn test_resolve_link_anchor() {
     let source_path = temp_dir.path().join("source.md");
     let source_content = "[[target#heading-1]], [[target#^block-2]]";
     fs::write(&source_path, source_content).unwrap();
-    Indexer::new(&mut ws, &fs_backend).update_content(source_path.clone(), source_content);
+    Indexer::new(&mut ws, &fs_backend).update_content(
+        source_path.clone(),
+        source_content,
+        "main".to_string(),
+    );
     let note = ws.note_by_path(&source_path).unwrap();
     assert_eq!(note.links.len(), 2);
 
@@ -957,7 +1053,7 @@ fn test_content_offset_preservation() {
     let path = temp_dir.path().join("note.md");
     let content = "---\ntitle: Test\n---\nHello World";
     fs::write(&path, content).unwrap();
-    Indexer::new(&mut ws, &fs).update_content(path.clone(), content);
+    Indexer::new(&mut ws, &fs).update_content(path.clone(), content, "main".to_string());
 
     let note = ws.note_by_path(&path).expect("Note should exist");
     assert_eq!(note.content_offset, 19);
@@ -971,7 +1067,11 @@ fn test_resolve_link_blocks() {
     let target_path = temp_dir.path().join("target.md");
     let target_content = "Some text.\n\nMore text. ^block-123";
     fs::write(&target_path, target_content).unwrap();
-    Indexer::new(&mut ws, &fs).update_content(target_path.clone(), target_content);
+    Indexer::new(&mut ws, &fs).update_content(
+        target_path.clone(),
+        target_content,
+        "main".to_string(),
+    );
 
     let target_id = ws.store.note_id_by_path(&target_path).unwrap().clone();
     let link = Link {
@@ -1002,7 +1102,11 @@ Content under heading 1.
 ## Heading 2
 Content under heading 2."#;
     fs::write(&target_path, target_content).unwrap();
-    Indexer::new(&mut ws, &fs).update_content(target_path.clone(), target_content);
+    Indexer::new(&mut ws, &fs).update_content(
+        target_path.clone(),
+        target_content,
+        "main".to_string(),
+    );
 
     let target_id = ws.store.note_id_by_path(&target_path).unwrap().clone();
 

@@ -19,8 +19,8 @@ pub async fn handle_get_hierarchy(
         )
         .await;
 
-    let state_lock = state.vault.read().await;
-    let Some(vault) = &*state_lock else {
+    let state_lock = state.engine.read().await;
+    let Some(engine) = &*state_lock else {
         client
             .log_message(
                 MessageType::WARNING,
@@ -33,7 +33,7 @@ pub async fn handle_get_hierarchy(
             data: None,
         });
     };
-    let ws = &vault.workspace;
+    let ws = &engine.workspace;
 
     // Get tree view from workspace
     let mut tree_view = ws.get_tree_view();
@@ -76,10 +76,10 @@ pub async fn handle_reorganize_hierarchy_command(
 ) -> Result<Option<serde_json::Value>> {
     let (old_key, new_key) = parse_hierarchy_args(&params)?;
 
-    let vault_guard = state.vault.read().await;
-    let vault = vault_guard.as_ref().ok_or_else(Error::internal_error)?;
+    let engine_guard = state.engine.read().await;
+    let engine = engine_guard.as_ref().ok_or_else(Error::internal_error)?;
 
-    let plan = vault.rename_hierarchy(&old_key, &new_key);
+    let plan = engine.rename_hierarchy(&old_key, &new_key);
 
     if let Some(plan) = plan {
         crate::handlers::apply_edit_plan(client, plan.clone()).await?;
@@ -113,11 +113,11 @@ pub async fn handle_resolve_hierarchy_edits(
 ) -> Result<Option<serde_json::Value>> {
     let (old_key, new_key) = parse_hierarchy_args(&params)?;
 
-    let vault_guard = state.vault.read().await;
-    let vault = vault_guard.as_ref().ok_or_else(Error::internal_error)?;
+    let engine_guard = state.engine.read().await;
+    let engine = engine_guard.as_ref().ok_or_else(Error::internal_error)?;
 
     // Dry Run
-    let plan = vault.rename_hierarchy(&old_key, &new_key);
+    let plan = engine.rename_hierarchy(&old_key, &new_key);
     let mut moves = Vec::new();
 
     if let Some(plan) = plan {
@@ -142,8 +142,8 @@ pub async fn handle_resolve_hierarchy_edits(
                     };
 
                     if let (Some(op), Some(np)) = (to_path(old_uri), to_path(&new_uri)) {
-                        let k1 = vault.workspace.resolve_note_key(&op).unwrap_or_default();
-                        let k2 = vault.workspace.resolve_note_key(&np).unwrap_or_default();
+                        let k1 = engine.workspace.resolve_note_key(&op).unwrap_or_default();
+                        let k2 = engine.workspace.resolve_note_key(&np).unwrap_or_default();
                         moves.push((k1, k2));
                     }
                 }

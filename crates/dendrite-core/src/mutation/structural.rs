@@ -220,6 +220,7 @@ mod tests {
     fn create_dummy_note(id: NoteId, name: &str) -> crate::model::Note {
         crate::model::Note {
             id,
+            vault_name: "main".to_string(),
             path: Some(PathBuf::from(format!("{}.md", name))),
             title: Some(name.to_string()),
             frontmatter: None,

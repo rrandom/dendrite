@@ -150,6 +150,7 @@ impl Workspace {
                 id: id_string,
                 key: note_key,
                 path: path_uri,
+                vault_name: Some(note.vault_name.clone()),
                 title,
             },
             children,
@@ -200,6 +201,7 @@ impl Workspace {
             // create virtual note (no path, no content)
             let virtual_note = crate::model::Note {
                 id: virtual_id.clone(),
+                vault_name: "virtual".to_string(),
                 path: None, // virtual note has no actual file
                 title: None,
                 frontmatter: None,

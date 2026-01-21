@@ -26,11 +26,13 @@ impl<'a> NoteAssembler<'a> {
         parse_result: ParseResult,
         path: &std::path::Path,
         note_id: &NoteId,
+        vault_name: String,
     ) -> Note {
         let source_key = self.model.note_key_from_path(path, "");
 
         Note {
             id: note_id.clone(),
+            vault_name,
             path: Some(path.to_path_buf()),
             title: parse_result.title,
             frontmatter: parse_result.frontmatter,

@@ -7,22 +7,24 @@ use std::path::PathBuf;
 use std::sync::RwLock;
 
 mod assembler;
+mod engine;
 mod indexer;
 mod mutations;
 mod note_tree;
 mod queries;
 mod sync_ops;
-mod vault;
 
 #[cfg(test)]
 mod cache_tests;
 #[cfg(test)]
+mod multi_vault_tests;
+#[cfg(test)]
 mod tests;
 
 pub use crate::vfs::FileSystem;
+pub use engine::DendriteEngine;
 pub use indexer::Indexer;
 use note_tree::NoteTree;
-pub use vault::Vault;
 
 pub struct Workspace {
     pub(crate) config: crate::config::DendriteConfig,
@@ -43,5 +45,14 @@ impl Workspace {
             tree_cache: RwLock::new(None),
             cache_metadata: HashMap::new(),
         }
+    }
+
+    pub fn vault_name_for_path(&self, path: &std::path::Path) -> Option<String> {
+        for vault in &self.config.workspace.vaults {
+            if path.starts_with(&vault.path) {
+                return Some(vault.name.clone());
+            }
+        }
+        None
     }
 }

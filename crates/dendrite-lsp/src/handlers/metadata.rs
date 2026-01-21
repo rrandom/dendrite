@@ -21,12 +21,12 @@ pub async fn handle_will_save_wait_until(
     };
 
     // 2. Get note metadata to find frontmatter limit
-    let vault_lock = state.vault.read().await;
-    let Some(vault) = &*vault_lock else {
+    let engine_lock = state.engine.read().await;
+    let Some(engine) = &*engine_lock else {
         return Ok(None);
     };
 
-    let Some(note) = vault.workspace.note_by_path(&path) else {
+    let Some(note) = engine.workspace.note_by_path(&path) else {
         return Ok(None);
     };
 

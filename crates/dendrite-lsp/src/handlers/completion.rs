@@ -52,11 +52,11 @@ pub async fn handle_completion(
     let input_raw = &text_before[last_open_idx + 2..];
 
     // 4. Initialize Vault
-    let state_lock = state.vault.read().await;
-    let Some(vault) = &*state_lock else {
+    let state_lock = state.engine.read().await;
+    let Some(engine) = &*state_lock else {
         return Ok(None);
     };
-    let ws = &vault.workspace;
+    let ws = &engine.workspace;
 
     // 5. Determine completion mode (Note vs Anchor)
     let items = if let Some((note_part, _anchor_part)) = input_raw.split_once('#') {

@@ -9,16 +9,16 @@ pub async fn handle_workspace_audit_command(
     state: &GlobalState,
     _params: ExecuteCommandParams,
 ) -> Result<Option<serde_json::Value>> {
-    let vault_guard = state.vault.read().await;
-    let vault = vault_guard.as_ref().ok_or_else(Error::internal_error)?;
+    let engine_guard = state.engine.read().await;
+    let engine = engine_guard.as_ref().ok_or_else(Error::internal_error)?;
 
-    let report = vault.audit();
+    let report = engine.audit();
 
     // Group diagnostics by URI
     let mut diagnostics_map: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
 
     // Get root path from resolver
-    let root_path = Some(vault.workspace.root());
+    let root_path = Some(engine.workspace.root());
 
     for diag in &report.diagnostics {
         if let Some((url, lsp_diag)) =

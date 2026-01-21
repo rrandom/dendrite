@@ -54,11 +54,11 @@ async fn test_lsp_initialize() {
 
     assert!(result.capabilities.completion_provider.is_some());
 
-    // Check if vault was initialized in state
-    let vault_lock = state.vault.read().await;
-    assert!(vault_lock.is_some());
-    let vault = vault_lock.as_ref().unwrap();
-    let ws = &vault.workspace;
+    // Check if engine was initialized in state
+    let engine_lock = state.engine.read().await;
+    assert!(engine_lock.is_some());
+    let engine = engine_lock.as_ref().unwrap();
+    let ws = &engine.workspace;
 
     assert!(ws.all_notes().len() >= 2);
 }
@@ -249,9 +249,9 @@ async fn test_lsp_rename() {
 
     // Verify "old_note" exists in workspace
     {
-        let vault_lock = state.vault.read().await;
-        let vault = vault_lock.as_ref().unwrap();
-        let key_check = vault.workspace.resolve_note_key(&old_path);
+        let engine_lock = state.engine.read().await;
+        let engine = engine_lock.as_ref().unwrap();
+        let key_check = engine.workspace.resolve_note_key(&old_path);
         assert_eq!(
             key_check,
             Some("old_note".to_string()),
@@ -901,12 +901,12 @@ async fn test_delete_note_plan() {
     )
     .await;
 
-    // 2. Get Vault and call delete_note
+    // 2. Get DendriteEngine and call delete_note
     {
-        let vault_guard = state.vault.read().await;
-        let vault = vault_guard.as_ref().unwrap();
+        let engine_guard = state.engine.read().await;
+        let engine = engine_guard.as_ref().unwrap();
 
-        let plan = vault
+        let plan = engine
             .delete_note("todelete")
             .expect("Should generate delete plan");
 

@@ -1,7 +1,7 @@
 use crate::config::LspSettings;
 use dendrite_core::mutation::model::EditPlan;
 use dendrite_core::vfs::FileSystem;
-use dendrite_core::workspace::Vault;
+use dendrite_core::workspace::DendriteEngine;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -11,8 +11,8 @@ use tower_lsp::lsp_types::Url;
 /// Must be Send + Sync
 #[derive(Clone)]
 pub struct GlobalState {
-    /// RwLock-protected Core Vault (Workspace + FS)
-    pub vault: Arc<RwLock<Option<Vault>>>,
+    /// RwLock-protected Core Engine (Workspace + FS)
+    pub engine: Arc<RwLock<Option<DendriteEngine>>>,
     /// Document content cache (URI -> content)
     /// Stores the current document text for completion and other operations
     pub document_cache: Arc<RwLock<HashMap<Url, String>>>,
@@ -32,7 +32,7 @@ impl GlobalState {
         let config = LspSettings::default();
 
         let state = Self {
-            vault: Arc::new(RwLock::new(None)),
+            engine: Arc::new(RwLock::new(None)),
             document_cache: Arc::new(RwLock::new(HashMap::new())),
             fs,
             mutation_history: Arc::new(RwLock::new(VecDeque::with_capacity(
