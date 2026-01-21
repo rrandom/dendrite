@@ -1,8 +1,10 @@
 use crate::model::{Note, NoteId};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
 // In memory
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Store {
     pub(crate) notes: HashMap<NoteId, Note>,
     pub(crate) path_map: HashMap<PathBuf, NoteId>,

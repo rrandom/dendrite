@@ -18,6 +18,7 @@ pub async fn handle_did_open(state: &GlobalState, params: DidOpenTextDocumentPar
     if let Some(v) = &mut *vault_lock {
         if let Ok(path) = uri.to_file_path() {
             v.update_content(path, &text);
+            let _ = state.dirty_signal.send(());
         }
     }
 }
@@ -40,6 +41,7 @@ pub async fn handle_did_change(state: &GlobalState, params: DidChangeTextDocumen
         if let Some(v) = &mut *vault_lock {
             if let Ok(path) = uri.to_file_path() {
                 v.update_content(path, &text);
+                let _ = state.dirty_signal.send(());
             }
         }
     }
@@ -86,6 +88,7 @@ pub async fn handle_did_change_watched_files(
     }
 
     if changed {
+        let _ = state.dirty_signal.send(());
         client
             .send_notification::<HierarchyChangedNotification>(serde_json::Value::Null)
             .await;
@@ -159,5 +162,6 @@ pub async fn handle_did_rename_files(
                 }
             }
         }
+        let _ = state.dirty_signal.send(());
     }
 }

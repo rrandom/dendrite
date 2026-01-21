@@ -5,6 +5,7 @@
 //!
 
 pub mod analysis;
+pub mod cache;
 mod config;
 pub mod identity;
 pub mod line_map;

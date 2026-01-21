@@ -1,8 +1,10 @@
 use crate::model::{NoteId, NoteKey};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// NoteKey <=> NoteId
 /// Concrete registry for managing unique identifiers for notes.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdentityRegistry {
     key_to_id: HashMap<NoteKey, NoteId>,
     id_to_key: HashMap<NoteId, NoteKey>,

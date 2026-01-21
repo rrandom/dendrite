@@ -60,6 +60,7 @@ pub struct Note {
     pub id: NoteId,
     pub path: Option<PathBuf>,
     pub title: Option<String>,
+    #[serde(with = "frontmatter_serde")]
     pub frontmatter: Option<serde_json::Value>,
     pub content_offset: u32,
     pub links: Vec<Link>,
@@ -120,4 +121,31 @@ pub struct NoteRef {
 pub struct TreeView {
     pub note: NoteRef,
     pub children: Vec<TreeView>,
+}
+
+mod frontmatter_serde {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use serde_json;
+
+    pub fn serialize<S>(value: &Option<serde_json::Value>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = match value {
+            Some(v) => Some(v.to_string()),
+            None => None,
+        };
+        s.serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<serde_json::Value>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: Option<String> = Option::<String>::deserialize(deserializer)?;
+        match s {
+            Some(string) => serde_json::from_str(&string).map_err(serde::de::Error::custom),
+            None => Ok(None),
+        }
+    }
 }

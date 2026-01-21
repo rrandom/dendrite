@@ -1,8 +1,10 @@
-use std::sync::RwLock;
-
+use crate::cache::FileMetadata;
 use crate::identity::IdentityRegistry;
 use crate::semantic::SemanticModel;
 use crate::store::Store;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::RwLock;
 
 mod assembler;
 mod indexer;
@@ -12,6 +14,8 @@ mod queries;
 mod sync_ops;
 mod vault;
 
+#[cfg(test)]
+mod cache_tests;
 #[cfg(test)]
 mod tests;
 
@@ -25,6 +29,7 @@ pub struct Workspace {
     pub(crate) identity: IdentityRegistry,
     pub(crate) store: Store,
     pub(crate) tree_cache: RwLock<Option<NoteTree>>,
+    pub(crate) cache_metadata: HashMap<PathBuf, FileMetadata>,
 }
 
 impl Workspace {
@@ -34,6 +39,7 @@ impl Workspace {
             identity: IdentityRegistry::new(),
             store: Store::new(),
             tree_cache: RwLock::new(None),
+            cache_metadata: HashMap::new(),
         }
     }
 }

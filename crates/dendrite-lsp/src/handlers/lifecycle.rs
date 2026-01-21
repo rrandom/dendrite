@@ -23,12 +23,24 @@ pub async fn handle_initialize(
 
             let root_path_clone = root_path.clone();
             let fs = state.fs.clone();
-            let (vault, files) = tokio::task::spawn_blocking(move || {
+            let (vault, _files, stats, cache_loaded_msg) = tokio::task::spawn_blocking(move || {
                 let workspace =
                     Workspace::new(Box::new(DendronModel::new(root_path_clone.clone())));
                 let mut v = Vault::new(workspace, fs);
-                let files = v.initialize(root_path_clone);
-                (v, files)
+
+                // Try to load cache first
+                let cache_path = root_path_clone.join(".dendrite").join("cache.bin");
+                let cache_msg = match v.load_cache(&cache_path) {
+                    Ok(_) => "💾 Persistent cache loaded successfully".to_string(),
+                    Err(e) => format!("🆕 Starting fresh scan (cache: {})", e),
+                };
+
+                let (files, stats) = v.initialize(root_path_clone.clone());
+
+                // Save cache immediately to warm it up
+                let _ = v.save_cache(&cache_path);
+
+                (v, files, stats, cache_msg)
             })
             .await
             .map_err(|e| tower_lsp::jsonrpc::Error {
@@ -37,8 +49,20 @@ pub async fn handle_initialize(
                 data: None,
             })?;
 
+            client.log_message(MessageType::INFO, cache_loaded_msg).await;
+
             client
-                .log_message(MessageType::INFO, format!("Found {} files:", files.len()))
+                .log_message(
+                    MessageType::INFO,
+                    format!(
+                        "✅ Workspace initialized: {} files found, {} hits (T1: {}, T2: {}), {} parsed",
+                        stats.total_files,
+                        stats.tier1_hits + stats.tier2_hits,
+                        stats.tier1_hits,
+                        stats.tier2_hits,
+                        stats.full_parses
+                    ),
+                )
                 .await;
 
             let notes_count = vault.workspace.all_notes().len();

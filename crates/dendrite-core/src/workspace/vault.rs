@@ -26,11 +26,42 @@ impl Vault {
         Self { workspace, fs }
     }
 
+    pub fn load_cache(&mut self, path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::cache::PersistentState;
+        let state = PersistentState::load(path, &*self.fs)?;
+
+        // Safety check: only load if model IDs match
+        if state.model_id != self.workspace.model.id().0 {
+            return Err("Cache model mismatch".into());
+        }
+
+        self.workspace.store = state.store;
+        self.workspace.identity = state.identity;
+        self.workspace.cache_metadata = state.metadata;
+        self.workspace.invalidate_tree();
+        Ok(())
+    }
+
+    pub fn save_cache(&self, path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::cache::PersistentState;
+        let state = PersistentState {
+            version: PersistentState::CURRENT_VERSION,
+            model_id: self.workspace.model.id().0.to_string(),
+            store: self.workspace.store.clone(),
+            identity: self.workspace.identity.clone(),
+            metadata: self.workspace.cache_metadata.clone(),
+        };
+        state.save(path, &*self.fs)
+    }
+
     // ------------------------------------------------------------------------
     // File System Sync (Changes coming FROM disk)
     // ------------------------------------------------------------------------
 
-    pub fn initialize(&mut self, root: PathBuf) -> Vec<PathBuf> {
+    pub fn initialize(
+        &mut self,
+        root: PathBuf,
+    ) -> (Vec<PathBuf>, crate::workspace::indexer::IndexingStats) {
         self.workspace.initialize(root, &*self.fs)
     }
 

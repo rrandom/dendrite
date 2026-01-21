@@ -21,6 +21,14 @@ pub(crate) struct ParseResult {
     pub digest: String,
 }
 
+/// Computes a hex-encoded SHA256 digest of the given text
+pub(crate) fn compute_digest(text: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(text);
+    format!("{:x}", hasher.finalize())
+}
+
 /// Parse markdown content into structured data
 pub(crate) fn parse_markdown(text: &str, supported_kinds: &[LinkKind]) -> ParseResult {
     let mut options = Options::empty();
@@ -307,10 +315,7 @@ pub(crate) fn parse_markdown(text: &str, supported_kinds: &[LinkKind]) -> ParseR
         }
     }
 
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(text);
-    let digest = format!("{:x}", hasher.finalize());
+    let digest = compute_digest(text);
 
     ParseResult {
         links,

@@ -19,15 +19,28 @@ pub struct GlobalState {
     pub fs: Arc<dyn FileSystem>,
     /// History of applied mutations for multi-level undo
     pub mutation_history: Arc<RwLock<VecDeque<EditPlan>>>,
+    /// Signal to trigger debounced cache saving
+    pub(crate) dirty_signal: tokio::sync::mpsc::UnboundedSender<()>,
 }
 
 impl GlobalState {
     pub fn new(fs: Arc<dyn FileSystem>) -> Self {
-        Self {
+        let (dirty_tx, dirty_rx) = tokio::sync::mpsc::unbounded_channel();
+
+        let state = Self {
             vault: Arc::new(RwLock::new(None)),
             document_cache: Arc::new(RwLock::new(HashMap::new())),
             fs,
             mutation_history: Arc::new(RwLock::new(VecDeque::with_capacity(5))),
-        }
+            dirty_signal: dirty_tx,
+        };
+
+        // Start background cache manager
+        let manager = crate::cache_manager::CacheManager::new(state.clone(), dirty_rx);
+        tokio::spawn(async move {
+            manager.start().await;
+        });
+
+        state
     }
 }

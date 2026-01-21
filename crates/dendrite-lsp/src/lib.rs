@@ -11,6 +11,7 @@ use dendrite_core::vfs::PhysicalFileSystem;
 use state::GlobalState;
 use std::sync::Arc;
 
+mod cache_manager;
 mod conversion;
 mod handlers;
 mod protocol;
@@ -135,6 +136,13 @@ impl tower_lsp::LanguageServer for Backend {
 
     async fn shutdown(&self) -> tower_lsp::jsonrpc::Result<()> {
         eprintln!("🛑 Shutdown requested");
+        let vault_lock = self.state.vault.read().await;
+        if let Some(vault) = &*vault_lock {
+            let root = vault.workspace.root().to_path_buf();
+            let cache_path = root.join(".dendrite").join("cache.bin");
+            let _ = vault.save_cache(&cache_path);
+            eprintln!("💾 Final cache save complete");
+        }
         Ok(())
     }
 

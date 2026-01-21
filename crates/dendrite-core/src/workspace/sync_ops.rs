@@ -9,7 +9,11 @@ use super::{Indexer, Workspace};
 /// They are responsible for KEEPING the workspace in sync with what is on disk.
 /// They DO NOT modify files on disk, they only update the in-memory state (Store/Index).
 impl Workspace {
-    pub fn initialize(&mut self, root: PathBuf, fs: &dyn FileSystem) -> Vec<PathBuf> {
+    pub fn initialize(
+        &mut self,
+        root: PathBuf,
+        fs: &dyn FileSystem,
+    ) -> (Vec<PathBuf>, crate::workspace::indexer::IndexingStats) {
         let mut indexer = Indexer::new(self, fs);
         indexer.full_index(root)
     }
