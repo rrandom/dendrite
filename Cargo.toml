@@ -9,3 +9,10 @@ resolver = "2"
 version = "0.2.0"
 edition = "2021"
 
+
+[profile.release]
+opt-level = "z"  # Optimize for size
+lto = true       # Enable Link Time Optimization
+codegen-units = 1 # Maximize optimization units
+panic = "abort"  # Remove panic unwinding
+strip = true     # Strip symbols from binary
