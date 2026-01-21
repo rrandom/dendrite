@@ -44,7 +44,8 @@ pub async fn handle_initialize(
                         dendrite_core::DendriteConfig::from_yaml(&content).unwrap_or_default()
                     } else {
                         let mut c = dendrite_core::DendriteConfig::default();
-                        if let Some(main) = c.workspace.vaults.iter_mut().find(|v| v.name == "main") {
+                        if let Some(main) = c.workspace.vaults.iter_mut().find(|v| v.name == "main")
+                        {
                             main.path = root_path_clone.clone();
                         }
                         c

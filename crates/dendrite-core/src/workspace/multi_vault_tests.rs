@@ -1,7 +1,6 @@
 use crate::semantic::DendronModel;
 use crate::vfs::PhysicalFileSystem;
 use crate::workspace::{DendriteEngine, Workspace};
-use std::path::Path;
 use std::sync::Arc;
 use tempfile::TempDir;
 
