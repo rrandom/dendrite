@@ -14,7 +14,9 @@ Each knowledge ecosystem (Obsidian, Dendron, Logseq) has its own "logic" for:
 - **Hierarchy**: How parent-child relationships are formed (folders vs. naming conventions).
 - **References**: How links are resolved and formatted.
 
-Dendrite abstracts these behaviors, allowing the same core engine to power different workflows seamlessly.
+Dendrite abstracts these behaviors, allowing the same core engine to power different workflows seamlessly. 
+
+It is designed for speed: featuring a **two-tier persistent cache** and a **debounced background saver**, ensuring near-instant startup even for massive knowledge bases.
 
 ## Prerequisites
 

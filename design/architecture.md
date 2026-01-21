@@ -12,6 +12,7 @@ graph TD
     Vault[Vault Orchestrator]
     Indexer[Indexer - Process Logic]
     Core[Core State - Workspace]
+    Cache[(Persistent Cache)]
     Strategy[Semantic Model - Traits]
     VFS[FileSystem - Trait]
     
@@ -20,21 +21,23 @@ graph TD
     Vault -- Uses --> Indexer
     Indexer -- Mutates --> Core
     Indexer -- Reads/Writes --> VFS
+    Indexer -- Syncs --> Cache
     Core -- Traits --> Strategy
 ```
 
-### 1.1 Client Layer
 - **LSP Backend**: Implements the Language Server Protocol.
 - **Vault Handle**: Uses the `Vault` orchestrator as the primary entry point for all operations.
+- **CacheManager**: A background task that handles **debounced saving** to the persistent cache, ensuring high performance during active typing.
 - **Document Cache**: Manages "dirty" buffers (unsaved changes) to provide real-time feedback.
 
 ### 1.2 Core Engine (`dendrite-core`)
 - **Vault**: The top-level orchestrator that bridges `Workspace` with `FileSystem`.
-- **Indexer**: Orchestrates the "Process" of indexing (scan -> parse -> assemble -> upsert).
+- **Indexer**: Orchestrates the "Process" of indexing (scan -> parse -> assemble -> upsert). Features a **two-tier invalidation** logic.
 - **Workspace**: A **pure state container** holding notes, links, and the hierarchy tree.
+- **Persistent Cache**: A binary (`bincode`) storage for the Workspace state, accelerated by SHA256 content digests.
 - **Store**: An in-memory graph database storing notes, links, and backlinks.
 - **Identity Registry**: Ensures note IDs remain stable across renames.
-- **Refactor Engine**: A read-only component that calculates `EditPlan` objects based on graph relationships.
+- **Mutation Engine**: Calculates `EditPlan` objects for structural changes and content transformations.
  
 ### 1.3 Strategy Layer (Semantic Abstraction)
 - **Trait-Based**: All syntax-specific behaviors (file naming, link formats, hierarchy rules) are abstracted behind the `SemanticModel` trait.
@@ -74,15 +77,16 @@ Dendrite communicates via **JSON-RPC 2.0**, primarily following the **LSP** spec
 
 The Engine provides several distinct API surfaces:
 - **Query API**: Read-only access to notes, links, and graph relationships.
-- **Refactor API**: Generates **Edit Plans** (Atomic, previewable file changes).
+- **Mutation API**: Generates **Edit Plans** (Atomic, previewable file changes) and supports **Undo** through plan inversion.
 - **Introspection API**: Provides indexing status and engine capabilities.
  
-## 4. Refactoring Philosophy
+## 4. Mutation & Refactoring Philosophy
 
-Dendrite's refactor engine operates on a **Pure Calculation** model:
+Dendrite's mutation engine operates on a **Pure Calculation** model:
 1. **Read-Only Core**: The engine never modifies files; it only produces an `EditPlan`.
-2. **Client-Driven Execution**: The Client (LSP/Editor) is responsible for applying changes and handling undo/redo.
-3. **Semantic Aware**: Changes are calculated using the Knowledge Graph, ensuring all backlinks and references are identified.
+2. **Client-Driven Execution**: The Client (LSP/Editor) is responsible for applying changes.
+3. **Reversibility**: Most `EditPlan`s are **Invertible**. The engine can generate an inverse plan to undo a mutation safely.
+4. **Semantic Aware**: Changes are calculated using the Knowledge Graph, ensuring all backlinks and references are identified.
 
 ### 4.1 Refactoring Flow
 

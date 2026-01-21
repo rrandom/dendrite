@@ -11,7 +11,7 @@ A **Note** is the primary unit of knowledge, typically mapped to a single `.md` 
 - **Identity**: Every note has a stable `NoteId` (UUID) that persists even if the file is renamed or moved.
 - **Key**: A hierarchical identifier (e.g., `projects.dendrite`) used for navigation and tree construction.
 - **Title**: Derived from YAML frontmatter or the first H1 heading.
-- **Digest**: A SHA256 hash of the content used for efficient change detection.
+- **Digest**: A SHA256 hash of the content used for efficient change detection and **Tier 2 cache invalidation**.
 
 ### 1.2 Block
 A **Block** is a semantic unit within a note (Paragraph, List Item, etc.) that can be uniquely addressed.
@@ -21,15 +21,16 @@ A **Block** is a semantic unit within a note (Paragraph, List Item, etc.) that c
 ### 1.3 Link
 A **Link** represents a relationship between notes or blocks.
 - **Types**: Supports WikiLinks `[[target]]` and standard Markdown links `[label](target)`.
-- **Metadata**: Supports aliases and anchors. The exact format (e.g., `[[alias|target]]` vs `[[target|alias]]`) is determined by the active `SyntaxStrategy`.
+- **Metadata**: Supports aliases and anchors. The exact format (e.g., `[[alias|target]]` vs `[[target|alias]]`) is determined by the active **`SemanticModel`**.
 - **Graph**: The collection of all links forms a directed graph, enabling backlink discovery.
-- **Resolution**: Link targets are resolved to stable `NoteId`s through the `SyntaxStrategy`.
+- **Resolution**: Link targets are resolved to stable `NoteId`s through the **`SemanticModel`**.
 
 ### 1.4 EditPlan
 An **EditPlan** is a set of proposed structural changes to the workspace.
 - **Atomic**: A plan represents a single logical operation (e.g., Rename).
 - **Side-Effect Free**: The Refactor Engine only generates the plan; it does not apply it.
 - **Safety**: Plans include **Preconditions** that the client must verify before execution.
+- **Diagnostics**: For operations like **Audit**, a plan may contain only diagnostics to report broken links or inconsistent state without proposing text changes.
 
 ---
 
@@ -41,9 +42,11 @@ An **EditPlan** is a set of proposed structural changes to the workspace.
 | **Vault** | High-level orchestrator that combines `Workspace` (state) and `FileSystem` (I/O). |
 | **Workspace** | A **pure state container** holding notes, links, and hierarchy trees. No I/O knowledge. |
 | **FileSystem** | An abstraction layer (Trait) for file system operations, enabling portability (Desktop/WASM). |
+| **Persistent Cache** | A binary storage model using `bincode` that allows the Engine to restore its state instantly without re-parsing files. |
 | **Identity Registry** | The module responsible for maintaining stable IDs for notes. |
-| **SyntaxStrategy** | A pluggable trait that defines syntax-specific behaviors: file naming conventions, link formats (WikiLink syntax), hierarchy rules, and text generation for refactoring. Enables support for multiple note-taking formats (Dendron, Obsidian, etc.). |
+| **SemanticModel** | A pluggable trait that defines syntax-specific behaviors: file naming conventions, link formats (WikiLink syntax), hierarchy rules, and text generation for refactoring. Enables support for multiple note-taking formats (Dendron, Obsidian, etc.). |
 | **Refactor Engine** | The core component responsible for calculating safe, semantic-aware structural changes (Rename, Move, etc.). |
+| **Workspace Audit** | A system-wide analysis that identifies broken references, missing targets, and syntax violations. |
 | **Ghost / Virtual Note** | A node in the hierarchy that has children but no corresponding file on disk. |
 
 ---
@@ -54,4 +57,5 @@ Dendrite follows an **Eventual Consistency** model:
 1. **Single Source of Truth**: The local filesystem is the authoritative state.
 2. **Derived State**: The memory index is a derived snapshot that can be rebuilt at any time.
 3. **Overlay Priority**: When a document is open in an editor, the memory buffer (LSP Overlay) has higher priority than the disk content.
-4. **Change Detection**: Using content digests, the Engine minimizes re-indexing work, only updating the graph when meaningful changes occur.
+4. **Change Detection**: Using a **two-tier invalidation** strategy (Metadata match + Content Digest match), the Engine minimizes re-indexing work, only updating the graph when meaningful changes occur.
+5. **Cold Startup**: A **persistent binary cache** accelerates the recovery of the derived state from the source of truth, skipping file reads and parsing for unchanged notes.
